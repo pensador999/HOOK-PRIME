@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  const TIFFANY = '#41FF0A';
+  const TIFFANY = '#0ae448';
 
   // ═══════════════════════════════════════
   // PARSER PATTERNS
@@ -294,9 +294,9 @@
 
   function renderAgentCard() {
     return `
-    <div class="card card--glow" style="padding:0;border:1px solid rgba(65, 255, 10,.15);overflow:hidden;margin-bottom:24px" id="agent-card">
+    <div class="card card--glow" style="padding:0;border:1px solid rgba(10, 228, 72,.15);overflow:hidden;margin-bottom:24px" id="agent-card">
       <!-- Header -->
-      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(65, 255, 10,.08),rgba(65, 255, 10,.02));border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(10, 228, 72,.08),rgba(10, 228, 72,.02));border-bottom:1px solid rgba(255,255,255,.06)">
         <div style="display:flex;align-items:center;gap:14px">
           <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,${TIFFANY}30,${TIFFANY}10);display:flex;align-items:center;justify-content:center;font-size:22px">🤖</div>
           <div>

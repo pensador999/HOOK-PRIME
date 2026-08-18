@@ -19,7 +19,7 @@
         btn.id = 'hook-prime-btn';
         btn.innerText = '🚀 Enviar para HOOK PRIME';
         btn.style.cssText = `
-            background: linear-gradient(135deg, #32CC08, #41FF0A);
+            background: linear-gradient(135deg, #059669, #0ae448);
             color: #FFFFFF;
             border: none;
             padding: 6px 14px;
@@ -108,7 +108,7 @@
                         btn.style.background = '#22c55e';
                         setTimeout(() => {
                             btn.innerText = '🚀 Enviar para HOOK PRIME';
-                            btn.style.background = 'linear-gradient(135deg, #32CC08, #41FF0A)';
+                            btn.style.background = 'linear-gradient(135deg, #059669, #0ae448)';
                             btn.style.opacity = '1';
                         }, 3000);
                     } else {
@@ -168,7 +168,7 @@
         if (!badge) badge = createStatusBadge();
         if (isOnline) {
             badge.innerText = '🟢 HOOK PRIME Connected';
-            badge.style.background = 'linear-gradient(135deg, #32CC08, #41FF0A)';
+            badge.style.background = 'linear-gradient(135deg, #059669, #0ae448)';
         } else {
             badge.innerText = '🔴 HOOK PRIME Offline';
             badge.style.background = '#666';

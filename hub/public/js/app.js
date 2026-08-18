@@ -47,19 +47,9 @@
     const titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = pages[page].title;
 
-    // Renderiza conteúdo com animação
+    // Renderiza conteúdo (GSAP handles transition via gsap-init.js)
     const content = document.getElementById('app-content');
-    content.style.opacity = '0';
-    content.style.transform = 'translateY(8px)';
-
-    setTimeout(() => {
-      pages[page].render();
-      requestAnimationFrame(() => {
-        content.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
-        content.style.opacity = '1';
-        content.style.transform = 'translateY(0)';
-      });
-    }, 150);
+    pages[page].render();
 
     // Atualiza hash na URL
     history.pushState(null, '', `#${page}`);

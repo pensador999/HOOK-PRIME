@@ -141,7 +141,7 @@
     const Registry = getRegistry();
     const APC_COLORS = Registry.APC_COLORS || ['Preto', 'Branco'];
     const APC_COLOR_CSS = Registry.APC_COLOR_CSS || {};
-    const TIFFANY = Registry.TIFFANY || '#41FF0A';
+    const TIFFANY = Registry.TIFFANY || '#0ae448';
     const TIFFANY_D = Registry.TIFFANY_D || '#089994';
 
     let html = '';

@@ -51,31 +51,31 @@
 
         <div class="clickup-radar__columns" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: start;">
           <div class="clickup-radar-col" id="col-pending">
-            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #41FF0A; background: rgba(65, 255, 10,0.05);">
+            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #0ae448; background: rgba(10, 228, 72,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #41FF0A; box-shadow: 0 0 8px #41FF0A;"></span>
-                <span class="clickup-pill__name" style="color: #41FF0A;">1. A Fazer</span>
+                <span class="clickup-pill__dot" style="background: #0ae448; box-shadow: 0 0 8px #0ae448;"></span>
+                <span class="clickup-pill__name" style="color: #0ae448;">1. A Fazer</span>
               </div>
-              <span class="clickup-pill__tag" style="background: rgba(65, 255, 10,0.1); color: #41FF0A;">Principal</span>
+              <span class="clickup-pill__tag" style="background: rgba(10, 228, 72,0.1); color: #0ae448;">Principal</span>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-in-progress">
-            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #6CFF42; background: rgba(65,255,10,0.05);">
+            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #34d399; background: rgba(10, 228, 72,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #6CFF42;"></span>
-                <span class="clickup-pill__name" style="color: #6CFF42;">2. Em Execução</span>
+                <span class="clickup-pill__dot" style="background: #34d399;"></span>
+                <span class="clickup-pill__name" style="color: #34d399;">2. Em Execução</span>
               </div>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-done">
-            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #32CC08; background: rgba(8,158,154,0.05);">
+            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #059669; background: rgba(8,158,154,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #32CC08;"></span>
-                <span class="clickup-pill__name" style="color: #32CC08;">3. Completo</span>
+                <span class="clickup-pill__dot" style="background: #059669;"></span>
+                <span class="clickup-pill__name" style="color: #059669;">3. Completo</span>
               </div>
             </div>
             <div class="task-list"></div>
@@ -337,13 +337,13 @@
       card.setAttribute('draggable', 'true');
       card.style.cssText = `
         padding: 12px; display: flex; flex-direction: column; gap: 8px;
-        border: 1px solid rgba(65, 255, 10,0.2); background: rgba(11, 15, 25, 0.7);
+        border: 1px solid rgba(10, 228, 72,0.2); background: rgba(11, 15, 25, 0.7);
         cursor: grab; position: relative; transition: all 0.2s ease;
       `;
       
       const codes = task.groups ? Object.values(task.groups).flat() : [];
       const codesHtml = codes.length > 0 
-        ? `<div style="font-size: 11px; color: #6CFF42; font-family: monospace; font-weight: bold; background: rgba(65,255,10,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
+        ? `<div style="font-size: 11px; color: #34d399; font-family: monospace; font-weight: bold; background: rgba(10, 228, 72,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
         : '';
       
       const dateStr = task.timestamp ? new Date(task.timestamp).toLocaleString() : new Date().toLocaleString();
@@ -368,8 +368,8 @@
         </div>
         <div style="font-size: 10px; color: #888;">${dateStr}</div>
         ${codesHtml}
-        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#41FF0A;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
-        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #32CC08, #41FF0A); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
+        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#0ae448;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
+        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #059669, #0ae448); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
                 <span>🚀</span> Iniciar no Lucas RTX
         </button>
       `;
@@ -470,7 +470,7 @@
         // Highlight drop zones
         document.querySelectorAll('.task-list').forEach(tl => {
           tl.style.minHeight = '80px';
-          tl.style.border = '2px dashed rgba(65,255,10,0.3)';
+          tl.style.border = '2px dashed rgba(10, 228, 72,0.3)';
           tl.style.borderRadius = '8px';
           tl.style.transition = 'all 0.2s';
         });
@@ -508,13 +508,13 @@
         taskList.addEventListener('dragover', (e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
-          taskList.style.background = 'rgba(65,255,10,0.08)';
-          taskList.style.border = '2px dashed rgba(65,255,10,0.6)';
+          taskList.style.background = 'rgba(10, 228, 72,0.08)';
+          taskList.style.border = '2px dashed rgba(10, 228, 72,0.6)';
         });
 
         taskList.addEventListener('dragleave', () => {
           taskList.style.background = '';
-          taskList.style.border = '2px dashed rgba(65,255,10,0.3)';
+          taskList.style.border = '2px dashed rgba(10, 228, 72,0.3)';
         });
 
         taskList.addEventListener('drop', (e) => {

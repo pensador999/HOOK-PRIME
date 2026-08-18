@@ -6,7 +6,7 @@
   const COLORS = {
     bg: '#0f172a',
     card: '#1e293b',
-    accent: '#41FF0A', // Tiffany
+    accent: '#0ae448', // Tiffany
     text: '#f8fafc',
     textMuted: '#94a3b8',
     overlay: 'rgba(15, 23, 42, 0.85)',
@@ -48,7 +48,7 @@
       height: 90%;
       max-height: 900px;
       border-radius: 16px;
-      border: 1px solid rgba(65, 255, 10, 0.2);
+      border: 1px solid rgba(10, 228, 72, 0.2);
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       display: flex;
       flex-direction: column;
@@ -161,7 +161,7 @@
     }
     .hub-ip-card:hover {
       transform: translateY(-4px);
-      border-color: rgba(65, 255, 10, 0.4);
+      border-color: rgba(10, 228, 72, 0.4);
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
     .hub-ip-img-wrap {
@@ -282,7 +282,7 @@
     // Create DOM
     modalEl = document.createElement('div');
     modalEl.id = 'hub-image-preview-modal';
-    modalEl.innerHTML = \`
+    modalEl.innerHTML = `
       <div class="hub-ip-container">
         <div class="hub-ip-header">
           <div class="hub-ip-header-info">
@@ -310,7 +310,7 @@
           <img src="" id="hub-ip-lb-img" alt="Zoomed image" />
         </div>
       </div>
-    \`;
+    `;
     document.body.appendChild(modalEl);
 
     // Event Listeners
@@ -375,7 +375,7 @@
     const metaParts = [];
     if (data.estampa) metaParts.push(data.estampa);
     if (data.source) metaParts.push(data.source);
-    metaParts.push(\`\${numImgs} image\${numImgs !== 1 ? 's' : ''}\`);
+    metaParts.push(`${numImgs} image${numImgs !== 1 ? 's' : ''}`);
     document.getElementById('hub-ip-meta').textContent = metaParts.join(' • ');
 
     // Update Navigation Buttons
@@ -386,12 +386,12 @@
     const content = document.getElementById('hub-ip-content');
     
     if (numImgs === 0) {
-      content.innerHTML = \`
+      content.innerHTML = `
         <div class="hub-ip-empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
           <p>No images found for this code.</p>
         </div>
-      \`;
+      `;
       return;
     }
 
@@ -401,23 +401,23 @@
       const prioName = img.priority ? getPriorityName(img.priority) : '';
       const prioColor = img.priority ? getPriorityColor(img.priority) : '';
       const genderText = getGenderIcon(img.gender);
-      const sizeStr = img.sizeKB ? \`\${img.sizeKB.toLocaleString()} KB\` : '';
+      const sizeStr = img.sizeKB ? `${img.sizeKB.toLocaleString()} KB` : '';
       
-      gridHtml += \`
+      gridHtml += `
         <div class="hub-ip-card">
-          <div class="hub-ip-img-wrap" data-url="\${img.url}" onclick="window.HUB.ImagePreview._openLightbox('\${img.url}')">
-            <img src="\${img.url}" loading="lazy" alt="\${img.name || 'Preview'}" />
+          <div class="hub-ip-img-wrap" data-url="${img.url}" onclick="window.HUB.ImagePreview._openLightbox('${img.url}')">
+            <img src="${img.url}" loading="lazy" alt="${img.name || 'Preview'}" />
             <div class="hub-ip-badges-top">
-              \${prioName ? \`<span class="hub-ip-badge hub-ip-badge-priority" style="border-left-color: \${prioColor}">\${prioName}</span>\` : '<span></span>'}
-              \${genderText ? \`<span class="hub-ip-badge hub-ip-badge-gender">\${genderText}</span>\` : ''}
+              ${prioName ? `<span class="hub-ip-badge hub-ip-badge-priority" style="border-left-color: ${prioColor}">${prioName}</span>` : '<span></span>'}
+              ${genderText ? `<span class="hub-ip-badge hub-ip-badge-gender">${genderText}</span>` : ''}
             </div>
           </div>
           <div class="hub-ip-card-info">
-            <div class="hub-ip-filename" title="\${img.name}">\${img.name || 'Unknown'}</div>
-            <div class="hub-ip-filesize">\${sizeStr}</div>
+            <div class="hub-ip-filename" title="${img.name}">${img.name || 'Unknown'}</div>
+            <div class="hub-ip-filesize">${sizeStr}</div>
           </div>
         </div>
-      \`;
+      `;
     });
     
     gridHtml += '</div>';

@@ -41,7 +41,7 @@
     { id: 1, label: 'Analisando',       icon: '🔍', color: '#8b5cf6' },
     { id: 2, label: 'Scan Rede',        icon: '📡', color: '#0ea5e9' },
     { id: 3, label: 'Copiando',         icon: '📂', color: '#06b6d4' },
-    { id: 4, label: 'Upload CDN',       icon: '☁️', color: '#41FF0A' },
+    { id: 4, label: 'Upload CDN',       icon: '☁️', color: '#0ae448' },
     { id: 5, label: 'Concluído',        icon: '✅', color: '#10b981' },
     { id: -1, label: 'Pausado',         icon: '⏸️', color: '#f59e0b' },
     { id: -2, label: 'Erro',            icon: '❌', color: '#ef4444' },
