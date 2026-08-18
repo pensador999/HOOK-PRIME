@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   HUB HOOK PRIME — Sistema de Design Premium v4.0
-   Dark Mode Premium with Glassmorphism
+   HOOK PRIME — Enterprise Design System v5.0
+   Cinematic Dark · GSAP Powered · Emerald Premium
    ═══════════════════════════════════════════════════════════════ */
 
 /* ───────── Design Tokens ───────── */
@@ -140,6 +140,8 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ───────── Scrollbar Personalizada ───────── */
@@ -151,15 +153,16 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
+  background: rgba(10, 228, 72, 0.15);
   border-radius: 3px;
+  border: 1px solid rgba(10, 228, 72, 0.05);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: rgba(10, 228, 72, 0.3);
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(10, 228, 72, 0.25);
   color: #fff;
 }
 

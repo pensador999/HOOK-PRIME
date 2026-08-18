@@ -1,0 +1,160 @@
+/* ═══════════════════════════════════════════
+   HOOK PRIME — Cinematic Intro Styles
+   ═══════════════════════════════════════════ */
+
+#hp-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  overflow: hidden;
+  background: #000;
+}
+
+.hp-intro-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Layer 0: Black */
+.hp-intro-black {
+  background: #000;
+  z-index: 1;
+}
+
+/* Layer 1: Clouds Far */
+.hp-intro-clouds-far {
+  z-index: 2;
+  overflow: hidden;
+}
+.hp-intro-clouds-far img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* Layer 2: Mist */
+.hp-intro-mist {
+  z-index: 3;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 60%,
+    rgba(20,20,20,0.5) 0%,
+    rgba(0,0,0,0.8) 50%,
+    rgba(0,0,0,0.95) 100%);
+  mix-blend-mode: multiply;
+}
+
+/* Layer 3: Red Atmosphere */
+.hp-intro-red-atmo {
+  z-index: 4;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 45%,
+    rgba(180,30,30,0.12) 0%,
+    rgba(120,20,20,0.06) 40%,
+    transparent 70%);
+  pointer-events: none;
+}
+
+/* Layer 4: Ninja */
+.hp-intro-ninja {
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.hp-intro-ninja img {
+  width: auto;
+  height: 90%;
+  max-height: 90vh;
+  max-width: 90vw;
+  object-fit: contain;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+
+/* Layer 5: Particles */
+.hp-intro-particles {
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Layer 6: SVG Energy */
+.hp-intro-svg {
+  z-index: 7;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Layer 7: Text */
+.hp-intro-text {
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 12vh;
+  pointer-events: none;
+}
+
+.hp-intro-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(36px, 7vw, 72px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 10px;
+  text-transform: uppercase;
+  perspective: 600px;
+}
+
+.hp-intro-char {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+.hp-intro-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(10px, 1.5vw, 14px);
+  font-weight: 400;
+  color: rgba(10, 228, 72, 0.6);
+  letter-spacing: 12px;
+  text-transform: uppercase;
+  margin-top: 12px;
+  opacity: 0;
+}
+
+/* Layer 8: Green Flash */
+.hp-intro-flash {
+  z-index: 9;
+  background: radial-gradient(circle, rgba(10,228,72,0.6), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Layer 9: Wipe */
+.hp-intro-wipe {
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Mobile Adaptations ── */
+@media (max-width: 768px) {
+  .hp-intro-ninja img {
+    height: 70%;
+    max-height: 70vh;
+  }
+  .hp-intro-title {
+    letter-spacing: 5px;
+  }
+  .hp-intro-subtitle {
+    letter-spacing: 6px;
+  }
+  .hp-intro-text {
+    padding-bottom: 8vh;
+  }
+}
