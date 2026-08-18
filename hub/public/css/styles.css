@@ -61,6 +61,60 @@
   /* Tipografia */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ═══════════════════════════════════════════
+   GSAP ENTERPRISE — Cursor, 3D, SVG, Text
+   ═══════════════════════════════════════════ */
+
+/* Cursor Glow */
+.hp-cursor-glow {
+  position: fixed; top: 0; left: 0;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10,228,72,0.08) 0%, transparent 70%);
+  pointer-events: none; z-index: 99990;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+  mix-blend-mode: screen;
+}
+
+/* Cursor Ring */
+.hp-cursor-ring {
+  position: fixed; top: 0; left: 0;
+  width: 28px; height: 28px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+  pointer-events: none; z-index: 99991;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+  transition: border-color 0.2s;
+}
+
+/* 3D Card Perspective */
+.card, .module-card, .stat-card {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+/* Magnetic button reset */
+.btn--primary, .btn--magnetic {
+  will-change: transform;
+}
+
+/* Text animation overflow clips */
+.hp-split-word { overflow: hidden; }
+
+/* SVG Hero Circuit */
+.hp-hero-svg { overflow: visible; }
+.hp-hero-dot { filter: drop-shadow(0 0 4px rgba(10,228,72,0.6)); }
+
+/* Hide cursor on desktop (replaced by custom) */
+@media (hover: hover) and (pointer: fine) {
+  body { cursor: none; }
+  a, button, input, select, textarea, .btn, .sidebar__link, .card { cursor: none; }
 }
 
 /* ───────── Reset Global ───────── */
