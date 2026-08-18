@@ -1,0 +1,23 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Uploads (imagens locais)
+hub/uploads/
+
+# Dados temporários
+hub/data/tasks.json
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local

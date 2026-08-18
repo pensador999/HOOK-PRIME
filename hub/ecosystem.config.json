@@ -1,0 +1,17 @@
+{
+  "apps": [
+    {
+      "name": "hook-prime",
+      "script": "server.js",
+      "cwd": "c:\\\\Users\\\\lucas\\\\OneDrive\\\\Documentos\\\\HOOK PRIME\\\\hub",
+      "watch": false,
+      "autorestart": true,
+      "max_restarts": 10,
+      "restart_delay": 3000,
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": 3000
+      }
+    }
+  ]
+}

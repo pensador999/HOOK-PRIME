@@ -1,0 +1,274 @@
+{
+  "padrao_completo": ["PP", "P", "M", "G", "GG", "G1", "G2"],
+  "padrao_sem_pp": ["P", "M", "G", "GG", "G1", "G2"],
+  "padrao_sem_pp_p": ["M", "G", "GG", "G1", "G2"],
+  "padrao_camisa_botao": ["P", "M", "G", "GG", "G1"],
+  "tamanho_unico": [],
+  "product_defaults": {
+    "raglan_masc": "padrao_sem_pp",
+    "raglan_fem": "padrao_completo",
+    "raglan_inf": "padrao_completo",
+    "camisa_botao": "padrao_camisa_botao",
+    "apc": "padrao_completo",
+    "corta_vento": "padrao_sem_pp_p",
+    "camisa_uv_luva": "padrao_completo",
+    "blackmask": "tamanho_unico",
+    "hybrid": "padrao_sem_pp",
+    "capuz": "padrao_sem_pp",
+    "casual": "padrao_sem_pp",
+    "motociclismo": "padrao_sem_pp",
+    "bone": "tamanho_unico",
+    "lenco_cetim": "tamanho_unico",
+    "lenco": "tamanho_unico",
+    "copo_termico": "tamanho_unico",
+    "capa_almofada": "tamanho_unico",
+    "caneca": "tamanho_unico"
+  },
+  "peso_por_tamanho": {
+    "raglan_masc": {
+      "PP": { "bruto": "0,215", "liq": "0,215" },
+      "P":  { "bruto": "0,225", "liq": "0,225" },
+      "M":  { "bruto": "0,235", "liq": "0,235" },
+      "G":  { "bruto": "0,240", "liq": "0,240" },
+      "GG": { "bruto": "0,245", "liq": "0,245" },
+      "G1": { "bruto": "0,250", "liq": "0,250" },
+      "G2": { "bruto": "0,270", "liq": "0,270" }
+    },
+    "raglan_fem": {
+      "PP": { "bruto": "0,150", "liq": "0,150" },
+      "P":  { "bruto": "0,160", "liq": "0,160" },
+      "M":  { "bruto": "0,170", "liq": "0,170" },
+      "G":  { "bruto": "0,180", "liq": "0,180" },
+      "GG": { "bruto": "0,195", "liq": "0,195" },
+      "G1": { "bruto": "0,215", "liq": "0,215" },
+      "G2": { "bruto": "0,220", "liq": "0,220" }
+    },
+    "raglan_inf": {
+      "PP": { "bruto": "0,100", "liq": "0,100" },
+      "P":  { "bruto": "0,110", "liq": "0,110" },
+      "M":  { "bruto": "0,116", "liq": "0,116" },
+      "G":  { "bruto": "0,108", "liq": "0,108" },
+      "GG": { "bruto": "0,130", "liq": "0,130" },
+      "G1": { "bruto": "0,135", "liq": "0,135" },
+      "G2": { "bruto": "0,150", "liq": "0,150" }
+    },
+    "raglan": {
+      "default": { "bruto": "0,235", "liq": "0,235" }
+    },
+    "camisa_fem": {
+      "P":  { "bruto": "0,160", "liq": "0,160" },
+      "M":  { "bruto": "0,170", "liq": "0,170" },
+      "G":  { "bruto": "0,180", "liq": "0,180" },
+      "GG": { "bruto": "0,195", "liq": "0,195" },
+      "G1": { "bruto": "0,215", "liq": "0,215" },
+      "G2": { "bruto": "0,220", "liq": "0,220" }
+    },
+    "capuz": {
+      "PP": { "bruto": "0,220", "liq": "0,220" },
+      "P":  { "bruto": "0,230", "liq": "0,230" },
+      "M":  { "bruto": "0,245", "liq": "0,245" },
+      "G":  { "bruto": "0,265", "liq": "0,265" },
+      "GG": { "bruto": "0,275", "liq": "0,275" },
+      "G1": { "bruto": "0,290", "liq": "0,290" },
+      "G2": { "bruto": "0,310", "liq": "0,310" }
+    },
+    "hybrid_masc": {
+      "PP": { "bruto": "0,240", "liq": "0,240" },
+      "P":  { "bruto": "0,250", "liq": "0,250" },
+      "M":  { "bruto": "0,275", "liq": "0,275" },
+      "G":  { "bruto": "0,285", "liq": "0,285" },
+      "GG": { "bruto": "0,305", "liq": "0,305" },
+      "G1": { "bruto": "0,330", "liq": "0,330" },
+      "G2": { "bruto": "0,345", "liq": "0,345" }
+    },
+    "hybrid_fem": {
+      "PP": { "bruto": "0,225", "liq": "0,225" },
+      "P":  { "bruto": "0,235", "liq": "0,235" },
+      "M":  { "bruto": "0,270", "liq": "0,270" },
+      "G":  { "bruto": "0,280", "liq": "0,280" },
+      "GG": { "bruto": "0,315", "liq": "0,315" },
+      "G1": { "bruto": "0,320", "liq": "0,320" },
+      "G2": { "bruto": "0,350", "liq": "0,350" }
+    },
+    "camisa_uv_luva": {
+      "PP": { "bruto": "0,270", "liq": "0,270" },
+      "P":  { "bruto": "0,280", "liq": "0,280" },
+      "M":  { "bruto": "0,305", "liq": "0,305" },
+      "G":  { "bruto": "0,320", "liq": "0,320" },
+      "GG": { "bruto": "0,330", "liq": "0,330" },
+      "G1": { "bruto": "0,340", "liq": "0,340" },
+      "G2": { "bruto": "0,360", "liq": "0,360" }
+    },
+    "casual": {
+      "PP": { "bruto": "0,140", "liq": "0,140" },
+      "P":  { "bruto": "0,150", "liq": "0,150" },
+      "M":  { "bruto": "0,155", "liq": "0,155" },
+      "G":  { "bruto": "0,165", "liq": "0,165" },
+      "GG": { "bruto": "0,175", "liq": "0,175" },
+      "G1": { "bruto": "0,180", "liq": "0,180" },
+      "G2": { "bruto": "0,195", "liq": "0,195" }
+    },
+    "camisa_botao": {
+      "PP": { "bruto": "0,23", "liq": "0,23" },
+      "P":  { "bruto": "0,23", "liq": "0,23" },
+      "M":  { "bruto": "0,23", "liq": "0,23" },
+      "G":  { "bruto": "0,24", "liq": "0,24" },
+      "GG": { "bruto": "0,24", "liq": "0,24" },
+      "G1": { "bruto": "0,25", "liq": "0,25" },
+      "G2": { "bruto": "0,25", "liq": "0,25" }
+    },
+    "corta_vento": {
+      "default": { "bruto": "0,25", "liq": "0,25" }
+    },
+    "apc": {
+      "default": { "bruto": "0,250", "liq": "0,250" }
+    },
+    "blackmask": {
+      "default": { "bruto": "0,08", "liq": "0,08" }
+    },
+    "motociclismo": {
+      "default": { "bruto": "0,280", "liq": "0,280" }
+    },
+    "bone": {
+      "unico": { "bruto": "0,120", "liq": "0,120" }
+    },
+    "lenco_cetim": {
+      "unico": { "bruto": "0,060", "liq": "0,060" }
+    },
+    "lenco": {
+      "unico": { "bruto": "0,050", "liq": "0,050" }
+    },
+    "copo_termico": {
+      "unico": { "bruto": "0,350", "liq": "0,350" }
+    },
+    "capa_almofada": {
+      "unico": { "bruto": "0,200", "liq": "0,200" }
+    },
+    "caneca": {
+      "unico": { "bruto": "0,380", "liq": "0,380" }
+    }
+  },
+  "dimensoes_por_tamanho": {
+    "raglan_masc": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 3 }
+    },
+    "raglan_fem": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 4 }
+    },
+    "raglan_inf": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 2 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 2 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 2 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 2 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 2 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 2 }
+    },
+    "capuz": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 4 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 4 }
+    },
+    "hybrid_masc": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 4 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 3 }
+    },
+    "hybrid_fem": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 3 }
+    },
+    "camisa_uv_luva": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 4 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 4 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 4 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 4 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 4 }
+    },
+    "casual": {
+      "P":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "M":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G":  { "comprimento": 30, "largura": 20, "altura": 3 },
+      "GG": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G1": { "comprimento": 30, "largura": 20, "altura": 3 },
+      "G2": { "comprimento": 30, "largura": 20, "altura": 3 }
+    }
+  },
+  "altura_por_tipo": {
+    "camisa_botao": 3,
+    "corta_vento": 3,
+    "raglan": 3,
+    "camisa": 3,
+    "apc": 3,
+    "camisa_uv_luva": 4,
+    "blackmask": 1,
+    "hybrid": 3,
+    "capuz": 3,
+    "casual": 3,
+    "motociclismo": 4,
+    "bone": 15,
+    "lenco_cetim": 1,
+    "lenco": 1,
+    "copo_termico": 20,
+    "capa_almofada": 3,
+    "caneca": 12
+  },
+  "largura_por_tipo": {
+    "camisa_botao": 20,
+    "corta_vento": 26,
+    "raglan": 20,
+    "camisa": 20,
+    "apc": 20,
+    "camisa_uv_luva": 20,
+    "blackmask": 8,
+    "hybrid": 20,
+    "capuz": 20,
+    "casual": 20,
+    "motociclismo": 20,
+    "bone": 15,
+    "lenco_cetim": 15,
+    "lenco": 15,
+    "copo_termico": 10,
+    "capa_almofada": 40,
+    "caneca": 12
+  },
+  "comprimento_por_tipo": {
+    "camisa_botao": 30,
+    "corta_vento": 30,
+    "raglan": 30,
+    "camisa": 30,
+    "apc": 30,
+    "camisa_uv_luva": 30,
+    "blackmask": 20,
+    "hybrid": 30,
+    "capuz": 30,
+    "casual": 30,
+    "motociclismo": 30,
+    "bone": 15,
+    "lenco_cetim": 20,
+    "lenco": 20,
+    "copo_termico": 10,
+    "capa_almofada": 40,
+    "caneca": 12
+  }
+}

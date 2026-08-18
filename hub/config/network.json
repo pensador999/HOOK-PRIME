@@ -1,0 +1,13 @@
+{
+  "defaultNetworkPath": "\\\\192.168.100.100\\Linha Brk 2024",
+  "recentPaths": [
+    "\\\\192.168.100.100\\Linha Brk 2024"
+  ],
+  "rules": {
+    "readOnly": true,
+    "neverModify": true,
+    "neverDelete": true,
+    "onlyCopy": true
+  },
+  "_comment": "REGRA: Apenas LEITURA e CÓPIA. NUNCA editar, apagar ou mover arquivos na rede. CAMINHO FORNECIDO PELO LUCAS EM 10/08/2026."
+}

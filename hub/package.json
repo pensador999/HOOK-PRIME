@@ -1,0 +1,17 @@
+{
+  "name": "hub-hook-prime",
+  "version": "1.0.0",
+  "description": "HUB de automação de processos Hook Prime",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.35.3",
+    "xlsx": "^0.18.5"
+  }
+}
