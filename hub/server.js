@@ -211,16 +211,24 @@ app.post('/api/autopilot/tasks', (req, res) => {
     const codeRegex = /\b[A-Z]+[0-9]+\b/g;
     const foundCodes = description ? description.match(codeRegex) || [] : [];
     
-    // Agrupa os códigos pelos seus prefixos (ex: FUSION, CAX, BM)
+    // Agrupa os códigos pelos seus prefixos (ex: FUSION, CAX, BM, C0)
+    // Usa longest-match contra prefixos conhecidos
     const groupedCodes = {};
     foundCodes.forEach(code => {
-      const prefixMatch = code.match(/^[A-Z]+/);
-      if (prefixMatch) {
-        const prefix = prefixMatch[0];
-        if (!groupedCodes[prefix]) groupedCodes[prefix] = [];
-        if (!groupedCodes[prefix].includes(code)) {
-          groupedCodes[prefix].push(code);
-        }
+      const upper = code.toUpperCase();
+      const knownKeys = Object.keys(networkPrefixes).sort((a, b) => b.length - a.length);
+      let prefix = null;
+      for (const key of knownKeys) {
+        if (upper.startsWith(key)) { prefix = key; break; }
+      }
+      // Fallback: extrair só letras se prefixo desconhecido
+      if (!prefix) {
+        const m = code.match(/^[A-Z]+/);
+        prefix = m ? m[0] : code;
+      }
+      if (!groupedCodes[prefix]) groupedCodes[prefix] = [];
+      if (!groupedCodes[prefix].includes(code)) {
+        groupedCodes[prefix].push(code);
       }
     });
 
@@ -228,14 +236,21 @@ app.post('/api/autopilot/tasks', (req, res) => {
     const rangeRegex = /([A-Za-z]+)(\d+)[ \t]*(?:a|até|→|-)[ \t]*(?:[A-Za-z]*)(\d+)/gi;
     let rangeMatch;
     while ((rangeMatch = rangeRegex.exec(fullText)) !== null) {
-      const prefix = rangeMatch[1].toUpperCase();
+      const rawPrefix = rangeMatch[1].toUpperCase();
       const start = parseInt(rangeMatch[2]);
       const end = parseInt(rangeMatch[3]);
       if (end > start && (end - start) <= 500) {
-        if (!groupedCodes[prefix]) groupedCodes[prefix] = [];
         for (let i = start; i <= end; i++) {
-          const code = `${prefix}${String(i).padStart(rangeMatch[2].length, '0')}`;
-          if (!groupedCodes[prefix].includes(code)) groupedCodes[prefix].push(code);
+          const code = `${rawPrefix}${String(i).padStart(rangeMatch[2].length, '0')}`;
+          // Use smart prefix matching
+          const upper = code.toUpperCase();
+          const knownKeys = Object.keys(networkPrefixes).sort((a, b) => b.length - a.length);
+          let smartPrefix = rawPrefix;
+          for (const key of knownKeys) {
+            if (upper.startsWith(key)) { smartPrefix = key; break; }
+          }
+          if (!groupedCodes[smartPrefix]) groupedCodes[smartPrefix] = [];
+          if (!groupedCodes[smartPrefix].includes(code)) groupedCodes[smartPrefix].push(code);
         }
       }
     }
@@ -2070,24 +2085,33 @@ app.post('/api/network/smart-scan', (req, res) => {
       return res.status(400).json({ error: 'Códigos contêm caracteres inválidos.', invalid: unsafeCodes });
     }
 
-    // ── FIX #1: Case insensitive no prefixo ──
+    // ── SMART PREFIX MATCHING ──
+    // Tenta o match mais longo primeiro contra os prefixos conhecidos
+    // Suporta prefixos com números como C0, T0, CM0, etc.
+    function findBestPrefix(code) {
+      const upper = code.toUpperCase();
+      const knownKeys = Object.keys(networkPrefixes);
+      // Ordenar por comprimento DESC — prefixos mais longos primeiro (CCPBR antes de C)
+      const sorted = knownKeys.sort((a, b) => b.length - a.length);
+      for (const key of sorted) {
+        if (upper.startsWith(key)) return key;
+      }
+      return null;
+    }
+
     const firstCode = codes[0].toUpperCase();
-    const prefixMatch = firstCode.match(/^[A-Z]+/);
-    if (!prefixMatch) {
-      return res.status(400).json({ error: `Não foi possível extrair prefixo de "${codes[0]}"` });
+    const prefix = findBestPrefix(firstCode);
+    if (!prefix) {
+      return res.status(404).json({
+        error: `Não foi possível encontrar prefixo para "${codes[0]}". Nenhum prefixo conhecido começa com essas letras.`,
+        knownPrefixes: Object.keys(networkPrefixes)
+      });
     }
-    const prefix = prefixMatch[0].toUpperCase();
     const networkFolder = networkPrefixes[prefix];
-    if (!networkFolder) {
-      return res.status(404).json({ error: `Prefixo "${prefix}" não tem pasta configurada na rede.`, knownPrefixes: Object.keys(networkPrefixes) });
-    }
 
     // ── FIX #3: Rejeitar prefixos misturados ──
     const allPrefixes = new Set(
-      codes.map(c => {
-        const m = c.toUpperCase().match(/^[A-Z]+/);
-        return m ? m[0] : null;
-      }).filter(Boolean)
+      codes.map(c => findBestPrefix(c)).filter(Boolean)
     );
     if (allPrefixes.size > 1) {
       return res.status(400).json({

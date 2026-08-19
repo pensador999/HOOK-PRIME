@@ -1,44 +1,42 @@
 [
   {
-    "id": "1786643013408",
-    "title": "Coleção CODY JAMES atualização de mockup",
-    "description": "APC0570\nAPC0571\nAPC0572\nAPC0573\nAPC0574\nAPC0575\nAPC0576\nAPC0577\nAPC0578\nAPC0579\nAPC0580\nAPC0581\nAPC0582\nAPC0583\nAPC0584\nAPC0585\nAPC0586\nAPC0587\nAPC0588\nAPC0589\nAPC0590\nAPC0591\nAPC0592",
-    "url": "https://app.clickup.com/t/12901270/86ajynzew",
+    "id": "1787166960307",
+    "title": "COLEÇÃO AMAZON 2.0",
+    "description": "C02870\nC02871\nC02872\nC02873\nC02874\nC02875\nC02876\nC02877\nC02878\nC02879\nC02880\nC02881\nC02882\nC02883\nC02884\nC02885\nC02886\nC02887\nC02888\nC02889\nC02890",
+    "url": "https://app.clickup.com/t/12901270/86ak33bng",
     "groups": {
-      "APC": [
-        "APC0570",
-        "APC0571",
-        "APC0572",
-        "APC0573",
-        "APC0574",
-        "APC0575",
-        "APC0576",
-        "APC0577",
-        "APC0578",
-        "APC0579",
-        "APC0580",
-        "APC0581",
-        "APC0582",
-        "APC0583",
-        "APC0584",
-        "APC0585",
-        "APC0586",
-        "APC0587",
-        "APC0588",
-        "APC0589",
-        "APC0590",
-        "APC0591",
-        "APC0592"
+      "C": [
+        "C02870",
+        "C02871",
+        "C02872",
+        "C02873",
+        "C02874",
+        "C02875",
+        "C02876",
+        "C02877",
+        "C02878",
+        "C02879",
+        "C02880",
+        "C02881",
+        "C02882",
+        "C02883",
+        "C02884",
+        "C02885",
+        "C02886",
+        "C02887",
+        "C02888",
+        "C02889",
+        "C02890"
       ]
     },
-    "totalCodes": 23,
-    "timestamp": "2026-08-13T17:43:33.408Z",
+    "totalCodes": 21,
+    "timestamp": "2026-08-19T19:16:00.308Z",
     "checklist": {
       "codigos_definidos": true,
       "fotos_tiradas": false,
       "planilha_exportada": false
     },
-    "status": "pending",
+    "status": "in_progress",
     "custoTotal": 0
   }
 ]
