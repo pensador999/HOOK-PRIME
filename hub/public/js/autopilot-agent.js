@@ -485,7 +485,7 @@
     if (options.navigate !== false) {
       window.HUB?.showToast('🚀 Abrindo Autopilot com o plano...', 'success');
       setTimeout(() => {
-        const autopilotLink = document.querySelector('[data-section="autopilot"]');
+        const autopilotLink = document.querySelector('[data-page="autopilot"]');
         if (autopilotLink) {
           autopilotLink.click();
         } else if (window.HUB?.navigate) {

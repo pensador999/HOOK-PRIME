@@ -2752,12 +2752,15 @@ try {
 }
 
 app.listen(PORT, () => {
+  const prefixCount = Object.keys(networkPrefixes).filter(k => !k.startsWith('_')).length;
   console.log(`\n════════════════════════════════════════════════════`);
-  console.log(`  🚀 HUB Hook Prime v3.1 — Autopilot + Smart Scan`);
+  console.log(`  🚀 HUB Hook Prime v3.2 — Multi-Rede + Smart Scan`);
   console.log(`  📡 http://localhost:${PORT}`);
   console.log(`  📁 Diretório público: ${path.join(BASE_DIR, 'public')}`);
   console.log(`  📤 Diretório de uploads: ${uploadsDir}`);
   console.log(`  🔗 CDN: ${BRK_LINK_URL}`);
-  console.log(`  🔒 Rede: ${networkSafety.NETWORK_ROOT} (PROTEGIDA)`);
+  console.log(`  🔒 Rede nova: ${networkSafety.NETWORK_ROOT} (PROTEGIDA)`);
+  console.log(`  🔒 Rede legado: ${networkSafety.NETWORK_ROOT_LEGACY} (PROTEGIDA)`);
+  console.log(`  📂 ${prefixCount} prefixos mapeados`);
   console.log(`════════════════════════════════════════════════════\n`);
 });

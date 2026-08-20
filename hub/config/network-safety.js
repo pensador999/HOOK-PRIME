@@ -486,16 +486,18 @@ function logSecurityEvent(action, operation, target, folder) {
  * Retorna resumo da rede protegida.
  */
 function getNetworkStats() {
-  const totalFolders = PROTECTED_FOLDERS.length;
-  const totalSubs = PROTECTED_FOLDERS.reduce((sum, f) => sum + f.subs, 0);
+  const totalFolders = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length;
+  const totalSubs = PROTECTED_FOLDERS.reduce((sum, f) => sum + f.subs, 0)
+                  + PROTECTED_FOLDERS_LEGACY.reduce((sum, f) => sum + f.subs, 0);
   const byType = {};
-  PROTECTED_FOLDERS.forEach(f => {
+  [...PROTECTED_FOLDERS, ...PROTECTED_FOLDERS_LEGACY].forEach(f => {
     byType[f.type] = (byType[f.type] || 0) + 1;
   });
 
   return {
     server: NETWORK_SERVER,
     root: NETWORK_ROOT,
+    rootLegacy: NETWORK_ROOT_LEGACY,
     totalFolders,
     totalSubfolders: totalSubs,
     estimatedFiles: '50.000+',
@@ -522,16 +524,21 @@ function verifyIntegrity() {
     typeof isNetworkPath === 'function',
     BLOCKED_OPERATIONS.length >= 20,
     PROTECTED_FOLDERS.length >= 48,
+    PROTECTED_FOLDERS_LEGACY.length >= 9,
     NETWORK_SERVER === '192.168.100.100',
+    NETWORK_ROOT_LEGACY.includes(NETWORK_SERVER),
   ];
 
   const passed = checks.every(c => c === true);
+  const totalProtected = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length;
 
   if (passed) {
     console.log('🔒 Network Safety Guard: ✅ Integridade verificada');
-    console.log(`   📂 ${PROTECTED_FOLDERS.length} pastas protegidas`);
+    console.log(`   📂 ${totalProtected} pastas protegidas (${PROTECTED_FOLDERS.length} nova + ${PROTECTED_FOLDERS_LEGACY.length} legado)`);
     console.log(`   🚫 ${BLOCKED_OPERATIONS.length} operações bloqueadas`);
     console.log(`   ✅ ${ALLOWED_OPERATIONS.length} operações permitidas`);
+    console.log(`   🌐 Rede nova: ${NETWORK_ROOT}`);
+    console.log(`   🌐 Rede legado: ${NETWORK_ROOT_LEGACY}`);
   } else {
     console.error('🔒❌ FALHA DE INTEGRIDADE no Network Safety Guard!');
     throw new Error('Network Safety Guard adulterado — servidor recusou inicializar.');

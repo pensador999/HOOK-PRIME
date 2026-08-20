@@ -1293,6 +1293,8 @@
                         }
                         saveSession();
                         if (progressLog) progressLog.innerHTML += `📊 Auto-scan: <strong style="color:${TIFFANY}">${scanData.folders.length}</strong> códigos, <strong style="color:${TIFFANY}">${scanData.totalImages}</strong> imagens detectadas<br>`;
+                        // Re-render to show updated stats cards
+                        render();
                       }
                     } catch (scanErr) {
                       console.log('Auto-scan falhou:', scanErr.message);
@@ -2097,8 +2099,8 @@
           return u && u.trim();
         });
         const genderCard = document.querySelector(`.ap-link-code-card[data-base="${code.base}"][data-apc-gender="${gk}"]`);
+        if (genderCard) genderCard.classList.remove('ap-uploading-card');
         if (blockDone && genderCard) {
-          genderCard.classList.remove('ap-uploading-card');
           genderCard.style.borderLeftColor = TIFFANY_D;
           genderCard.setAttribute('data-done', 'true');
         }
@@ -2110,8 +2112,8 @@
           const u = state.imageUrls[code[gg]];
           return u && u.trim();
         });
+        if (card) card.classList.remove('ap-uploading-card');
         if (allSlotsDone && card) {
-          card.classList.remove('ap-uploading-card');
           card.style.borderLeftColor = TIFFANY_D;
           card.setAttribute('data-done', 'true');
         }
@@ -2160,6 +2162,8 @@
       return;
     }
 
+    let done = 0; // Function-scoped — accessed in both APC/non-APC paths and final toast
+
     if (code._isAPC) {
       // ═══ APC: Upload por GÊNERO × COR ═══
       const colors = codeGroup ? activeApcColors(codeGroup) : APC_COLORS;
@@ -2198,7 +2202,6 @@
 
       showUploadProgress(true);
 
-      let done = 0;
       let errors = 0;
       for (const slot of pendingSlots) {
         if (uploadState.aborted) break;
@@ -2295,7 +2298,6 @@
       const card = document.querySelector(`.ap-link-code-card[data-base="${baseCode}"]`);
       if (card) card.classList.add('ap-uploading-card');
 
-      let done = 0;
       for (const g of pendingGenders) {
         if (uploadState.aborted) break;
 
@@ -2696,9 +2698,11 @@
         if (!state.estampas[base] || !state.estampas[base].trim()) {
           const code = state.generatedCodes.find(c => c.base === base);
           const codeGroup = code ? getGroupById(code._groupId) : null;
-          state.estampas[base] = (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim()) || '';
+          state.estampas[base] = (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim())
+            || state.estampaSuggestions[base] || '';
         }
       });
+      state.completedSteps.add(4); // Mark Step 4 as completed for stepper
       saveSession();
       goToStep(5); // Skip directly to planilha
     });
@@ -3493,6 +3497,12 @@
       }
       case 4: {
         const bases = [...new Set(state.generatedCodes.map(c => c.base))];
+        // Auto-fill from suggestions if user didn't manually type
+        bases.forEach(b => {
+          if ((!state.estampas[b] || !state.estampas[b].trim()) && state.estampaSuggestions[b]) {
+            state.estampas[b] = state.estampaSuggestions[b];
+          }
+        });
         const missing = bases.filter(b => !state.estampas[b] || !state.estampas[b].trim());
         if (missing.length > 0) {
           window.HUB.showToast(`Preencha o nome da estampa para ${missing.length} código(s)`, 'error');
