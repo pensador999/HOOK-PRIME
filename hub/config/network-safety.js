@@ -46,6 +46,7 @@ const fs = require('fs');
 
 const NETWORK_SERVER = '192.168.100.100';
 const NETWORK_ROOT = '\\\\192.168.100.100\\Linha Brk 2024';
+const NETWORK_ROOT_LEGACY = '\\\\192.168.100.100\\Linha BRK\\LINHA BRK';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  🔒 TODAS AS PASTAS PROTEGIDAS NA REDE (mapeamento completo)
@@ -116,7 +117,20 @@ const PROTECTED_FOLDERS = [
   { name: 'GD',               subs: 1,    type: 'outro', desc: 'GD' },
 ];
 
-// Total: 48 pastas protegidas
+// ── REDE ANTIGA (Linha BRK\LINHA BRK) — prefixos legado ──
+const PROTECTED_FOLDERS_LEGACY = [
+  { name: 'CI_CODIGO',     subs: 0, type: 'produto', desc: 'CI (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'CF_CODIGO',     subs: 0, type: 'produto', desc: 'CF (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'CML_CODIGO',    subs: 0, type: 'produto', desc: 'CML (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'CP_CODIGO',     subs: 0, type: 'produto', desc: 'CP (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'CPB_CODIGO',    subs: 0, type: 'produto', desc: 'CPB (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'MB_CODIGO',     subs: 0, type: 'produto', desc: 'MB (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'MT_CODIGO',     subs: 0, type: 'produto', desc: 'MT (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'PC_CODIGO - PORTA CARRETILHA', subs: 0, type: 'produto', desc: 'PC Porta Carretilha (legado)', root: NETWORK_ROOT_LEGACY },
+  { name: 'SAC_CODIGO',    subs: 0, type: 'produto', desc: 'SAC (legado)', root: NETWORK_ROOT_LEGACY },
+];
+
+// Total: 48 pastas protegidas (nova) + 9 pastas protegidas (legado)
 // Total de subpastas: ~5.000+
 // Estimativa de arquivos: 50.000+
 
@@ -209,18 +223,28 @@ function isProtectedServer(targetPath) {
 
 /**
  * Verifica se um caminho aponta para uma pasta protegida conhecida.
+ * Busca em ambas as redes (nova e legado).
  * Retorna o registro da pasta ou null.
  */
 function getProtectedFolder(targetPath) {
   if (!isProtectedServer(targetPath)) return null;
   const normalized = normalizePath(targetPath);
-  const rootNorm = normalizePath(NETWORK_ROOT);
 
+  // Buscar na rede nova
   for (const folder of PROTECTED_FOLDERS) {
     const folderPath = path.join(NETWORK_ROOT, folder.name);
     const folderNorm = normalizePath(folderPath);
     if (normalized.startsWith(folderNorm)) return folder;
   }
+
+  // Buscar na rede legado
+  for (const folder of PROTECTED_FOLDERS_LEGACY) {
+    const folderRoot = folder.root || NETWORK_ROOT_LEGACY;
+    const folderPath = path.join(folderRoot, folder.name);
+    const folderNorm = normalizePath(folderPath);
+    if (normalized.startsWith(folderNorm)) return folder;
+  }
+
   return null;
 }
 
@@ -525,7 +549,9 @@ module.exports = {
   // Constantes
   NETWORK_SERVER,
   NETWORK_ROOT,
+  NETWORK_ROOT_LEGACY,
   PROTECTED_FOLDERS,
+  PROTECTED_FOLDERS_LEGACY,
   IMAGE_EXTENSIONS,
   PRODUCTION_EXTENSIONS,
   ALLOWED_OPERATIONS,

@@ -1,6 +1,8 @@
 {
-  "_VERSAO": "2.0 — Auditoria completa 2026-08-11",
-  "_NOTA": "Mapeamento REAL verificado via exploração direta da rede",
+  "_VERSAO": "3.0 — Multi-rede (nova + antiga) 2026-08-20",
+  "_NOTA": "folder = pasta na rede. root = rede alternativa (se omitido, usa NETWORK_ROOT padrão)",
+  "_REDE_NOVA": "\\\\192.168.100.100\\Linha Brk 2024",
+  "_REDE_ANTIGA": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK",
 
   "FUSION": "FUSION_CODIGO",
   "C0": "C0_CODIGO",
@@ -34,5 +36,15 @@
   "SP": "SP_CODIGO",
   "CANECA": "CANECAS",
   "BA": "BONES",
-  "B": "BONES"
+  "B": "BONES",
+
+  "CI":   { "folder": "CI_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "CF":   { "folder": "CF_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "CML":  { "folder": "CML_CODIGO",    "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "CP":   { "folder": "CP_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "CPB":  { "folder": "CPB_CODIGO",    "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "MB":   { "folder": "MB_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "MT":   { "folder": "MT_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "PC":   { "folder": "PC_CODIGO - PORTA CARRETILHA", "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
+  "SAC":  { "folder": "SAC_CODIGO",    "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" }
 }

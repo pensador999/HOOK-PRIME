@@ -6,13 +6,24 @@ const fs = require('fs');
 const sharp = require('sharp');
 const networkSafety = require('./config/network-safety.js');
 
-// Mapeamento de prefixo de código → pasta na rede
+// Mapeamento de prefixo de código → pasta na rede (suporta multi-rede)
 let networkPrefixes = {};
 try {
   networkPrefixes = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'network-prefixes.json'), 'utf8'));
-  console.log(`📂 ${Object.keys(networkPrefixes).length} prefixos de rede carregados`);
+  const realKeys = Object.keys(networkPrefixes).filter(k => !k.startsWith('_'));
+  console.log(`📂 ${realKeys.length} prefixos de rede carregados`);
 } catch (e) {
   console.warn('⚠️ network-prefixes.json não encontrado');
+}
+
+// Resolve um prefixo para { folder, root }
+// Suporta formato string ("CI_CODIGO") e objeto ({"folder":"CI_CODIGO","root":"\\\\..."})
+function resolvePrefixConfig(prefix) {
+  const val = networkPrefixes[prefix];
+  if (!val) return null;
+  if (typeof val === 'string') return { folder: val, root: networkSafety.NETWORK_ROOT };
+  if (typeof val === 'object' && val.folder) return { folder: val.folder, root: val.root || networkSafety.NETWORK_ROOT };
+  return null;
 }
 
 // ─── Configuração do servidor ────────────────────────────────────────────────
@@ -216,7 +227,7 @@ app.post('/api/autopilot/tasks', (req, res) => {
     const groupedCodes = {};
     foundCodes.forEach(code => {
       const upper = code.toUpperCase();
-      const knownKeys = Object.keys(networkPrefixes).sort((a, b) => b.length - a.length);
+      const knownKeys = Object.keys(networkPrefixes).filter(k => !k.startsWith('_')).sort((a, b) => b.length - a.length);
       let prefix = null;
       for (const key of knownKeys) {
         if (upper.startsWith(key)) { prefix = key; break; }
@@ -244,7 +255,7 @@ app.post('/api/autopilot/tasks', (req, res) => {
           const code = `${rawPrefix}${String(i).padStart(rangeMatch[2].length, '0')}`;
           // Use smart prefix matching
           const upper = code.toUpperCase();
-          const knownKeys = Object.keys(networkPrefixes).sort((a, b) => b.length - a.length);
+          const knownKeys = Object.keys(networkPrefixes).filter(k => !k.startsWith('_')).sort((a, b) => b.length - a.length);
           let smartPrefix = rawPrefix;
           for (const key of knownKeys) {
             if (upper.startsWith(key)) { smartPrefix = key; break; }
@@ -2088,9 +2099,10 @@ app.post('/api/network/smart-scan', (req, res) => {
     // ── SMART PREFIX MATCHING ──
     // Tenta o match mais longo primeiro contra os prefixos conhecidos
     // Suporta prefixos com números como C0, T0, CM0, etc.
+    // Ignora chaves internas como _VERSAO, _NOTA, _REDE_NOVA, _REDE_ANTIGA
     function findBestPrefix(code) {
       const upper = code.toUpperCase();
-      const knownKeys = Object.keys(networkPrefixes);
+      const knownKeys = Object.keys(networkPrefixes).filter(k => !k.startsWith('_'));
       // Ordenar por comprimento DESC — prefixos mais longos primeiro (CCPBR antes de C)
       const sorted = knownKeys.sort((a, b) => b.length - a.length);
       for (const key of sorted) {
@@ -2104,10 +2116,15 @@ app.post('/api/network/smart-scan', (req, res) => {
     if (!prefix) {
       return res.status(404).json({
         error: `Não foi possível encontrar prefixo para "${codes[0]}". Nenhum prefixo conhecido começa com essas letras.`,
-        knownPrefixes: Object.keys(networkPrefixes)
+        knownPrefixes: Object.keys(networkPrefixes).filter(k => !k.startsWith('_'))
       });
     }
-    const networkFolder = networkPrefixes[prefix];
+    const prefixConfig = resolvePrefixConfig(prefix);
+    if (!prefixConfig) {
+      return res.status(404).json({ error: `Configuração inválida para prefixo "${prefix}".` });
+    }
+    const networkFolder = prefixConfig.folder;
+    const networkRoot = prefixConfig.root;
 
     // ── FIX #3: Rejeitar prefixos misturados ──
     const allPrefixes = new Set(
@@ -2120,7 +2137,7 @@ app.post('/api/network/smart-scan', (req, res) => {
       });
     }
 
-    const basePath = path.join(networkSafety.NETWORK_ROOT, networkFolder);
+    const basePath = path.join(networkRoot, networkFolder);
 
     if (!networkSafety.safeExists(basePath)) {
       return res.status(404).json({ error: `Pasta não encontrada na rede: ${basePath}` });
