@@ -1,9 +1,8 @@
 /* ═══════════════════════════════════════════
-   HOOK PRIME — Cinematic 3D Intro Styles
+   HOOK PRIME — Cinematic 3D Intro v2 Styles
    Three.js WebGL + HUD Overlay
    ═══════════════════════════════════════════ */
 
-/* Container — full viewport overlay */
 #hp-intro {
   position: fixed;
   inset: 0;
@@ -12,14 +11,13 @@
   background: #000;
 }
 
-/* Three.js canvas fills container */
 #hp-intro canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
 }
 
-/* HUD Overlay (text, flash, wipe) */
+/* ── HUD Overlay ── */
 .hp-intro-overlay {
   position: absolute;
   inset: 0;
@@ -28,49 +26,40 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 10vh;
+  justify-content: center;
+  gap: 0;
 }
 
-/* Title */
+/* ── Title — centered, breathing space ── */
 .hp-intro-title {
-  font-family: 'Outfit', 'Inter', sans-serif;
-  font-size: clamp(32px, 7vw, 72px);
-  font-weight: 800;
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  font-size: clamp(28px, 6vw, 64px);
+  font-weight: 700;
   color: #fff;
-  letter-spacing: 10px;
+  letter-spacing: 12px;
   text-transform: uppercase;
-  perspective: 600px;
-  text-shadow: 0 0 40px rgba(10, 228, 72, 0.3);
+  visibility: hidden;
+  text-shadow: 0 0 60px rgba(10, 228, 72, 0.15);
 }
 
 .hp-intro-char {
   display: inline-block;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
 }
 
+/* ── Subtitle — system identifier, appears later ── */
 .hp-intro-subtitle {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: clamp(9px, 1.4vw, 13px);
+  font-size: clamp(8px, 1.2vw, 12px);
   font-weight: 400;
-  color: rgba(10, 228, 72, 0.7);
-  letter-spacing: 12px;
+  color: rgba(10, 228, 72, 0.5);
+  letter-spacing: 10px;
   text-transform: uppercase;
-  margin-top: 10px;
+  margin-top: 16px;
   opacity: 0;
 }
 
-/* Green flash */
-.hp-intro-flash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 40% 45%, rgba(10,228,72,0.8), transparent 60%);
-  opacity: 0;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-/* Wipe transition circle */
+/* ── Wipe — system activation ── */
 .hp-intro-wipe {
   position: absolute;
   inset: 0;
@@ -82,13 +71,12 @@
 /* ── Mobile ── */
 @media (max-width: 768px) {
   .hp-intro-title {
-    letter-spacing: 4px;
+    letter-spacing: 6px;
+    font-weight: 600;
   }
   .hp-intro-subtitle {
-    letter-spacing: 5px;
-    font-size: 9px;
-  }
-  .hp-intro-overlay {
-    padding-bottom: 6vh;
+    letter-spacing: 4px;
+    font-size: 8px;
+    margin-top: 10px;
   }
 }
