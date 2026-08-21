@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Dashboard (Página Inicial com Radar ClickUp)
    Premium Glassmorphism Design com Glow Effect
    ═══════════════════════════════════════════════════════════════ */
@@ -16,14 +16,238 @@
     container.innerHTML = `
       <style>
       .spinner-sm { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } }
+
+      /* ═══ DASH HERO — Glassmorphic Video Card ═══ */
+      .dash-hero {
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        min-height: 420px;
+        background: rgba(15, 14, 23, 0.6);
+        border: 1px solid rgba(127, 0, 255, 0.2);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        display: flex;
+        align-items: flex-end;
+        margin-bottom: 2rem;
+      }
+      .dash-hero__video {
+        position: absolute; inset: 0;
+        width: 100%; height: 100%;
+        object-fit: cover;
+        opacity: 0.45;
+        z-index: 0;
+      }
+      .dash-hero__gradient {
+        position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(15,14,23,0.2) 0%, rgba(15,14,23,0.85) 100%);
+        z-index: 1;
+      }
+      .dash-hero__content {
+        position: relative; z-index: 2;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 2.5rem;
+        gap: 2rem;
+      }
+      .dash-hero__left { flex: 1; }
+      .dash-hero__badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(127, 0, 255, 0.15);
+        border: 1px solid rgba(127, 0, 255, 0.3);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 0.7rem;
+        color: #A855F7;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+      .dash-hero__badge svg { width: 12px; height: 12px; }
+      .dash-hero__title {
+        font-size: clamp(2.5rem, 5vw, 3.5rem);
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1.1;
+        background: linear-gradient(135deg, #fff 0%, #A855F7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+      }
+      .dash-hero__subtitle {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.6);
+        max-width: 400px;
+      }
+      .dash-hero__cta {
+        margin-top: 1.5rem;
+        padding: 12px 28px;
+        background: linear-gradient(135deg, #5B21B6, #7F00FF);
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 20px rgba(127, 0, 255, 0.3);
+      }
+      .dash-hero__cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 35px rgba(127, 0, 255, 0.5);
+      }
+      .dash-hero__stats {
+        display: flex; flex-direction: column; gap: 1.2rem;
+        text-align: right;
+      }
+      .dash-hero__stat { }
+      .dash-hero__stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.1;
+      }
+      .dash-hero__stat-label {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.45);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* ═══ TOOL CARDS — Cross Formation + ═══ */
+      .tools-section { margin-bottom: 2rem; }
+      .tools-section__title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        color: rgba(255,255,255,0.4);
+        margin-bottom: 1.5rem;
+      }
+      .tools-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+          ".     .     top     .      .    "
+          "left1 left2 center  right1 right2"
+          ".     .     bottom  .      .    ";
+        gap: 1rem;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .tool-card {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        aspect-ratio: 16/10;
+        cursor: pointer;
+        border: 1px solid rgba(127, 0, 255, 0.15);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .tool-card:hover {
+        border-color: rgba(127, 0, 255, 0.6);
+        box-shadow: 0 0 30px rgba(127, 0, 255, 0.25), inset 0 0 30px rgba(127, 0, 255, 0.05);
+        transform: translateY(-4px) scale(1.02);
+      }
+      .tool-card__bg {
+        position: absolute; inset: 0;
+        width: 100%; height: 100%;
+        object-fit: cover;
+        opacity: 0.35;
+        transition: opacity 0.4s ease;
+      }
+      .tool-card:hover .tool-card__bg { opacity: 0.55; }
+      .tool-card__overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(15,14,23,0.3) 0%, rgba(15,14,23,0.85) 100%);
+        z-index: 1;
+      }
+      .tool-card__content {
+        position: relative; z-index: 2;
+        height: 100%;
+        display: flex; flex-direction: column;
+        justify-content: flex-end;
+        padding: 1rem 1.2rem;
+      }
+      .tool-card__icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.4rem;
+      }
+      .tool-card__name {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 0.5px;
+      }
+      .tool-card__desc {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.5);
+        margin-top: 2px;
+      }
+      .tool-card--top    { grid-area: top; }
+      .tool-card--left1  { grid-area: left1; }
+      .tool-card--left2  { grid-area: left2; }
+      .tool-card--center { grid-area: center; }
+      .tool-card--right1 { grid-area: right1; }
+      .tool-card--right2 { grid-area: right2; }
+      .tool-card--bottom { grid-area: bottom; }
+
+      @media (max-width: 768px) {
+        .tools-grid {
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: auto;
+          grid-template-areas: none;
+        }
+        .tool-card { grid-area: auto !important; }
+        .dash-hero { min-height: 320px; }
+        .dash-hero__content { flex-direction: column; align-items: flex-start; }
+        .dash-hero__stats { flex-direction: row; gap: 1.5rem; text-align: left; }
+      }
       </style>
-      <!-- Boas-vindas -->
-      <div class="welcome fade-in mb-4">
-        <h2 class="welcome__title">Bem-vindo ao <span class="gradient-text">HUB</span></h2>
-        <p class="welcome__subtitle">Central de Automação Hook Prime — tudo em um só lugar.</p>
+
+      <!-- ═══ HERO — Lucas RTX com Vídeo ═══ -->
+      <div class="dash-hero fade-in">
+        <video class="dash-hero__video" autoplay muted loop playsinline>
+          <source src="assets/intro-video.mp4" type="video/mp4">
+        </video>
+        <div class="dash-hero__gradient"></div>
+        <div class="dash-hero__content">
+          <div class="dash-hero__left">
+            <div class="dash-hero__badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              ENTERPRISE AUTOMATION SYSTEM
+            </div>
+            <h1 class="dash-hero__title">LUCAS RTX</h1>
+            <p class="dash-hero__subtitle">Automação completa — do código ao CSV final. Configure, arraste, gere links e exporte em um fluxo sem erros.</p>
+            <button class="dash-hero__cta" onclick="window.HUB.navigate('autopilot')">▶ Iniciar Autopilot</button>
+          </div>
+          <div class="dash-hero__stats">
+            <div class="dash-hero__stat">
+              <div class="dash-hero__stat-value">42</div>
+              <div class="dash-hero__stat-label">Prefixos Mapeados</div>
+            </div>
+            <div class="dash-hero__stat">
+              <div class="dash-hero__stat-value">29</div>
+              <div class="dash-hero__stat-label">Endpoints Ativos</div>
+            </div>
+            <div class="dash-hero__stat">
+              <div class="dash-hero__stat-value">7</div>
+              <div class="dash-hero__stat-label">Módulos</div>
+            </div>
+            <div class="dash-hero__stat">
+              <div class="dash-hero__stat-value" id="stat-tasks-hero">—</div>
+              <div class="dash-hero__stat-label">Tarefas Ativas</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 📋 ClickUp Radar — Widget Hero no Topo -->
+      <!-- 📋 ClickUp Radar — Widget Live -->
       <div class="card card--glow clickup-radar-card fade-in mb-4">
         <div class="clickup-radar__header">
           <div class="clickup-radar__title-group">
@@ -51,31 +275,31 @@
 
         <div class="clickup-radar__columns" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: start;">
           <div class="clickup-radar-col" id="col-pending">
-            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #0ae448; background: rgba(10, 228, 72,0.05);">
+            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #7F00FF; background: rgba(127, 0, 255,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #0ae448; box-shadow: 0 0 8px #0ae448;"></span>
-                <span class="clickup-pill__name" style="color: #0ae448;">1. A Fazer</span>
+                <span class="clickup-pill__dot" style="background: #7F00FF; box-shadow: 0 0 8px #7F00FF;"></span>
+                <span class="clickup-pill__name" style="color: #7F00FF;">1. A Fazer</span>
               </div>
-              <span class="clickup-pill__tag" style="background: rgba(10, 228, 72,0.1); color: #0ae448;">Principal</span>
+              <span class="clickup-pill__tag" style="background: rgba(127, 0, 255,0.1); color: #7F00FF;">Principal</span>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-in-progress">
-            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #34d399; background: rgba(10, 228, 72,0.05);">
+            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #A855F7; background: rgba(127, 0, 255,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #34d399;"></span>
-                <span class="clickup-pill__name" style="color: #34d399;">2. Em Execução</span>
+                <span class="clickup-pill__dot" style="background: #A855F7;"></span>
+                <span class="clickup-pill__name" style="color: #A855F7;">2. Em Execução</span>
               </div>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-done">
-            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #059669; background: rgba(8,158,154,0.05);">
+            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #5B21B6; background: rgba(91,33,182,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #059669;"></span>
-                <span class="clickup-pill__name" style="color: #059669;">3. Completo</span>
+                <span class="clickup-pill__dot" style="background: #5B21B6;"></span>
+                <span class="clickup-pill__name" style="color: #5B21B6;">3. Completo</span>
               </div>
             </div>
             <div class="task-list"></div>
@@ -107,151 +331,92 @@
         </div>
       </div>
 
-      <!-- 🚀 Autopilot — Card Destaque -->
-      <div class="card card--glow module-card module-card--hero fade-in mb-4">
-        <div>
-          <div class="card__header">
-            <div class="card__icon card__icon--green">🚀</div>
-            <div>
-              <div class="card__title">Lucas RTX</div>
-              <div class="card__subtitle">Automação completa — do código ao CSV final</div>
+      <!-- ═══ TOOL CARDS — Formação + ═══ -->
+      <div class="tools-section">
+        <div class="tools-section__title">Módulos & Ferramentas</div>
+        <div class="tools-grid stagger">
+
+          <div class="tool-card tool-card--top" onclick="window.HUB.navigate('autopilot')">
+            <img class="tool-card__bg" src="assets/cards/autopilot.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">🚀</div>
+              <div class="tool-card__name">Autopilot</div>
+              <div class="tool-card__desc">Automação completa</div>
             </div>
           </div>
-          <p class="module-card__desc">
-            Configure range de códigos, arraste pastas com imagens, gere links e exporte planilhas — tudo em um fluxo automatizado sem erros.
-          </p>
+
+          <div class="tool-card tool-card--left1" onclick="window.HUB.navigate('image-crosser')">
+            <img class="tool-card__bg" src="assets/cards/crosser.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">🔀</div>
+              <div class="tool-card__name">Cruzador</div>
+              <div class="tool-card__desc">Match imagem ↔ produto</div>
+            </div>
+          </div>
+
+          <div class="tool-card tool-card--left2" onclick="window.HUB.navigate('spreadsheet')">
+            <img class="tool-card__bg" src="assets/cards/spreadsheet.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">📋</div>
+              <div class="tool-card__name">Planilhas</div>
+              <div class="tool-card__desc">CSV para Bling & Sankhya</div>
+            </div>
+          </div>
+
+          <div class="tool-card tool-card--center" onclick="window.HUB.navigate('images')">
+            <img class="tool-card__bg" src="assets/cards/upload-cdn.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">☁️</div>
+              <div class="tool-card__name">Upload CDN</div>
+              <div class="tool-card__desc">Gerenciador de Imagens</div>
+            </div>
+          </div>
+
+          <div class="tool-card tool-card--right1" onclick="window.HUB.navigate('folders')">
+            <img class="tool-card__bg" src="assets/cards/folders.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">📁</div>
+              <div class="tool-card__name">Pastas</div>
+              <div class="tool-card__desc">Criação em lote</div>
+            </div>
+          </div>
+
+          <div class="tool-card tool-card--right2" onclick="window.HUB.navigate('flow')">
+            <img class="tool-card__bg" src="assets/cards/scanner.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">🔄</div>
+              <div class="tool-card__name">Fluxo</div>
+              <div class="tool-card__desc">Canvas visual</div>
+            </div>
+          </div>
+
+          <div class="tool-card tool-card--bottom" onclick="window.HUB.navigate('history')">
+            <img class="tool-card__bg" src="assets/cards/history.jpg" alt="" loading="lazy">
+            <div class="tool-card__overlay"></div>
+            <div class="tool-card__content">
+              <div class="tool-card__icon">📜</div>
+              <div class="tool-card__name">Histórico</div>
+              <div class="tool-card__desc">Log de operações</div>
+            </div>
+          </div>
+
         </div>
-        <button class="btn btn--primary" onclick="window.HUB.navigate('autopilot')">
-          ▶ Iniciar Lucas RTX
-        </button>
       </div>
 
-      <!-- Cards de Módulos -->
-      <h3 class="font-semibold text-secondary mb-2 uppercase tracking-wide text-sm">Módulos</h3>
-      <div class="grid grid-3 stagger mb-4">
-
-        <!-- 🔀 Cruzador de Imagens -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(168,85,247,0.12);">🔀</div>
-              <div>
-                <div class="card__title">Cruzador de Imagens</div>
-                <div class="card__subtitle">Match automático imagem ↔ produto</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Cruze pastas de imagens com códigos da planilha Bling usando algoritmo de similaridade. Upload e exportação integrados.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('image-crosser')">🔀 Abrir Cruzador</button>
+      <!-- Links Externos -->
+      <div class="card card--glow fade-in" style="padding: 1.5rem;">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+          <a href="https://app.clickup.com/12901270/v/b/f/901317259670" target="_blank" rel="noopener noreferrer" class="btn btn--primary" style="font-size: 0.8rem;">📋 ClickUp</a>
+          <a href="https://brk-bunker.allexadriel.workers.dev/images" target="_blank" rel="noopener noreferrer" class="btn btn--primary" style="font-size: 0.8rem;">🖼️ BRK Bunker CDN</a>
+          <a href="https://lucaslima.streamlit.app/" target="_blank" rel="noopener noreferrer" class="btn btn--primary" style="font-size: 0.8rem;">📊 Sankhya Suite</a>
+          <a href="https://docs.google.com/spreadsheets/d/1YQx_542qirlutjeNT5SoRlxNgPpVk5Hq/edit?gid=1549727073" target="_blank" rel="noopener noreferrer" class="btn btn--primary" style="font-size: 0.8rem;">📋 Planilha EANs</a>
         </div>
-
-        <!-- 📋 Gerador de Planilhas -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(34,197,94,0.12);">📋</div>
-              <div>
-                <div class="card__title">Gerador de Planilhas</div>
-                <div class="card__subtitle">CSV para Bling & Sankhya</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Crie planilhas CSV para cadastro de produtos com preenchimento inteligente de variações, EANs e imagens.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('spreadsheet')">📋 Abrir Gerador</button>
-        </div>
-
-        <!-- 📁 Gerenciador de Pastas -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(59,130,246,0.12);">📁</div>
-              <div>
-                <div class="card__title">Gerenciador de Pastas</div>
-                <div class="card__subtitle">Criação em lote</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Crie pastas em lote a partir de códigos de produto. Interface visual para organizar estruturas de arquivos.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('folders')">📁 Abrir Gerenciador</button>
-        </div>
-
-        <!-- 🖼️ Gerenciador de Imagens -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(6,182,212,0.12);">🖼️</div>
-              <div>
-                <div class="card__title">Gerenciador de Imagens</div>
-                <div class="card__subtitle">Renomear MASC/FEM/INF</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Renomeie e organize fotos de produtos automaticamente. Integra com o Gerador de Links.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('images')">🖼️ Abrir Gerenciador</button>
-        </div>
-
-        <!-- 🔄 Fluxo de Trabalho -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(139,92,246,0.12);">🔄</div>
-              <div>
-                <div class="card__title">Fluxo de Trabalho</div>
-                <div class="card__subtitle">Canvas Visual</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Visualize e gerencie processos de cadastro no canvas visual interativo com nós arrastáveis.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('flow')">🔄 Abrir Canvas</button>
-        </div>
-
-        <!-- 📜 Histórico de Tarefas -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(244,63,94,0.12);">📜</div>
-              <div>
-                <div class="card__title">Histórico de Tarefas</div>
-                <div class="card__subtitle">Log de operações</div>
-              </div>
-            </div>
-            <p class="module-card__desc">
-              Acompanhe todas as operações realizadas no HUB com timeline visual e filtros avançados.
-            </p>
-          </div>
-          <button class="btn btn--primary" onclick="window.HUB.navigate('history')">📜 Abrir Histórico</button>
-        </div>
-
-        <!-- 🔗 Ferramentas Externas -->
-        <div class="card card--glow module-card">
-          <div>
-            <div class="card__header">
-              <div class="card__icon" style="background:rgba(6,182,212,0.12);">🔗</div>
-              <div>
-                <div class="card__title">Ferramentas Externas</div>
-                <div class="card__subtitle">Links rápidos</div>
-              </div>
-            </div>
-            <ul class="module-card__links">
-              <li><a href="https://app.clickup.com/12901270/v/b/f/901317259670" target="_blank" rel="noopener noreferrer">📋 Radar ClickUp</a></li>
-              <li><a href="https://brk-bunker.allexadriel.workers.dev/images" target="_blank" rel="noopener noreferrer">🖼️ BRK Bunker (CDN)</a></li>
-              <li><a href="https://lucaslima.streamlit.app/" target="_blank" rel="noopener noreferrer">📊 Sankhya Suite</a></li>
-              <li><a href="https://docs.google.com/spreadsheets/d/1YQx_542qirlutjeNT5SoRlxNgPpVk5Hq/edit?gid=1549727073" target="_blank" rel="noopener noreferrer">📋 Planilha de EANs</a></li>
-            </ul>
-          </div>
-          <button class="btn btn--primary" onclick="window.open('https://app.clickup.com/12901270/v/b/f/901317259670', '_blank')">🔗 Abrir Links ↗</button>
-        </div>
-
       </div>
     `;
 
@@ -337,13 +502,13 @@
       card.setAttribute('draggable', 'true');
       card.style.cssText = `
         padding: 12px; display: flex; flex-direction: column; gap: 8px;
-        border: 1px solid rgba(10, 228, 72,0.2); background: rgba(11, 15, 25, 0.7);
+        border: 1px solid rgba(127, 0, 255,0.2); background: rgba(11, 15, 25, 0.7);
         cursor: grab; position: relative; transition: all 0.2s ease;
       `;
       
       const codes = task.groups ? Object.values(task.groups).flat() : [];
       const codesHtml = codes.length > 0 
-        ? `<div style="font-size: 11px; color: #34d399; font-family: monospace; font-weight: bold; background: rgba(10, 228, 72,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
+        ? `<div style="font-size: 11px; color: #A855F7; font-family: monospace; font-weight: bold; background: rgba(127, 0, 255,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
         : '';
       
       const dateStr = task.timestamp ? new Date(task.timestamp).toLocaleString() : new Date().toLocaleString();
@@ -368,8 +533,8 @@
         </div>
         <div style="font-size: 10px; color: #888;">${dateStr}</div>
         ${codesHtml}
-        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#0ae448;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
-        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #059669, #0ae448); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
+        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#7F00FF;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
+        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #5B21B6, #7F00FF); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
                 <span>🚀</span> Iniciar no Lucas RTX
         </button>
       `;
@@ -470,7 +635,7 @@
         // Highlight drop zones
         document.querySelectorAll('.task-list').forEach(tl => {
           tl.style.minHeight = '80px';
-          tl.style.border = '2px dashed rgba(10, 228, 72,0.3)';
+          tl.style.border = '2px dashed rgba(127, 0, 255,0.3)';
           tl.style.borderRadius = '8px';
           tl.style.transition = 'all 0.2s';
         });
@@ -508,13 +673,13 @@
         taskList.addEventListener('dragover', (e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
-          taskList.style.background = 'rgba(10, 228, 72,0.08)';
-          taskList.style.border = '2px dashed rgba(10, 228, 72,0.6)';
+          taskList.style.background = 'rgba(127, 0, 255,0.08)';
+          taskList.style.border = '2px dashed rgba(127, 0, 255,0.6)';
         });
 
         taskList.addEventListener('dragleave', () => {
           taskList.style.background = '';
-          taskList.style.border = '2px dashed rgba(10, 228, 72,0.3)';
+          taskList.style.border = '2px dashed rgba(127, 0, 255,0.3)';
         });
 
         taskList.addEventListener('drop', (e) => {

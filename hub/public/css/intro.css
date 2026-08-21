@@ -88,12 +88,12 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: clamp(8px, 1.2vw, 13px);
   font-weight: 400;
-  color: rgba(10, 228, 72, 0.6);
+  color: rgba(127, 0, 255, 0.6);
   letter-spacing: 10px;
   text-transform: uppercase;
   margin-top: 18px;
   opacity: 0;
-  text-shadow: 0 0 30px rgba(10, 228, 72, 0.2);
+  text-shadow: 0 0 30px rgba(127, 0, 255, 0.2);
 }
 
 /* ── Wipe ── */

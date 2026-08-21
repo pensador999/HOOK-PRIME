@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Lucas RTX — Fluxo de Trabalho Visual (Canvas)
    Nós editáveis, drag-and-drop, conexões e persistência
    ═══════════════════════════════════════════════════════════════ */
@@ -110,7 +110,7 @@
       icon: '🖼️',
       title: 'Organizar Imagens',
       subtitle: 'Fase 3 · Renomear & Ordenar',
-      color: '#22c55e',
+      color: '#8B5CF6',
       x: 60,
       y: 440,
       page: 'images',
@@ -184,7 +184,7 @@
       icon: '💾',
       title: 'Exportar CSV',
       subtitle: 'Fase 4 · Download',
-      color: '#10b981',
+      color: '#7C3AED',
       x: 620,
       y: 620,
       page: 'spreadsheet',
@@ -196,7 +196,7 @@
       icon: '✅',
       title: 'Importar no Bling',
       subtitle: 'Fase 4 · Cadastro final',
-      color: '#059669',
+      color: '#5B21B6',
       x: 900,
       y: 620,
       page: null,
@@ -365,7 +365,7 @@
     const phases = [
       { y: 30,  label: 'FASE 1', name: 'Recebimento & Análise', color: '#8b5cf6', icon: '📥' },
       { y: 210, label: 'FASE 2', name: 'Coleta & Organização',  color: '#0ea5e9', icon: '📡' },
-      { y: 390, label: 'FASE 3', name: 'Processamento',          color: '#22c55e', icon: '⚙️' },
+      { y: 390, label: 'FASE 3', name: 'Processamento',          color: '#8B5CF6', icon: '⚙️' },
       { y: 570, label: 'FASE 4', name: 'Exportação & Entrega',   color: '#84cc16', icon: '📦' }
     ];
     return phases.map(p => `

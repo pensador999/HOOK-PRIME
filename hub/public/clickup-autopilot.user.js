@@ -1,4 +1,4 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name         HOOK PRIME - ClickUp Autopilot
 // @namespace    http://tampermonkey.net/
 // @version      1.0
@@ -19,7 +19,7 @@
         btn.id = 'hook-prime-btn';
         btn.innerText = '🚀 Enviar para HOOK PRIME';
         btn.style.cssText = `
-            background: linear-gradient(135deg, #059669, #0ae448);
+            background: linear-gradient(135deg, #5B21B6, #7F00FF);
             color: #FFFFFF;
             border: none;
             padding: 6px 14px;
@@ -105,10 +105,10 @@
                 onload: function(res) {
                     if(res.status === 200) {
                         btn.innerText = '✅ Enviado!';
-                        btn.style.background = '#22c55e';
+                        btn.style.background = '#8B5CF6';
                         setTimeout(() => {
                             btn.innerText = '🚀 Enviar para HOOK PRIME';
-                            btn.style.background = 'linear-gradient(135deg, #059669, #0ae448)';
+                            btn.style.background = 'linear-gradient(135deg, #5B21B6, #7F00FF)';
                             btn.style.opacity = '1';
                         }, 3000);
                     } else {
@@ -168,7 +168,7 @@
         if (!badge) badge = createStatusBadge();
         if (isOnline) {
             badge.innerText = '🟢 HOOK PRIME Connected';
-            badge.style.background = 'linear-gradient(135deg, #059669, #0ae448)';
+            badge.style.background = 'linear-gradient(135deg, #5B21B6, #7F00FF)';
         } else {
             badge.innerText = '🔴 HOOK PRIME Offline';
             badge.style.background = '#666';

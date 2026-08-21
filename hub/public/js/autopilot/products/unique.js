@@ -1,4 +1,4 @@
-(function(modules) {
+﻿(function(modules) {
   
   /**
    * Build CSV rows for a Unique product.
@@ -78,7 +78,7 @@
   function renderUniqueLinkCards(code, group, helpers) {
     const state = helpers.state || {};
     const esc = helpers.esc || (str => str);
-    const TIFFANY = helpers.TIFFANY || '#0ae448';
+    const TIFFANY = helpers.TIFFANY || '#7F00FF';
     const TIFFANY_D = helpers.TIFFANY_D || '#09a09c';
     const codeIdx = typeof helpers.codeIdx !== 'undefined' ? helpers.codeIdx : (code._index || 0);
 

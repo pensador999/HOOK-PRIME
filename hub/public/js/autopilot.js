@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Lucas RTX (Wizard 5 Etapas)
    Automação completa: Códigos → Pastas → Links → Planilha → Export
    ═══════════════════════════════════════════════════════════════ */
@@ -18,9 +18,9 @@
 
   // ───────── Constantes ─────────
 
-  const TIFFANY   = '#0ae448';
-  const TIFFANY_S = '#34d399';
-  const TIFFANY_D = '#059669';
+  const TIFFANY   = '#7F00FF';
+  const TIFFANY_S = '#A855F7';
+  const TIFFANY_D = '#5B21B6';
 
   // ───────── Catálogo de Produtos (fonte única: registry.js) ─────────
   const R = window.AutopilotModules.Registry;
@@ -43,7 +43,7 @@
     'Raglan': '#3b82f6', 'Camisa UV': '#06b6d4', 'FusionX': '#8b5cf6', 'ArmorX': '#d946ef',
     'Hybrid': '#a855f7', 'Capuz': '#6366f1', 'APC': '#f59e0b',
     'Casual': '#14b8a6', 'Corta-Vento': '#ef4444', 'BlackMask': '#6b7280',
-    'Bandana': '#ec4899', 'Tubeneck': '#10b981', 'Motociclismo': '#f97316',
+    'Bandana': '#ec4899', 'Tubeneck': '#7C3AED', 'Motociclismo': '#f97316',
   };
 
   function isAPC() { return getFirstGroup().productType === 'APC'; }
@@ -357,7 +357,7 @@
   // ───────── Stepper ─────────
 
   function renderStepper() {
-    let html = '<div class="stepper" style="position:sticky;top:0;z-index:50;background:var(--surface-card,#1e1e2e);padding:20px 0 16px;border-bottom:1px solid rgba(10, 228, 72,.15)">';
+    let html = '<div class="stepper" style="position:sticky;top:0;z-index:50;background:var(--surface-card,#1e1e2e);padding:20px 0 16px;border-bottom:1px solid rgba(127, 0, 255,.15)">';
 
     STEP_LABELS.forEach((label, idx) => {
       const num = idx + 1;
@@ -450,7 +450,7 @@
 
       ${state.productGroups.map((group, gIdx) => renderGroupCard(group, gIdx)).join('')}
 
-      <button class="btn btn--secondary" id="ap-add-group" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed rgba(10, 228, 72,.3);background:transparent">
+      <button class="btn btn--secondary" id="ap-add-group" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed rgba(127, 0, 255,.3);background:transparent">
         ➕ Adicionar Grupo de Produto
       </button>
 
@@ -806,19 +806,19 @@
     <div style="display:flex;flex-direction:column;gap:24px">
 
       <!-- 📡 Network Image Scraper -->
-      <div class="card" style="padding:28px;border:1px solid rgba(10, 228, 72,0.15)">
+      <div class="card" style="padding:28px;border:1px solid rgba(127, 0, 255,0.15)">
         <h3 style="margin:0 0 6px;color:${TIFFANY}">📡 Buscar Imagens da Rede</h3>
         <p style="margin:0 0 16px;color:#9ca3af;font-size:14px">
           Cole o caminho da pasta da rede onde estão as imagens. O sistema detecta automaticamente a estrutura 
           (<code style="color:#60a5fa">3d/</code>, <code style="color:#f472b6">MASC/FEM/INF</code>, ou soltas).
         </p>
 
-        <div style="background:rgba(10, 228, 72,0.06);border:1px solid rgba(10, 228, 72,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#34d399">
+        <div style="background:rgba(127, 0, 255,0.06);border:1px solid rgba(127, 0, 255,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#A855F7">
           <strong>🔒 Modo seguro:</strong> Apenas leitura e cópia. Nenhum arquivo da rede será editado ou apagado.
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <input type="text" id="ap-network-path" placeholder="Ex: \\\\\\\\SERVIDOR\\\\Projetos\\\\COLECAO_FUSION ou Z:\\\\Projetos\\\\..." value="${esc(state.networkPath || '')}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid rgba(10, 228, 72,0.15);background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
+          <input type="text" id="ap-network-path" placeholder="Ex: \\\\\\\\SERVIDOR\\\\Projetos\\\\COLECAO_FUSION ou Z:\\\\Projetos\\\\..." value="${esc(state.networkPath || '')}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid rgba(127, 0, 255,0.15);background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
           <button class="btn btn--primary" id="ap-network-scan" style="font-size:13px;padding:10px 18px;white-space:nowrap;background:linear-gradient(135deg,${TIFFANY_D},${TIFFANY})">🔍 Escanear Rede</button>
         </div>
         <div id="ap-network-status" style="font-size:13px;margin-top:8px;color:#6b7280;min-height:20px"></div>
@@ -831,7 +831,7 @@
         <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.06);padding-top:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <h4 style="margin:0;color:${TIFFANY_S}">📊 Estrutura Detectada</h4>
-            <span style="font-size:12px;padding:4px 12px;border-radius:20px;background:rgba(10, 228, 72,0.15);color:${TIFFANY}">
+            <span style="font-size:12px;padding:4px 12px;border-radius:20px;background:rgba(127, 0, 255,0.15);color:${TIFFANY}">
               Padrão: ${scan.detectedPattern === 'gender_folders' ? 'Subpastas por Gênero' : scan.detectedPattern === '3d_folder' ? 'Pasta 3D' : scan.detectedPattern === 'loose_images' ? 'Imagens Soltas' : scan.detectedPattern}
             </span>
           </div>
@@ -862,7 +862,7 @@
                   looseCount > 0 ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(156,163,175,.15);color:#9ca3af">📎 ${looseCount}</span>` : '',
                 ].filter(Boolean).join(' ');
                 return `
-                <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);cursor:pointer;transition:background .2s" onmouseover="this.style.background='rgba(10, 228, 72,.08)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+                <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);cursor:pointer;transition:background .2s" onmouseover="this.style.background='rgba(127, 0, 255,.08)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
                   <input type="checkbox" class="network-folder-check" value="${esc(f.name)}" checked style="accent-color:${TIFFANY}">
                   <span style="color:#e5e7eb;font-size:13px;font-family:monospace;flex:1">📁 ${esc(f.name)}</span>
                   <span style="display:flex;gap:6px">${badges}</span>
@@ -901,7 +901,7 @@
       if (state.networkCopyResult) {
         const result = state.networkCopyResult;
         html += `
-        <div style="margin-top:16px;padding:14px 18px;border-radius:10px;background:rgba(10, 228, 72,0.1);border:1px solid rgba(10, 228, 72,0.2)">
+        <div style="margin-top:16px;padding:14px 18px;border-radius:10px;background:rgba(127, 0, 255,0.1);border:1px solid rgba(127, 0, 255,0.2)">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:18px">✅</span>
             <strong style="color:${TIFFANY}">Cópia concluída!</strong>
@@ -923,7 +923,7 @@
           Cada código deve ter subpastas <code style="color:#60a5fa">MASC</code>, <code style="color:#f472b6">FEM</code> e/ou <code style="color:#fbbf24">INF</code> com as imagens dentro.
         </p>
 
-        <div style="background:rgba(10, 228, 72,0.06);border:1px solid rgba(10, 228, 72,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#34d399">
+        <div style="background:rgba(127, 0, 255,0.06);border:1px solid rgba(127, 0, 255,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#A855F7">
           <strong>📂 Estrutura esperada:</strong> PastaRaiz → C02576 → MASC / FEM / INF → imagens.jpg
         </div>
 
@@ -962,7 +962,7 @@
           <div>
             <div style="font-weight:600;font-size:14px;color:#e5e7eb">🔄 Renomeação Automática</div>
             <div style="font-size:12px;color:#6b7280;margin-top:4px">
-              Renomeia automaticamente as imagens para o padrão <code style="color:#34d399">01MASC.jpg</code>, <code style="color:#f472b6">02FEM.jpg</code>, etc.
+              Renomeia automaticamente as imagens para o padrão <code style="color:#A855F7">01MASC.jpg</code>, <code style="color:#f472b6">02FEM.jpg</code>, etc.
             </div>
           </div>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer">
@@ -1022,7 +1022,7 @@
           }
           state.networkScanResult = data;
           saveSession();
-          if (statusEl) statusEl.innerHTML = `<span style="color:#10b981">✅ ${data.summary.totalFolders} pastas encontradas com ${data.summary.totalImages} imagens</span>`;
+          if (statusEl) statusEl.innerHTML = `<span style="color:#7C3AED">✅ ${data.summary.totalFolders} pastas encontradas com ${data.summary.totalImages} imagens</span>`;
           render();
         } catch (err) {
           if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444">❌ Erro de conexão: ${err.message}</span>`;
@@ -1357,12 +1357,12 @@
 
         ${hasDiskPath ? `
         <!-- Caminho configurado — pronto para upload -->
-        <div style="background:linear-gradient(135deg,rgba(10, 228, 72,0.12),rgba(10, 228, 72,0.03));border:1px solid rgba(10, 228, 72,0.3);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+        <div style="background:linear-gradient(135deg,rgba(127, 0, 255,0.12),rgba(127, 0, 255,0.03));border:1px solid rgba(127, 0, 255,0.3);border-radius:12px;padding:16px 20px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
             <span style="font-size:20px">✅</span>
             <span style="font-size:14px;font-weight:700;color:${TIFFANY}">Pasta Configurada — Pronto para Upload!</span>
           </div>
-          <div style="font-size:13px;color:#34d399;line-height:1.6">
+          <div style="font-size:13px;color:#A855F7;line-height:1.6">
             <strong>📁 ${esc(state.diskFolderPath)}</strong><br>
             O servidor lê as subpastas de cada código automaticamente (MASC / FEM / INF).
             Clique em <strong>"🚀 Gerar TODOS os Links"</strong> para enviar ao CDN.
@@ -1453,7 +1453,7 @@
     <style>
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       .ap-uploading-card { animation: uploadPulse 1.5s ease-in-out infinite; }
-      @keyframes uploadPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(10, 228, 72,0); } 50% { box-shadow: 0 0 0 3px rgba(10, 228, 72,0.15); } }
+      @keyframes uploadPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(127, 0, 255,0); } 50% { box-shadow: 0 0 0 3px rgba(127, 0, 255,0.15); } }
     </style>`;
 
     return html;
@@ -1936,7 +1936,7 @@
             statusEl.style.color = TIFFANY;
           }
           row.style.borderColor = TIFFANY + '30';
-          row.style.background = 'rgba(10, 228, 72,0.03)';
+          row.style.background = 'rgba(127, 0, 255,0.03)';
         }
 
         doneJobs++;
@@ -2274,7 +2274,7 @@
         if (data.online) {
           s3Badge.textContent = '🟢 BRK Link Online';
           s3Badge.style.color = TIFFANY;
-          s3Badge.style.background = 'rgba(10, 228, 72,0.08)';
+          s3Badge.style.background = 'rgba(127, 0, 255,0.08)';
         } else {
           s3Badge.textContent = '🔴 BRK Link Offline';
           s3Badge.style.color = '#ef4444';
@@ -2584,7 +2584,7 @@
     <div style="display:flex;flex-direction:column;gap:24px">
 
       <!-- EAN Section -->
-      <div style="padding:16px;background:rgba(10, 228, 72,.06);border:1px solid rgba(10, 228, 72,.12);border-radius:8px;margin-bottom:20px"><small style="color:#9ca3af">ℹ️ EANs não são necessários. As colunas EAN/EAN Emb. serão exportadas vazias no CSV.</small></div>
+      <div style="padding:16px;background:rgba(127, 0, 255,.06);border:1px solid rgba(127, 0, 255,.12);border-radius:8px;margin-bottom:20px"><small style="color:#9ca3af">ℹ️ EANs não são necessários. As colunas EAN/EAN Emb. serão exportadas vazias no CSV.</small></div>
 
       <!-- CSV Preview -->
       <div class="card" style="padding:28px">

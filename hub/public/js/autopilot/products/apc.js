@@ -1,4 +1,4 @@
-(function(modules) {
+﻿(function(modules) {
   // Helper to get shared dependencies
   function getCore() { return modules.Core || {}; }
   function getRegistry() { return modules.Registry || {}; }
@@ -141,7 +141,7 @@
     const Registry = getRegistry();
     const APC_COLORS = Registry.APC_COLORS || ['Preto', 'Branco'];
     const APC_COLOR_CSS = Registry.APC_COLOR_CSS || {};
-    const TIFFANY = Registry.TIFFANY || '#0ae448';
+    const TIFFANY = Registry.TIFFANY || '#7F00FF';
     const TIFFANY_D = Registry.TIFFANY_D || '#089994';
 
     let html = '';

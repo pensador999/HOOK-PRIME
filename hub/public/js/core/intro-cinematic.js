@@ -94,7 +94,7 @@
       chars.push(span);
     }
 
-    // ── Build GSAP Timeline ──
+    // ── Build GSAP Timeline (compressed for ~1.79s video) ──
     function startTimeline() {
       var tl = gsap.timeline({
         onComplete: function () {
@@ -103,60 +103,60 @@
       });
 
       // Phase 1: Video fades in (already playing)
-      tl.to(intro, { opacity: 1, duration: 0.5, ease: 'none' });
+      tl.to(intro, { opacity: 1, duration: 0.3, ease: 'none' });
 
       // Phase 2: Title reveal — character by character
-      tl.set(titleEl, { visibility: 'visible' }, 1.0);
+      tl.set(titleEl, { visibility: 'visible' }, 0.3);
       tl.from(chars, {
-        y: 40,
+        y: 30,
         opacity: 0,
-        filter: 'blur(12px)',
-        duration: 0.6,
+        filter: 'blur(8px)',
+        duration: 0.4,
         ease: 'power3.out',
-        stagger: 0.04,
-      }, 1.0);
+        stagger: 0.03,
+      }, 0.3);
 
       // Phase 3: Subtitle fade in
       tl.to(subtitleEl, {
         opacity: 1,
-        duration: 0.8,
+        duration: 0.5,
         ease: 'power2.out',
-      }, 2.2);
+      }, 1.0);
 
-      // Phase 4: Hold — let the viewer breathe
-      tl.to({}, { duration: 2.5 }, 3.0);
+      // Phase 4: Brief hold
+      tl.to({}, { duration: 0.8 }, 1.5);
 
-      // Phase 5: Wipe transition — everything fades to dark
+      // Phase 5: Wipe transition
       tl.to('.hp-intro-darken', {
         opacity: 1,
-        duration: 0.6,
+        duration: 0.4,
         ease: 'power2.in',
-      }, 5.5);
+      }, 2.3);
 
       tl.to([titleEl, subtitleEl], {
         opacity: 0,
-        y: -20,
-        duration: 0.5,
+        y: -15,
+        duration: 0.3,
         ease: 'power2.in',
-      }, 5.5);
+      }, 2.3);
 
       tl.to('.hp-intro-wipe', {
         opacity: 1,
-        duration: 0.4,
+        duration: 0.3,
         ease: 'power2.inOut',
-      }, 6.0);
+      }, 2.7);
 
       // Phase 6: Reveal app
       tl.add(function () {
         showApp();
-      }, 6.3);
+      }, 2.9);
 
       // Phase 7: Remove intro
       tl.to(intro, {
         opacity: 0,
-        duration: 0.5,
+        duration: 0.4,
         ease: 'power2.out',
-      }, 6.3);
+      }, 2.9);
     }
 
     // ── Start when video is ready ──
@@ -195,9 +195,9 @@
       });
     }
 
-    // ── Safety timeout: max 12s ──
+    // ── Safety timeout: max 6s ──
     setTimeout(function () {
       if (intro.parentNode) cleanup();
-    }, 12000);
+    }, 6000);
   }
 })();

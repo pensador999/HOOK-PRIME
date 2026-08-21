@@ -1,4 +1,4 @@
-/**
+﻿/**
  * autopilot-agent.js — Smart Task Interpreter
  * ─────────────────────────────────────────────
  * Interpreta tasks do ClickUp (texto livre) e gera planos
@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  const TIFFANY = '#0ae448';
+  const TIFFANY = '#7F00FF';
 
   // ═══════════════════════════════════════
   // PARSER PATTERNS
@@ -287,16 +287,16 @@
     'Raglan': '#3b82f6', 'Camisa UV': '#06b6d4', 'FusionX': '#8b5cf6', 'ArmorX': '#d946ef',
     'Hybrid': '#a855f7', 'Capuz': '#6366f1', 'APC': '#f59e0b',
     'Casual': '#14b8a6', 'Corta-Vento': '#ef4444', 'BlackMask': '#6b7280',
-    'Bandana': '#ec4899', 'Tubeneck': '#10b981',
+    'Bandana': '#ec4899', 'Tubeneck': '#7C3AED',
   };
 
   function esc(str) { return (str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
   function renderAgentCard() {
     return `
-    <div class="card card--glow" style="padding:0;border:1px solid rgba(10, 228, 72,.15);overflow:hidden;margin-bottom:24px" id="agent-card">
+    <div class="card card--glow" style="padding:0;border:1px solid rgba(127, 0, 255,.15);overflow:hidden;margin-bottom:24px" id="agent-card">
       <!-- Header -->
-      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(10, 228, 72,.08),rgba(10, 228, 72,.02));border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(127, 0, 255,.08),rgba(127, 0, 255,.02));border-bottom:1px solid rgba(255,255,255,.06)">
         <div style="display:flex;align-items:center;gap:14px">
           <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,${TIFFANY}30,${TIFFANY}10);display:flex;align-items:center;justify-content:center;font-size:22px">🤖</div>
           <div>

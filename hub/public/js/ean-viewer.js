@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Visualizador de EANs (SOMENTE LEITURA)
    Lê a planilha Google Sheets via CSV e exibe dados na interface.
    NUNCA modifica, escreve ou deleta dados na planilha original.
@@ -281,10 +281,10 @@
     const isEmpty = !row.code;
     const isSelected = state.selected.has(row.index);
     const bgStyle = isEmpty
-      ? 'background: rgba(34, 197, 94, 0.04);'
+      ? 'background: rgba(127, 0, 255, 0.04);'
       : '';
     const borderLeft = isEmpty
-      ? 'border-left: 3px solid rgba(34, 197, 94, 0.3);'
+      ? 'border-left: 3px solid rgba(127, 0, 255, 0.3);'
       : 'border-left: 3px solid transparent;';
 
     return `
