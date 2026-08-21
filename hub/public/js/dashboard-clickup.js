@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Dashboard (Página Inicial com Radar ClickUp)
    Premium Glassmorphism Design com Glow Effect
    ═══════════════════════════════════════════════════════════════ */
@@ -213,7 +213,7 @@
       <!-- ═══ HERO — Lucas RTX com Vídeo ═══ -->
       <div class="dash-hero fade-in">
         <video class="dash-hero__video" autoplay muted loop playsinline>
-          <source src="assets/intro-video.mp4" type="video/mp4">
+          <source src="assets/hero-bg.mp4" type="video/mp4">
         </video>
         <div class="dash-hero__gradient"></div>
         <div class="dash-hero__content">
