@@ -363,7 +363,7 @@
           transition: all 0.2s; opacity: 0.5; z-index: 5;
         ">✕</button>
         <div style="display:flex;align-items:center;gap:6px;padding-right:20px">
-          <div style="font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; flex:1">${task.title}</div>
+          <div style="font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; flex:1">${window.HUB.esc(task.title)}</div>
           ${priorityBadge}
         </div>
         <div style="font-size: 10px; color: #888;">${dateStr}</div>
@@ -559,15 +559,27 @@
     }
 
     // ── SSE listeners for live updates ──
+    // 🔒 FIX: Remover listeners antigos para evitar memory leak (TD-007)
     if (window.HUB.radarEventSource) {
-      window.HUB.radarEventSource.addEventListener('task_updated', (e) => {
+      const es = window.HUB.radarEventSource;
+
+      // Remover listeners anteriores se existirem
+      if (window.HUB._sseUpdatedHandler) {
+        es.removeEventListener('task_updated', window.HUB._sseUpdatedHandler);
+      }
+      if (window.HUB._sseDeletedHandler) {
+        es.removeEventListener('task_deleted', window.HUB._sseDeletedHandler);
+      }
+
+      // Criar e registrar novos handlers
+      window.HUB._sseUpdatedHandler = (e) => {
         try {
           const task = JSON.parse(e.data);
           addRadarTask(task, true);
         } catch (err) { console.error('Erro SSE task_updated:', err); }
-      });
+      };
 
-      window.HUB.radarEventSource.addEventListener('task_deleted', (e) => {
+      window.HUB._sseDeletedHandler = (e) => {
         try {
           const { id } = JSON.parse(e.data);
           const card = document.querySelector(`[data-task-id="${id}"]`);
@@ -577,7 +589,10 @@
             setTimeout(() => card.remove(), 300);
           }
         } catch (err) { console.error('Erro SSE task_deleted:', err); }
-      });
+      };
+
+      es.addEventListener('task_updated', window.HUB._sseUpdatedHandler);
+      es.addEventListener('task_deleted', window.HUB._sseDeletedHandler);
     }
   };
 })();

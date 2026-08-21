@@ -334,11 +334,11 @@
           <div class="table-wrapper" style="max-height:420px; overflow:auto;">
             <table class="table">
               <thead>
-                <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                <tr>${headers.map(h => `<th>${window.HUB.esc(h)}</th>`).join('')}</tr>
               </thead>
               <tbody>
                 ${rows.map(row => `
-                  <tr>${row.map(cell => `<td>${cell ?? ''}</td>`).join('')}</tr>
+                  <tr>${row.map(cell => `<td>${window.HUB.esc(cell ?? '')}</td>`).join('')}</tr>
                 `).join('')}
               </tbody>
             </table>

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
 const networkSafety = require('./config/network-safety.js');
+const imageUtils = require('./config/image-utils.js');
 
 // Mapeamento de prefixo de código → pasta na rede (suporta multi-rede)
 let networkPrefixes = {};
@@ -103,8 +104,7 @@ try {
 }
 
 // ═══════ Network Image Scraper Helpers ═══════
-const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|bmp|tiff?)$/i;
-const GENDER_FOLDERS_MAP = { 'MASC': 'masc', 'MASCULINO': 'masc', 'FEM': 'fem', 'FEMININO': 'fem', 'INF': 'inf', 'INFANTIL': 'inf', 'KIDS': 'inf' };
+const { IMAGE_EXTENSIONS, GENDER_FOLDERS_MAP, GENDER_FOLDERS, GENDER_NAMES, getImagePriority, smartSortImages, smartSortImageObjects, detectGenderFromFilename, classifyGender } = imageUtils;
 
 function detectFolderPattern(folderPath) {
   try {
@@ -135,13 +135,7 @@ function detectFolderPattern(folderPath) {
   }
 }
 
-function detectGenderFromFilename(filename) {
-  const name = filename.toUpperCase().replace(/\.[^.]+$/, '');
-  if (/MASC|MASCULIN/.test(name)) return 'masc';
-  if (/FEM|FEMININ/.test(name)) return 'fem';
-  if (/INF(?:ANT)?|KIDS?/.test(name)) return 'inf';
-  return null;
-}
+// detectGenderFromFilename → moved to config/image-utils.js
 
 function countImagesInDir(dirPath) {
   try {
@@ -1055,20 +1049,8 @@ app.post('/api/scan-upload-folder', (req, res) => {
   }
 });
 
-function getSmartSortPriority(filename) {
-  const name = filename.toUpperCase();
-  if (name.includes('FRENTE') && !name.includes('PERSPECTIVA') && !name.includes('PERS')) return 10;
-  if (name.includes('COSTAS') && !name.includes('PERSPECTIVA') && !name.includes('PERS')) return 20;
-  if (name.includes('FRENTE') && (name.includes('PERSPECTIVA') || name.includes('PERS'))) return 30;
-  if (name.includes('COSTAS') && (name.includes('PERSPECTIVA') || name.includes('PERS'))) {
-    if (name.includes('2')) return 50;
-    return 40;
-  }
-  if (name.includes('ZOOM')) return 60;
-  if (name.includes('DETALHE')) return 65;
-  if (name.includes('PESP')) return 70;
-  return 100;
-}
+// getSmartSortPriority → unified in config/image-utils.js as getImagePriority
+const getSmartSortPriority = getImagePriority;
 
 app.post('/api/autopilot/copy-network-images', (req, res) => {
   const { results, taskId } = req.body;
@@ -1461,26 +1443,7 @@ app.post('/api/s3-proxy/upload-from-folder-direct', express.json(), async (req, 
     }
 
     // Smart Sort
-    function getImagePriority(fileName) {
-      const name = fileName.toUpperCase().replace(/\.[^.]+$/, '');
-      if (/^\d+$/.test(name.trim())) return parseInt(name.trim());
-      const isFrente = /FRENTE/.test(name);
-      const isCostas = /COSTA/.test(name);
-      const isPerspec = /PERSPEC|PERSPECTIVA/.test(name);
-      const isPerspec2 = /PERSPECTIVA\s*2|PERSPEC\s*2/.test(name);
-      const isZoom = /ZOOM/.test(name);
-      const isDetalhe = /DETALHE|DETAIL/.test(name);
-      const isPesp = /PESP/.test(name);
-      if (isFrente && !isPerspec)               return 10;
-      if (isCostas && !isPerspec && !isPerspec2) return 20;
-      if (isFrente && isPerspec)                 return 30;
-      if (isCostas && isPerspec && !isPerspec2)  return 40;
-      if (isCostas && isPerspec2)                return 50;
-      if (isZoom)                                return 60;
-      if (isDetalhe)                             return 65;
-      if (isPesp)                                return 70;
-      return 100;
-    }
+    // getImagePriority → unified in config/image-utils.js
 
     imageFiles.sort((a, b) => {
       const prioA = getImagePriority(path.basename(a));
@@ -1613,7 +1576,7 @@ app.post('/api/s3-proxy/upload-from-disk', express.json(), async (req, res) => {
     }
 
     // Mapeia gender para subpasta (MASC/FEM/INF)
-    const GENDER_FOLDERS = { masc: 'MASC', fem: 'FEM', inf: 'INF' };
+    // GENDER_FOLDERS → unified in config/image-utils.js
 
     // Tenta encontrar a pasta de imagens na ordem:
     //   1. folderPath/codeBase/GENDER/  (estrutura C02858/MASC/)
@@ -1673,30 +1636,7 @@ app.post('/api/s3-proxy/upload-from-disk', express.json(), async (req, res) => {
 
     // ─── Smart Sort: FRENTE → COSTAS → FRENTE PERSPEC → COSTAS PERSPEC → extras ───
     // Baseado na análise dos 9 padrões de referência (PADRÃO1~7 + Capturas)
-    function getImagePriority(fileName) {
-      const name = fileName.toUpperCase().replace(/\.[^.]+$/, '');
-
-      // Se é numérico puro (1.jpg, 2.jpg), mantém ordem numérica
-      if (/^\d+$/.test(name.trim())) return parseInt(name.trim());
-
-      const isFrente = /FRENTE/.test(name);
-      const isCostas = /COSTA/.test(name);
-      const isPerspec = /PERSPEC|PERSPECTIVA/.test(name);
-      const isPerspec2 = /PERSPECTIVA\s*2|PERSPEC\s*2/.test(name);
-      const isZoom = /ZOOM/.test(name);
-      const isDetalhe = /DETALHE|DETAIL/.test(name);
-      const isPesp = /PESP/.test(name);
-
-      if (isFrente && !isPerspec)               return 10; // 1º FRENTE plano
-      if (isCostas && !isPerspec && !isPerspec2) return 20; // 2º COSTAS plano
-      if (isFrente && isPerspec)                 return 30; // 3º FRENTE perspectiva
-      if (isCostas && isPerspec && !isPerspec2)  return 40; // 4º COSTAS perspectiva
-      if (isCostas && isPerspec2)                return 50; // 5º COSTAS perspectiva 2
-      if (isZoom)                                return 60; // 6º ZOOM
-      if (isDetalhe)                             return 65; // 7º DETALHE
-      if (isPesp)                                return 70; // 8º PESP genérica
-      return 100; // Fallback
-    }
+    // getImagePriority → unified in config/image-utils.js
 
     imageFiles.sort((a, b) => {
       const nameA = path.basename(a);
@@ -1853,10 +1793,8 @@ app.post('/api/s3-proxy/upload-batch', upload.array('files', 50), async (req, re
     // Classificar por gênero baseado no nome do arquivo
     const byGender = { masc: [], fem: [], inf: [] };
     result.urls.forEach((url, i) => {
-      const name = req.files[i].originalname.toLowerCase();
-      if (name.includes('masc')) byGender.masc.push(url);
-      else if (name.includes('fem')) byGender.fem.push(url);
-      else if (name.includes('inf')) byGender.inf.push(url);
+      const g = detectGenderFromFilename(req.files[i].originalname);
+      if (g) byGender[g].push(url);
     });
 
     // Limpar temporários
@@ -2173,14 +2111,7 @@ app.post('/api/network/smart-scan', (req, res) => {
       .map(item => item.name);
 
     // ── FIX #5: Gender detection com KIDS ──
-    const GENDER_NAMES = ['MASC', 'FEM', 'INF', 'MASCULINO', 'FEMININO', 'INFANTIL', 'KIDS'];
-
-    function classifyGender(folderName) {
-      const n = folderName.toUpperCase();
-      if (n.startsWith('FEM') || n === 'FEMININO') return 'FEM';
-      if (n.startsWith('INF') || n === 'INFANTIL' || n === 'KIDS') return 'INF';
-      return 'MASC';
-    }
+    // GENDER_NAMES + classifyGender → unified in config/image-utils.js
 
     // ── Helper: buscar imagens numa pasta, incluindo JPEG_imagens (#4) ──
     // Filtrar placeholders (SUBSTITUIR.jpg, SUBSTITUIR AQUI.jpg)
@@ -2443,26 +2374,7 @@ app.post('/api/network/smart-scan', (req, res) => {
           if (images.length > 0) source = 'RAIZ';
         }
 
-        // ── Smart Sort v3 — aprendido da exploração da rede ──
-        // Suporta: 1_FRENTE, 1_MASC_FRENTE, HUMANIZADO_FRENTE, FRENTE_COSTAS combo
-        // Nomes reais encontrados: FRENTE.png, COSTAS PERSPECTIVA.png, 5_HUMANIZADO_PESP.jpg,
-        //   COSTAS_MASC.png, FRENTE FEM.png, 1_FRENTE_COSTAS.jpg, MKP MÃO PUNHO.png,
-        //   01_FRENTE_COSTAS.jpg, 02_AMPLIADO.jpg, COSTAS HUMANIZADA.jpg
-        images.forEach(img => {
-          // Remover extensão + prefixo numérico (1_, 01_, etc) + HUMANIZADO/HUMANIZADA
-          let nameClean = img.name.toUpperCase().replace(/\.[^.]+$/, '');
-          nameClean = nameClean.replace(/^\d+[_\s]/, ''); // remove prefixo numérico
-          nameClean = nameClean.replace(/HUMANIZAD[OA][_\s]?/g, ''); // remove HUMANIZADO
-          nameClean = nameClean.replace(/MASC[_\s]|FEM[_\s]|INF[_\s]/g, ''); // remove gênero inline
-
-          if (/FRENTE.*COSTAS?|COSTAS?.*FRENTE/.test(nameClean))               img.priority = 1; // combo FRENTE+COSTAS
-          else if (/FRENTE|FRONT|CABE[CÇ]A/.test(nameClean))                   img.priority = 1;
-          else if (/COSTAS?|BACK|VERSO|CINTURA|TRASEIRA/.test(nameClean))       img.priority = 2;
-          else if (/PERSPEC|PERSPECTIVA|PESP|MESA|LADO|LATERAL|ZOOM/.test(nameClean)) img.priority = 3;
-          else if (/AMPLIADO|DETALHE|INTERNO|COSTURA|BRASIL|PUNHO/.test(nameClean)) img.priority = 4;
-          else img.priority = 5;
-        });
-        images.sort((a, b) => (a.priority || 5) - (b.priority || 5));
+        smartSortImageObjects(images);
 
         // Mapear campos finais (tamanho obtido depois da cópia local, não aqui)
         // Detectar imagens humanizadas (com modelo vestindo)

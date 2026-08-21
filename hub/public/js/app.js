@@ -18,6 +18,12 @@
 
   // Disponibiliza estado global
   window.HUB = window.HUB || {};
+
+  // 🔒 HTML escape helper (TD-008: XSS prevention)
+  window.HUB.esc = function(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  };
   window.HUB.state = state;
 
   // ───────── Mapa de páginas ─────────

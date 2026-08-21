@@ -347,7 +347,7 @@
             </div>
           </div>
 
-          <p class="hist-entry__desc">${entry.description}</p>
+          <p class="hist-entry__desc">${window.HUB.esc(entry.description)}</p>
 
           ${hasDetails && isExpanded ? `
             <div class="hist-entry__details fade-in">

@@ -233,7 +233,7 @@
                : l.type === 'success' ? 'rtx-t-success'
                : l.type === 'warn' ? 'rtx-t-warn'
                : 'rtx-t-info';
-      return `<div class="rtx-t-line ${cls}"><span class="rtx-t-ts">${l.ts}</span> ${l.msg}</div>`;
+      return `<div class="rtx-t-line ${cls}"><span class="rtx-t-ts">${l.ts}</span> ${window.HUB.esc(l.msg)}</div>`;
     }).join('');
 
     body.innerHTML = html || '<div class="rtx-terminal__empty">$ aguardando processo...</div>';
