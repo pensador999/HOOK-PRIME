@@ -1,0 +1,134 @@
+(function () {
+  \'use strict\';
+  window.AutopilotModules = window.AutopilotModules || {};
+  const State = window.AutopilotModules.State;
+  const Registry = window.AutopilotModules.Registry;
+  const Estampas = window.AutopilotModules.Estampas;
+  const H = window.AutopilotModules.Helpers;
+
+  function renderStep4_Estampas() {
+    let html = `
+    <div style="display:flex;flex-direction:column;gap:24px">
+      <div class="card" style="padding:28px">
+        <h3 style="margin:0 0 16px;color:${State.TIFFANY}">🎨 Revisão de Estampas</h3>
+        <p style="color:#9ca3af;font-size:14px;margin-bottom:24px">Defina o nome de cada estampa. O nome será usado no título SEO do produto.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">`;
+
+    const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+    let filled = 0;
+
+    bases.forEach(base => {
+      const val = State.state.estampas[base] || State.state.estampaSuggestions[base] || '';
+      if (val.trim()) filled++;
+
+      const codeObj = State.state.generatedCodes.find(c => c.base === base);
+      const group = codeObj._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
+      
+      const type = codeObj.productType || group.productType;
+      const brand = State.state.brand || 'BRK FISHING';
+      const preview = Registry.buildProductTitle(type, brand, val, 'masc');
+
+      html += `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(0,0,0,.15);border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08)">
+          <span style="font-family:monospace;font-weight:700;color:#e5e7eb;min-width:90px">📁 ${H.esc(base)}</span>
+          <input type="text" class="form-input ap-estampa-input" data-base="${H.esc(base)}" 
+            value="${H.esc(val)}" placeholder="Nome da estampa..." 
+            style="flex:1;font-size:13px;padding:8px 12px" />
+          <button class="btn btn--secondary ap-estampa-suggest" data-base="${H.esc(base)}" 
+            style="font-size:11px;padding:4px 10px;background:rgba(0,0,0,.2)" title="Sugerir nome">🎲</button>
+          <span class="ap-estampa-preview" data-base="${H.esc(base)}" data-type="${H.esc(type)}"
+            style="font-size:11px;color:#6b7280;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${H.esc(preview)}">
+            → ${H.esc(preview)}
+          </span>
+        </div>`;
+    });
+
+    html += `
+        </div>
+        <div style="margin-top:16px;font-size:14px;color:${filled === bases.length ? State.TIFFANY : '#f59e0b'}">
+          ${filled === bases.length ? '✅' : '⚠️'} ${filled} de ${bases.length} estampas definidas
+        </div>
+      </div>
+      <!-- Navigation -->
+      <div style="display:flex;justify-content:space-between;gap:12px;padding-bottom:24px">
+        <button class="btn btn--secondary" id="ap-prev-4-est">← Voltar</button>
+        <div style="display:flex;gap:12px;align-items:center">
+          <button class="btn btn--secondary" id="ap-skip-estampas" style="color:#f59e0b;border-color:#f59e0b40" title="Pular esta etapa e ir direto para a planilha">
+            ⏩ Pular Estampas
+          </button>
+          <button class="btn btn--primary" id="ap-next-4-est" style="min-width:180px">Próximo Passo →</button>
+        </div>
+      </div>
+    </div>`;
+
+    return html;
+  }
+
+  function bindStep4_Estampas(deps) {
+    const { goToStep, validateAndAdvance } = deps;
+    $$('.ap-estampa-input').forEach(input => {
+      input.addEventListener('input', () => {
+        const base = input.dataset.base;
+        State.state.estampas[base] = input.value;
+        State.saveSession();
+        
+        const previewEl = document.querySelector(`.ap-estampa-preview[data-base="${base}"]`);
+        if (previewEl) {
+          const type = previewEl.dataset.type;
+          const preview = Registry.buildProductTitle(type, State.state.brand || 'BRK FISHING', input.value, 'masc');
+          previewEl.textContent = '→ ' + preview;
+          previewEl.title = preview;
+        }
+      });
+    });
+
+    $$('.ap-estampa-suggest').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const base = btn.dataset.base;
+        const brandKey = (State.state.brand || '').toLowerCase().includes('agro') ? 'agro' 
+          : (State.state.brand || '').toLowerCase().includes('motor') ? 'motors' : 'fishing';
+        
+        const newName = Estampas.generateEstampaName(brandKey, Object.values(State.state.estampas));
+        const input = document.querySelector(`.ap-estampa-input[data-base="${base}"]`);
+        if (input) {
+          input.value = newName;
+          State.state.estampas[base] = newName;
+          State.saveSession();
+          
+          const previewEl = document.querySelector(`.ap-estampa-preview[data-base="${base}"]`);
+          if (previewEl) {
+            const type = previewEl.dataset.type;
+            const preview = Registry.buildProductTitle(type, State.state.brand || 'BRK FISHING', newName, 'masc');
+            previewEl.textContent = '→ ' + preview;
+            previewEl.title = preview;
+          }
+        }
+      });
+    });
+
+    const prevBtn = document.getElementById('ap-prev-4-est');
+    if (prevBtn) prevBtn.addEventListener('click', () => goToStep(3));
+
+    const nextBtn = document.getElementById('ap-next-4-est');
+    if (nextBtn) nextBtn.addEventListener('click', () => validateAndAdvance(4));
+
+    const skipBtn = document.getElementById('ap-skip-estampas');
+    if (skipBtn) skipBtn.addEventListener('click', () => {
+      // Skip estampas — fill with group estampaName or placeholder
+      const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+      bases.forEach(base => {
+        if (!State.state.estampas[base] || !State.state.estampas[base].trim()) {
+          const code = State.state.generatedCodes.find(c => c.base === base);
+          const codeGroup = code ? State.getGroupById(code._groupId) : null;
+          State.state.estampas[base] = (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim())
+            || State.state.estampaSuggestions[base] || '';
+        }
+      });
+      State.state.completedSteps.add(4); // Mark Step 4 as completed for stepper
+      State.saveSession();
+      goToStep(5); // Skip directly to planilha
+    });
+  }
+
+  window.AutopilotModules.Step4Est = { render: renderStep4_Estampas, bind: bindStep4_Estampas };
+})();
