@@ -392,6 +392,14 @@ app.post('/api/folders/create', (req, res) => {
       });
     }
 
+    // 🔒 Segurança: bloquear criação em caminhos de rede
+    if (networkSafety.isNetworkPath(basePath)) {
+      return res.status(403).json({
+        success: false,
+        error: '🔒 Operação bloqueada: não é permitido criar pastas na rede.'
+      });
+    }
+
     // Verifica se o diretório base existe
     if (!fs.existsSync(basePath)) {
       return res.status(400).json({
@@ -593,13 +601,17 @@ app.get('/api/preview-image', (req, res) => {
   const imgPath = req.query.path;
   if (!imgPath) return res.status(400).json({ error: 'path is required' });
 
-  // Security: only allow images from uploads/ directory
+  // 🔒 Security: only allow images from uploads/ directory
   const normalizedPath = path.resolve(imgPath);
   const uploadsDir = path.resolve('uploads');
-  const desktopDir = path.resolve('C:/Users');
   
-  if (!normalizedPath.startsWith(uploadsDir) && !normalizedPath.startsWith(desktopDir)) {
-    return res.status(403).json({ error: 'Access denied - path must be in uploads/ or user directory' });
+  // Bloquear caminhos de rede
+  if (networkSafety.isNetworkPath(normalizedPath)) {
+    return res.status(403).json({ error: '🔒 Access denied - network paths are not allowed' });
+  }
+
+  if (!normalizedPath.startsWith(uploadsDir)) {
+    return res.status(403).json({ error: 'Access denied - path must be inside uploads/' });
   }
 
   if (!fs.existsSync(normalizedPath)) {
@@ -1909,6 +1921,7 @@ app.get('/api/network/config', (req, res) => {
  * Escaneia uma pasta da rede e retorna a estrutura detectada.
  * Suporta caminhos UNC (\\servidor\pasta) e drives mapeados (Z:\pasta)
  * NUNCA modifica arquivos — apenas leitura.
+ * 🔒 Usa network-safety.js para caminhos de rede.
  */
 app.post('/api/network/scan', (req, res) => {
   const { networkPath } = req.body;
@@ -1918,19 +1931,28 @@ app.post('/api/network/scan', (req, res) => {
     // Normalize path for Windows
     const normalizedPath = path.resolve(networkPath);
     
-    if (!fs.existsSync(normalizedPath)) {
-      return res.status(404).json({ error: `Pasta não encontrada: ${normalizedPath}. Verifique se o caminho está correto e se você tem acesso.` });
+    if (!networkSafety.safeExists(normalizedPath)) {
+      return res.status(404).json({ error: `Pasta não encontrada. Verifique se o caminho está correto e se você tem acesso.` });
     }
 
-    const stat = fs.statSync(normalizedPath);
+    const isNet = networkSafety.isNetworkPath(normalizedPath);
+    const stat = isNet ? networkSafety.safeStat(normalizedPath) : fs.statSync(normalizedPath);
     if (!stat.isDirectory()) {
       return res.status(400).json({ error: 'O caminho informado não é uma pasta.' });
     }
 
     const rootName = path.basename(normalizedPath);
-    const topEntries = fs.readdirSync(normalizedPath, { withFileTypes: true });
-    const topDirs = topEntries.filter(e => e.isDirectory()).map(e => e.name);
-    const topImages = topEntries.filter(e => !e.isDirectory() && IMAGE_EXTENSIONS.test(e.name));
+    // 🔒 Usar safeReadDir para paths de rede
+    let topDirs, topImages;
+    if (isNet) {
+      const entries = networkSafety.safeReadDir(normalizedPath);
+      topDirs = entries.filter(e => e.isDirectory).map(e => e.name);
+      topImages = entries.filter(e => e.isFile && e.isImage);
+    } else {
+      const entries = fs.readdirSync(normalizedPath, { withFileTypes: true });
+      topDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+      topImages = entries.filter(e => !e.isDirectory() && IMAGE_EXTENSIONS.test(e.name));
+    }
 
     // Check if root itself has a pattern (Pattern D - everything in root)
     const rootPattern = detectFolderPattern(normalizedPath);
@@ -2044,7 +2066,7 @@ app.post('/api/network/scan', (req, res) => {
 
   } catch (err) {
     console.error('❌ Erro no scan de rede:', err.message);
-    res.status(500).json({ error: `Erro ao escanear: ${err.message}` });
+    res.status(500).json({ error: 'Erro ao escanear a rede. Verifique a conexão.' });
   }
 });
 
@@ -2551,6 +2573,11 @@ app.post('/api/network/copy', (req, res) => {
     return res.status(400).json({ error: 'networkPath e localBasePath são obrigatórios.' });
   }
 
+  // 🔒 Segurança: destino NUNCA pode ser na rede
+  if (networkSafety.isNetworkPath(localBasePath)) {
+    return res.status(403).json({ error: '🔒 Operação bloqueada: destino de cópia não pode ser na rede.' });
+  }
+
   // Setup SSE
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -2610,7 +2637,8 @@ app.post('/api/network/copy', (req, res) => {
         try {
           fs.mkdirSync(destDir, { recursive: true });
           const destFile = path.join(destDir, newName || path.basename(srcFile));
-          fs.copyFileSync(srcFile, destFile);
+          // 🔒 Usar safeCopyFromNetwork em vez de fs.copyFileSync
+          networkSafety.safeCopyFromNetwork(srcFile, destFile);
           copied++;
           return true;
         } catch (err) {
@@ -2734,7 +2762,7 @@ app.post('/api/network/copy', (req, res) => {
 
   } catch (err) {
     console.error('❌ Erro na cópia de rede:', err.message);
-    sendEvent('error', { message: err.message });
+    sendEvent('error', { message: 'Erro na cópia de rede. Verifique a conexão.' });
     res.end();
   }
 });
