@@ -426,27 +426,96 @@
 
     async function visualClickImport() {
         const cfg = getCFG();
-        showAction('Clicando em Importar Anúncio...', '📥');
-        const importBtn = document.getElementById('import');
-        if (importBtn) {
-            highlight(importBtn, '#ef4444');
-            await sleep(cfg.delayStep);
-            importBtn.click();
-            unhighlight(importBtn);
-        } else {
-            const links = document.querySelectorAll('.navi-link, a[data-toggle="modal"]');
-            for (const link of links) {
-                if (link.textContent.trim() === 'Importar') {
-                    highlight(link, '#ef4444');
-                    await sleep(cfg.delayStep);
-                    link.click();
-                    unhighlight(link);
+
+        // ── PASSO 1: Abrir o dropdown dos 3 pontos ──
+        showAction('Abrindo menu de ações (3 pontos)...', '⋯');
+        let dropdownOpened = false;
+
+        // Busca o botão dos 3 pontos (Metronic/Magis5 usa dropdown-toggle perto da área de importação)
+        const dropdownToggles = document.querySelectorAll(
+            '[data-toggle="dropdown"], .dropdown-toggle, ' +
+            'a.btn-clean.btn-icon, button.btn-clean.btn-icon, ' +
+            '.btn-icon-md[data-toggle="dropdown"]'
+        );
+        for (const toggle of dropdownToggles) {
+            // Procura o toggle que está próximo ao selectAll ou na área de ações do produto
+            const parent = toggle.closest('.card-toolbar, .dropdown, .btn-group, div');
+            if (parent) {
+                highlight(toggle, '#f59e0b');
+                await sleep(cfg.delayStep);
+                toggle.click();
+                unhighlight(toggle);
+                dropdownOpened = true;
+                await sleep(600);
+                break;
+            }
+        }
+
+        // Fallback: tenta abrir qualquer dropdown visível na página
+        if (!dropdownOpened) {
+            const allToggles = document.querySelectorAll('[data-toggle="dropdown"]');
+            for (const toggle of allToggles) {
+                const rect = toggle.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    toggle.click();
+                    dropdownOpened = true;
+                    await sleep(600);
                     break;
                 }
             }
         }
 
-        await sleep(1000);
+        // ── PASSO 2: Clicar em "Importar" dentro do dropdown ──
+        showAction('Clicando em "Importar"...', '📥');
+        let importClicked = false;
+
+        // Busca por <span class="navi-text">Importar</span> ou link com texto "Importar"
+        const naviTexts = document.querySelectorAll(
+            '.navi-text, .navi-link, .dropdown-item, .dropdown-menu a, .dropdown-menu span'
+        );
+        for (const el of naviTexts) {
+            if (el.textContent.trim() === 'Importar') {
+                const clickTarget = el.closest('a, button, .navi-item, .navi-link') || el;
+                highlight(clickTarget, '#ef4444');
+                await sleep(cfg.delayStep);
+                clickTarget.click();
+                unhighlight(clickTarget);
+                importClicked = true;
+                break;
+            }
+        }
+
+        // Fallback direto por ID
+        if (!importClicked) {
+            const importBtn = document.getElementById('import');
+            if (importBtn) {
+                highlight(importBtn, '#ef4444');
+                await sleep(cfg.delayStep);
+                importBtn.click();
+                unhighlight(importBtn);
+                importClicked = true;
+            }
+        }
+
+        if (!importClicked) {
+            log('⚠️ Botão "Importar" não encontrado no dropdown.', 'warn');
+        }
+
+        // ── PASSO 3: Confirmar importação (doImport ou botão "Sim" no modal) ──
+        await sleep(1200);
+        showAction('Confirmando importação...', '✅');
+
+        // Tenta chamar doImport() diretamente (mais confiável)
+        if (typeof window.doImport === 'function') {
+            highlight(document.body, '#10b981');
+            await sleep(cfg.delayStep);
+            window.doImport();
+            unhighlight(document.body);
+            log('Importação confirmada via doImport().', 'success');
+            return;
+        }
+
+        // Fallback: busca botão "Sim" no modal de confirmação
         const modal = document.getElementById('alertModal');
         if (modal) {
             const confirmBtns = modal.querySelectorAll('button');
@@ -457,9 +526,20 @@
                     await sleep(cfg.delayStep);
                     btn.click();
                     unhighlight(btn);
-                    break;
+                    log('Importação confirmada via botão "Sim".', 'success');
+                    return;
                 }
             }
+        }
+
+        // Último fallback: busca qualquer botão com onclick="doImport()"
+        const doImportBtn = document.querySelector('button[onclick*="doImport"]');
+        if (doImportBtn) {
+            highlight(doImportBtn, '#10b981');
+            await sleep(cfg.delayStep);
+            doImportBtn.click();
+            unhighlight(doImportBtn);
+            log('Importação confirmada via botão onclick doImport.', 'success');
         }
     }
 
