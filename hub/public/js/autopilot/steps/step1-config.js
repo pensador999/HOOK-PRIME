@@ -1,5 +1,5 @@
 (function () {
-  \'use strict\';
+  'use strict';
   window.AutopilotModules = window.AutopilotModules || {};
   const State = window.AutopilotModules.State;
   const H = window.AutopilotModules.Helpers;

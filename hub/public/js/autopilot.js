@@ -26,6 +26,23 @@
   const Step5    = Modules.Step5;
   const Step6    = Modules.Step6;
 
+  // ═══ Safety Check ═══
+  if (!State || !H) {
+    console.error('❌ FATAL: Autopilot modules failed to load. State:', !!State, 'Helpers:', !!H);
+    window.HUB.renderAutopilot = function () {
+      const container = document.getElementById('app-content');
+      if (container) container.innerHTML = `
+        <div style="padding:40px;text-align:center;color:#ef4444">
+          <h2>❌ Erro de Carregamento</h2>
+          <p>Módulos do Autopilot não carregaram corretamente.</p>
+          <p style="color:#9ca3af;font-size:13px">Verifique o console do navegador (F12) para detalhes.</p>
+          <p style="color:#6b7280;font-size:12px;margin-top:16px">Módulos: State=${!!State}, Helpers=${!!H}, Step1=${!!Step1}, Step2=${!!Step2}</p>
+          <button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#7F00FF;color:#fff;border:none;border-radius:8px;cursor:pointer">🔄 Recarregar Página</button>
+        </div>`;
+    };
+    return; // Abort IIFE — don't register broken handlers
+  }
+
   const state = State.state;
 
   // Shared deps object passed to bind functions
