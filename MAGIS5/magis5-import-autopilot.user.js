@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Magis5 Import Autopilot — BRK
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Automação VISUAL de importação de anúncios Shopify → Magis5 em lote
+// @version      3.0
+// @description  Automação VISUAL e CONTROLADA de importação de anúncios Shopify → Magis5 em lote
 // @match        https://app.magis5.com.br/*
 // @grant        none
 // @run-at       document-idle
@@ -14,18 +14,48 @@
     if (!window.location.href.includes('magis5')) return;
 
     // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  CONFIGURAÇÃO                                                       ║
+    // ║  CONFIGURAÇÕES DE VELOCIDADE (AJUSTÁVEIS EM TEMPO REAL)            ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
-    const CFG = {
-        delayAfterModal: 1200,      // Tempo para o modal abrir
-        delayAfterSearch: 5000,     // Tempo para carregar variantes após "Sim"
-        delayBetweenItems: 2500,    // Pausa entre itens
-        delayAfterImport: 3500,     // Pausa após importar
-        delayStep: 800,             // Pausa entre cada micro-ação (visual)
-        pollInterval: 500,          // Polling para variantes
-        pollTimeout: 20000,         // Timeout máximo para variantes
+    // Perfis de velocidade
+    const SPEED_PROFILES = {
+        slow: {
+            name: '🐢 Lento / Inspeção (Para acompanhar com calma)',
+            delayAfterModal: 2000,
+            delayAfterSearch: 6000,
+            delayBetweenItems: 4000,
+            delayAfterImport: 4500,
+            delayStep: 1500,
+            pollInterval: 600,
+            pollTimeout: 25000,
+        },
+        normal: {
+            name: '⚡ Normal (Equilibrado)',
+            delayAfterModal: 1200,
+            delayAfterSearch: 4500,
+            delayBetweenItems: 2500,
+            delayAfterImport: 3500,
+            delayStep: 800,
+            pollInterval: 500,
+            pollTimeout: 20000,
+        },
+        fast: {
+            name: '🚀 Rápido / Produção',
+            delayAfterModal: 600,
+            delayAfterSearch: 3500,
+            delayBetweenItems: 1500,
+            delayAfterImport: 2500,
+            delayStep: 400,
+            pollInterval: 400,
+            pollTimeout: 15000,
+        }
     };
+
+    let activeSpeed = 'slow'; // Começa em modo lento para você inspecionar com conforto!
+
+    function getCFG() {
+        return SPEED_PROFILES[activeSpeed] || SPEED_PROFILES.normal;
+    }
 
     const CHANNELS = {
         'BRK FISHING': 'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
@@ -41,11 +71,9 @@
     let _shouldStop = false;
 
     // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  FEEDBACK VISUAL                                                    ║
-    // ║  Highlight de elementos + toast flutuante + step indicator          ║
+    // ║  FEEDBACK VISUAL APRIMORADO                                         ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
-    /** Cria a barra de status flutuante no topo da tela */
     function createVisualBar() {
         let bar = document.getElementById('brk-visual-bar');
         if (bar) return bar;
@@ -57,15 +85,16 @@
             border-bottom: 2px solid #7F00FF;
             padding: 8px 20px; display: flex; align-items: center; gap: 16px;
             font: 13px/1.4 system-ui, sans-serif; color: #e2e8f0;
-            box-shadow: 0 4px 20px rgba(127,0,255,0.3);
+            box-shadow: 0 4px 20px rgba(127,0,255,0.4);
             transition: opacity 0.3s;
         `;
         bar.innerHTML = `
-            <span style="font-weight:700;color:#a78bfa">🚀 AUTOPILOT</span>
-            <span id="brk-vb-step" style="color:#10b981;font-weight:600">Preparando...</span>
+            <span style="font-weight:800;color:#a78bfa;letter-spacing:0.5px">🚀 HOOK PRIME MAGIS5</span>
+            <span id="brk-vb-step" style="color:#10b981;font-weight:700;background:rgba(16,185,129,0.15);padding:2px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.3)">Iniciando...</span>
             <span style="flex:1"></span>
-            <span id="brk-vb-progress" style="color:#94a3b8">0/0</span>
-            <span id="brk-vb-id" style="color:#64748b;font-family:monospace;font-size:12px"></span>
+            <span id="brk-vb-speed" style="color:#f59e0b;font-size:12px;font-weight:600"></span>
+            <span id="brk-vb-progress" style="color:#e2e8f0;font-weight:700">0/0</span>
+            <span id="brk-vb-id" style="color:#94a3b8;font-family:monospace;font-size:12px;background:#020617;padding:2px 8px;border-radius:4px"></span>
         `;
         document.body.appendChild(bar);
         return bar;
@@ -77,27 +106,26 @@
         const stepEl = bar.querySelector('#brk-vb-step');
         const progEl = bar.querySelector('#brk-vb-progress');
         const idEl = bar.querySelector('#brk-vb-id');
+        const speedEl = bar.querySelector('#brk-vb-speed');
         if (stepEl) stepEl.textContent = step;
         if (progEl) progEl.textContent = progress;
         if (idEl) idEl.textContent = id ? `ID: ${id}` : '';
+        if (speedEl) speedEl.textContent = activeSpeed === 'slow' ? '🐢 MODO INSPEÇÃO' : activeSpeed === 'fast' ? '🚀 TURBO' : '⚡ NORMAL';
     }
 
     function removeVisualBar() {
         document.getElementById('brk-visual-bar')?.remove();
     }
 
-    /** Destaca um elemento na tela com borda brilhante */
     function highlight(el, color = '#7F00FF') {
         if (!el) return;
         el.style.outline = `3px solid ${color}`;
-        el.style.outlineOffset = '2px';
-        el.style.boxShadow = `0 0 15px ${color}80`;
-        el.style.transition = 'outline 0.3s, box-shadow 0.3s';
-        // Scroll into view
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.outlineOffset = '3px';
+        el.style.boxShadow = `0 0 20px ${color}`;
+        el.style.transition = 'all 0.3s ease';
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_) {}
     }
 
-    /** Remove highlight de um elemento */
     function unhighlight(el) {
         if (!el) return;
         el.style.outline = '';
@@ -105,22 +133,21 @@
         el.style.boxShadow = '';
     }
 
-    /** Mostra um toast flutuante para a ação atual */
     function showAction(text, emoji = '⚡') {
         let toast = document.getElementById('brk-action-toast');
         if (!toast) {
             toast = document.createElement('div');
             toast.id = 'brk-action-toast';
             toast.style.cssText = `
-                position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-                z-index: 1000001; background: #1e1b4b; color: #e2e8f0;
-                padding: 10px 24px; border-radius: 10px; font: 14px/1.4 system-ui, sans-serif;
-                border: 1px solid #7F00FF60; box-shadow: 0 8px 30px rgba(127,0,255,0.35);
-                transition: opacity 0.3s, transform 0.3s;
+                position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%);
+                z-index: 1000001; background: #0f172a; color: #e2e8f0;
+                padding: 12px 28px; border-radius: 12px; font: 15px/1.4 system-ui, sans-serif;
+                border: 2px solid #7F00FF; box-shadow: 0 10px 40px rgba(127,0,255,0.45);
+                transition: opacity 0.3s, transform 0.3s; font-weight: 600; text-align: center;
             `;
             document.body.appendChild(toast);
         }
-        toast.textContent = `${emoji} ${text}`;
+        toast.innerHTML = `<span style="margin-right:8px">${emoji}</span> ${text}`;
         toast.style.opacity = '1';
         toast.style.transform = 'translateX(-50%) translateY(0)';
     }
@@ -159,26 +186,28 @@
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  INTERAÇÃO COM A PÁGINA MAGIS5 (com feedback visual)               ║
+    // ║  AÇÕES NO DOM MAGIS5                                                ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
     async function visualOpenModal() {
-        showAction('Abrindo modal "Baixar anúncio"...', '📂');
+        const cfg = getCFG();
+        showAction('Abrindo modal "Baixar anúncio específico"...', '📂');
         const btn = document.getElementById('generatePurchase');
         if (!btn) throw new Error('Botão "Baixar anúncio específico" não encontrado');
         highlight(btn, '#10b981');
-        await sleep(CFG.delayStep);
+        await sleep(cfg.delayStep);
         btn.click();
         unhighlight(btn);
-        await sleep(CFG.delayAfterModal);
+        await sleep(cfg.delayAfterModal);
     }
 
     async function visualSelectChannel(channelValue, channelName) {
+        const cfg = getCFG();
         showAction(`Selecionando canal: ${channelName}`, '🏪');
         const select = document.getElementById('channel');
         if (!select) throw new Error('Select de canal não encontrado');
         highlight(select, '#3b82f6');
-        await sleep(CFG.delayStep);
+        await sleep(cfg.delayStep);
         select.value = channelValue;
         select.dispatchEvent(new Event('change', { bubbles: true }));
         unhighlight(select);
@@ -186,11 +215,12 @@
     }
 
     async function visualFillId(shopifyId) {
-        showAction(`Colando ID: ${shopifyId}`, '🔗');
+        const cfg = getCFG();
+        showAction(`Preenchendo ID do Anúncio: ${shopifyId}`, '🔗');
         const input = document.getElementById('channelId');
         if (!input) throw new Error('Input channelId não encontrado');
         highlight(input, '#f59e0b');
-        await sleep(CFG.delayStep);
+        await sleep(cfg.delayStep);
 
         input.value = '';
         input.focus();
@@ -201,23 +231,23 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
 
         unhighlight(input);
-        await sleep(300);
+        await sleep(400);
     }
 
     async function visualClickSim() {
-        showAction('Confirmando pesquisa...', '✅');
+        const cfg = getCFG();
+        showAction('Confirmando busca no Marketplace (Sim)...', '🔍');
+        await sleep(cfg.delayStep);
 
-        // Tenta a função direta
         if (typeof window.createFindProductOnChannel === 'function') {
             window.createFindProductOnChannel();
             return;
         }
-        // Fallback: procura botão "Sim"
         const btns = document.querySelectorAll('.modal button, .modal.show button');
         for (const btn of btns) {
             if (btn.textContent.trim() === 'Sim') {
                 highlight(btn, '#10b981');
-                await sleep(400);
+                await sleep(cfg.delayStep);
                 btn.click();
                 unhighlight(btn);
                 return;
@@ -227,22 +257,22 @@
     }
 
     async function waitForVariants() {
-        showAction('Aguardando variantes carregarem...', '⏳');
+        const cfg = getCFG();
+        showAction('Aguardando a Magis5 carregar as variantes...', '⏳');
         const start = Date.now();
-        while (Date.now() - start < CFG.pollTimeout) {
+        while (Date.now() - start < cfg.pollTimeout) {
             const inputs = getSkuInputs();
             if (inputs.length > 0) {
-                showAction(`${inputs.length} variantes carregadas!`, '📦');
-                // Highlight the first and last variant
+                showAction(`✅ Sucesso! ${inputs.length} variantes prontas na tela.`, '📦');
                 if (inputs[0]) highlight(inputs[0], '#10b981');
                 if (inputs.length > 1) highlight(inputs[inputs.length - 1], '#10b981');
-                await sleep(CFG.delayStep);
+                await sleep(cfg.delayStep);
                 inputs.forEach(unhighlight);
                 return inputs;
             }
-            await sleep(CFG.pollInterval);
+            await sleep(cfg.pollInterval);
         }
-        throw new Error(`Timeout (${CFG.pollTimeout / 1000}s) aguardando variantes`);
+        throw new Error(`Tempo esgotado (${cfg.pollTimeout / 1000}s) aguardando variantes`);
     }
 
     function getSkuInputs() {
@@ -296,11 +326,12 @@
     }
 
     async function visualSelectAll() {
-        showAction('Selecionando todos...', '☑️');
+        const cfg = getCFG();
+        showAction('Marcando "Selecionar Todos"...', '☑️');
         const selectAllCb = document.getElementById('selectAll');
         if (selectAllCb) {
             highlight(selectAllCb, '#7F00FF');
-            await sleep(400);
+            await sleep(cfg.delayStep);
             selectAllCb.checked = true;
             selectAllCb.dispatchEvent(new Event('change', { bubbles: true }));
             selectAllCb.click();
@@ -310,15 +341,16 @@
                 if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
             });
         }
-        await sleep(300);
+        await sleep(400);
     }
 
     async function visualClickImport() {
-        showAction('Importando anúncio...', '📥');
+        const cfg = getCFG();
+        showAction('Clicando em Importar Anúncio...', '📥');
         const importBtn = document.getElementById('import');
         if (importBtn) {
             highlight(importBtn, '#ef4444');
-            await sleep(400);
+            await sleep(cfg.delayStep);
             importBtn.click();
             unhighlight(importBtn);
         } else {
@@ -326,7 +358,7 @@
             for (const link of links) {
                 if (link.textContent.trim() === 'Importar') {
                     highlight(link, '#ef4444');
-                    await sleep(400);
+                    await sleep(cfg.delayStep);
                     link.click();
                     unhighlight(link);
                     break;
@@ -334,8 +366,7 @@
             }
         }
 
-        await sleep(800);
-        // Confirmar no modal de alerta
+        await sleep(1000);
         const modal = document.getElementById('alertModal');
         if (modal) {
             const confirmBtns = modal.querySelectorAll('button');
@@ -343,7 +374,7 @@
                 const text = btn.textContent.trim().toLowerCase();
                 if (text === 'sim' || text === 'confirmar' || text === 'ok') {
                     highlight(btn, '#10b981');
-                    await sleep(400);
+                    await sleep(cfg.delayStep);
                     btn.click();
                     unhighlight(btn);
                     break;
@@ -357,10 +388,6 @@
             try { btn.click(); } catch (_) { }
         });
     }
-
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  PARSER                                                             ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
 
     function parseInput(text) {
         const lines = text.split('\n').map(norm).filter(Boolean);
@@ -381,21 +408,26 @@
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  LOOP PRINCIPAL                                                     ║
+    // ║  EXECUÇÃO CONTROLADA                                                ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
-    async function processImportQueue() {
+    async function processImportQueue(onlySingle = false) {
         if (_running) { log('Já está em execução!', 'warn'); return; }
         _running = true;
         _shouldStop = false;
         _paused = false;
 
         const inputText = document.getElementById('brk-import-list')?.value || '';
-        const items = parseInput(inputText);
+        let items = parseInput(inputText);
         if (items.length === 0) {
-            log('Nenhum ID encontrado. Cole os IDs na lista.', 'warn');
+            log('Nenhum ID encontrado na lista. Cole os IDs do Shopify Extractor!', 'warn');
             _running = false;
             return;
+        }
+
+        if (onlySingle) {
+            items = [items[0]]; // Executa somente o primeiro anúncio para teste
+            log(`🧪 Modo Teste: Executando apenas o 1º anúncio (ID: ${items[0].shopifyId})`, 'warn');
         }
 
         const channelSelect = document.getElementById('brk-import-channel');
@@ -408,14 +440,12 @@
         }
 
         const isProducao = document.getElementById('brk-import-producao')?.checked ?? true;
+        const cfg = getCFG();
 
-        // Criar barra visual no topo
         createVisualBar();
-
-        log(`━━━ IMPORTAÇÃO VISUAL INICIADA ━━━`);
+        log(`━━━ IMPORTAÇÃO INICIADA (${onlySingle ? 'TESTE 1 ITEM' : items.length + ' ITENS'}) ━━━`);
+        log(`Velocidade: ${cfg.name}`);
         log(`Canal: ${channelName}`);
-        log(`IDs: ${items.length} anúncio(s)`);
-        log(`Produção: ${isProducao ? 'SIM' : 'NÃO'}`);
 
         let sucesso = 0;
         let falhas = 0;
@@ -423,11 +453,11 @@
 
         for (let i = 0; i < items.length; i++) {
             if (_shouldStop) {
-                log('⏹ Interrompido pelo usuário');
+                log('⏹ Interrompido pelo usuário.');
                 break;
             }
             while (_paused) {
-                updateVisualBar('⏸ PAUSADO', `${i}/${items.length}`, items[i].shopifyId);
+                updateVisualBar('⏸ PAUSADO — Clique em Continuar', `${i}/${items.length}`, items[i].shopifyId);
                 await sleep(500);
                 if (_shouldStop) break;
             }
@@ -439,84 +469,83 @@
             status(`${label} ID: ${item.shopifyId}`);
 
             try {
-                // ── Passo 1: Fechar modais anteriores
+                // 1. Limpar modais
                 closeModals();
-                await sleep(500);
+                await sleep(600);
 
-                // ── Passo 2: Abrir modal
-                updateVisualBar(`${label} Abrindo modal...`, `${i + 1}/${items.length}`, item.shopifyId);
-                log(`${label} Abrindo modal para ID: ${item.shopifyId}`);
+                // 2. Abrir Modal
+                updateVisualBar(`${label} 1. Abrindo Modal`, `${i + 1}/${items.length}`, item.shopifyId);
+                log(`${label} Abrindo modal de importação...`);
                 await visualOpenModal();
 
-                // ── Passo 3: Selecionar canal
-                updateVisualBar(`${label} Selecionando canal...`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 3. Selecionar Canal
+                updateVisualBar(`${label} 2. Selecionando Canal`, `${i + 1}/${items.length}`, item.shopifyId);
                 await visualSelectChannel(channelValue, channelName);
 
-                // ── Passo 4: Colar ID
-                updateVisualBar(`${label} Colando ID...`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 4. Preencher ID
+                updateVisualBar(`${label} 3. Preenchendo ID`, `${i + 1}/${items.length}`, item.shopifyId);
                 await visualFillId(item.shopifyId);
 
-                // ── Passo 5: Clicar Sim
-                updateVisualBar(`${label} Pesquisando...`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 5. Clicar Sim
+                updateVisualBar(`${label} 4. Buscando Anúncio`, `${i + 1}/${items.length}`, item.shopifyId);
                 await visualClickSim();
 
-                // ── Passo 6: Aguardar variantes
-                updateVisualBar(`${label} Aguardando variantes...`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 6. Aguardar Variantes
+                updateVisualBar(`${label} 5. Carregando Variantes`, `${i + 1}/${items.length}`, item.shopifyId);
                 log(`${label} Aguardando variantes carregarem...`);
-                await sleep(CFG.delayAfterSearch);
+                await sleep(cfg.delayAfterSearch);
                 const skuInputs = await waitForVariants();
-                log(`${label} ${skuInputs.length} variantes carregadas`);
+                log(`${label} ${skuInputs.length} variantes carregadas na tela.`);
 
-                // ── Passo 7: Aplicar SKUs (se fornecidos)
+                // 7. Aplicar SKUs Sankhya se houver
                 if (item.skuPairs.length > 0) {
-                    updateVisualBar(`${label} Aplicando SKUs...`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('Aplicando SKUs Sankhya...', '🔄');
+                    updateVisualBar(`${label} 6. Aplicando SKUs`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('Preenchendo SKUs Sankhya...', '🔄');
                     const inputMap = new Map();
                     skuInputs.forEach(inp => inputMap.set(norm(inp.value).toUpperCase(), inp));
                     let applied = 0;
                     for (const pair of item.skuPairs) {
                         const input = inputMap.get(pair.skuAtual.toUpperCase());
-                        if (input) { setInputValue(input, pair.novoSku); applied++; await sleep(200); }
-                        else log(`  SKU "${pair.skuAtual}" não encontrado na tela`, 'warn');
+                        if (input) { setInputValue(input, pair.novoSku); applied++; await sleep(250); }
                     }
-                    log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados`);
+                    log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados.`);
                 }
 
-                // ── Passo 8: Vendido de forma diversa
+                // 8. Vendido de forma diversa
                 if (isProducao) {
-                    updateVisualBar(`${label} Forma diversa → Sim...`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('Vendido de forma diversa → Sim', '🔀');
+                    updateVisualBar(`${label} 7. Vendido Diversa=Sim`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('Definindo "Vendido de forma diversa" = Sim', '🔀');
                     let count = 0;
                     for (const inp of skuInputs) {
                         if (setVendidoDiversa(getRegistroContainer(inp))) count++;
                     }
-                    await sleep(CFG.delayStep);
-                    log(`${label} Diversa=Sim: ${count} variantes`);
+                    await sleep(cfg.delayStep);
+                    log(`${label} Forma diversa alterada em ${count} variantes.`);
                 }
 
-                // ── Passo 9: Selecionar todos
-                updateVisualBar(`${label} Selecionando todos...`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 9. Selecionar Todos
+                updateVisualBar(`${label} 8. Selecionando Todos`, `${i + 1}/${items.length}`, item.shopifyId);
                 await visualSelectAll();
 
-                // ── Passo 10: Importar
-                updateVisualBar(`${label} Importando!`, `${i + 1}/${items.length}`, item.shopifyId);
+                // 10. Importar
+                updateVisualBar(`${label} 9. Importando!`, `${i + 1}/${items.length}`, item.shopifyId);
                 await visualClickImport();
 
                 sucesso++;
-                showAction(`✅ ID ${item.shopifyId} importado com sucesso!`, '🎉');
+                showAction(`✅ Anúncio ${item.shopifyId} importado com sucesso!`, '🎉');
                 log(`${label} ✅ Importado com sucesso!`, 'success');
 
                 if (i < items.length - 1) {
-                    updateVisualBar(`Pausa antes do próximo...`, `${i + 1}/${items.length}`, '');
-                    await sleep(CFG.delayAfterImport);
+                    updateVisualBar(`Aguardando próximo item...`, `${i + 1}/${items.length}`, '');
+                    await sleep(cfg.delayAfterImport);
                 }
 
             } catch (err) {
                 falhas++;
                 showAction(`Erro: ${err.message}`, '❌');
-                log(`${label} Erro: ${err.message}`, 'error');
+                log(`${label} Falha: ${err.message}`, 'error');
                 closeModals();
-                await sleep(1500);
+                await sleep(2000);
             }
         }
 
@@ -524,7 +553,7 @@
         hideAction();
         removeVisualBar();
         status('Finalizado!');
-        log(`━━━ IMPORTAÇÃO FINALIZADA ━━━`);
+        log(`━━━ FIM DO PROCESSO ━━━`);
         log(`✅ Sucesso: ${sucesso} | ❌ Falhas: ${falhas} | Total: ${items.length}`);
 
         _running = false;
@@ -533,15 +562,17 @@
 
     function updateBtnState(isRunning) {
         const startBtn = document.getElementById('brk-import-start');
+        const singleBtn = document.getElementById('brk-import-single');
         const pauseBtn = document.getElementById('brk-import-pause');
         const stopBtn = document.getElementById('brk-import-stop');
         if (startBtn) { startBtn.disabled = isRunning; startBtn.style.opacity = isRunning ? '0.5' : '1'; }
+        if (singleBtn) { singleBtn.disabled = isRunning; singleBtn.style.opacity = isRunning ? '0.5' : '1'; }
         if (pauseBtn) { pauseBtn.disabled = !isRunning; pauseBtn.style.opacity = !isRunning ? '0.5' : '1'; }
         if (stopBtn) { stopBtn.disabled = !isRunning; stopBtn.style.opacity = !isRunning ? '0.5' : '1'; }
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  UI — PAINEL                                                        ║
+    // ║  UI — PAINEL DE CONTROLE                                            ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
     function buildLauncher() {
@@ -557,8 +588,8 @@
             box-shadow: 0 4px 15px rgba(127,0,255,0.4);
             transition: transform 0.2s, box-shadow 0.2s;
         `;
-        btn.onmouseenter = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 6px 20px rgba(127,0,255,0.6)'; };
-        btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 4px 15px rgba(127,0,255,0.4)'; };
+        btn.onmouseenter = () => { btn.style.transform = 'scale(1.05)'; };
+        btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; };
         btn.onclick = () => {
             const existing = document.getElementById('brk-import-panel');
             if (existing) { existing.remove(); return; }
@@ -573,9 +604,9 @@
         box.style.cssText = `
             position: fixed; top: 16px; right: 16px; z-index: 999999;
             background: #0f172a; color: #e2e8f0;
-            width: 480px; max-height: 88vh; overflow: auto;
-            border-radius: 16px; border: 1px solid #7F00FF40;
-            box-shadow: 0 10px 40px rgba(127,0,255,0.25), 0 0 0 1px rgba(127,0,255,0.1);
+            width: 500px; max-height: 90vh; overflow: auto;
+            border-radius: 16px; border: 1px solid #7F00FF50;
+            box-shadow: 0 10px 40px rgba(127,0,255,0.3);
             font: 13px/1.5 'Inter', system-ui, sans-serif;
         `;
 
@@ -586,13 +617,15 @@
         box.innerHTML = `
             <div style="padding:14px 16px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#0f172a,#1e1b4b);border-radius:16px 16px 0 0">
                 <div>
-                    <div style="font-weight:700;font-size:15px;color:#a78bfa">🚀 Magis5 Import Autopilot v2</div>
-                    <div style="font-size:11px;color:#64748b">Importação visual em lote — Shopify → Magis5</div>
+                    <div style="font-weight:800;font-size:15px;color:#a78bfa">🚀 Magis5 Import Autopilot v3</div>
+                    <div style="font-size:11px;color:#64748b">Importação com Modo de Inspeção Visual</div>
                 </div>
                 <button id="brk-import-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold;font-size:12px">✕</button>
             </div>
             <div style="padding:14px 16px;display:grid;gap:12px">
-                <div id="brk-import-status" style="color:#10b981;font-weight:600;font-size:13px">Pronto para iniciar!</div>
+                <div id="brk-import-status" style="color:#10b981;font-weight:600;font-size:13px">Pronto para iniciar</div>
+
+                <!-- PROGRESSO -->
                 <div style="display:flex;align-items:center;gap:10px">
                     <div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden">
                         <div id="brk-import-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#7F00FF,#a855f7);transition:width .3s"></div>
@@ -600,8 +633,19 @@
                     <span id="brk-import-progress-text" style="font-size:12px;color:#94a3b8;min-width:40px">0/0</span>
                 </div>
 
+                <!-- CONTROLE DE VELOCIDADE -->
+                <div style="background:#1e1b4b;border-radius:10px;padding:10px 12px;border:1px solid #7F00FF40">
+                    <label style="display:block;font-size:11px;color:#a78bfa;margin-bottom:6px;font-weight:700;text-transform:uppercase">⏱️ Velocidade de Execução</label>
+                    <select id="brk-speed-select" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;font-weight:600">
+                        <option value="slow" selected>🐢 Modo Lento / Inspeção (Para acompanhar com calma)</option>
+                        <option value="normal">⚡ Modo Normal (Equilibrado)</option>
+                        <option value="fast">🚀 Modo Turbo / Rápido (Produção)</option>
+                    </select>
+                </div>
+
+                <!-- CANAL -->
                 <div>
-                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Canal de Venda</label>
+                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">Canal de Venda</label>
                     <select id="brk-import-channel" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px">
                         ${channelOptions}
                     </select>
@@ -609,42 +653,41 @@
 
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1">
                     <input type="checkbox" id="brk-import-producao" checked style="accent-color:#7F00FF;width:16px;height:16px">
-                    <span>Produto de <strong style="color:#a78bfa">produção</strong> (Diversa = Sim)</span>
+                    <span>Produto de <strong style="color:#a78bfa">produção</strong> (Vendido de forma diversa = Sim)</span>
                 </label>
 
+                <!-- LISTA DE IDS -->
                 <div>
-                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IDs dos Anúncios (cole do Shopify Extractor)</label>
-                    <textarea id="brk-import-list" rows="5" placeholder="Cole aqui os IDs extraídos da Shopify (um por linha)&#10;&#10;6358879166530&#10;7520209109058&#10;8364053397570" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">IDs dos Anúncios (Cole do Shopify Extractor)</label>
+                    <textarea id="brk-import-list" rows="5" placeholder="Cole aqui os IDs da Shopify (um por linha)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                </div>
+
+                <!-- BOTÕES DE CONTROLE -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <button id="brk-import-single" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">
+                        🧪 Testar Apenas 1º Anúncio
+                    </button>
+                    <button id="brk-import-start" style="background:linear-gradient(135deg,#7F00FF,#5B21B6);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">
+                        ▶ Importar Todos em Lote
+                    </button>
                 </div>
 
                 <div style="display:flex;gap:8px">
-                    <button id="brk-import-start" style="background:linear-gradient(135deg,#7F00FF,#5B21B6);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:13px;flex:1;transition:opacity .2s">▶ Iniciar Importação</button>
-                    <button id="brk-import-pause" disabled style="background:#334155;color:#fff;border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:pointer;font-size:13px;opacity:0.5;transition:opacity .2s">⏸</button>
-                    <button id="brk-import-stop" disabled style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:10px 12px;font-weight:700;cursor:pointer;font-size:13px;opacity:0.5;transition:opacity .2s">⏹</button>
+                    <button id="brk-import-pause" disabled style="background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏸ Pausar</button>
+                    <button id="brk-import-stop" disabled style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏹ Parar</button>
                 </div>
 
-                <div style="background:#0b122080;border-radius:8px;padding:10px;border:1px solid #1e293b">
-                    <div style="font-size:11px;color:#64748b;margin-bottom:6px">💡 O que vai acontecer quando iniciar:</div>
-                    <div style="font-size:11px;color:#94a3b8;line-height:1.7">
-                        1. Barra violeta aparece no topo da tela<br>
-                        2. Cada elemento clicado fica <span style="color:#10b981;font-weight:600">destacado em verde</span><br>
-                        3. Toast no centro mostra a ação atual<br>
-                        4. Você assiste o modal abrindo, canal sendo selecionado, ID colado<br>
-                        5. Variantes carregam e são destacadas<br>
-                        6. "Selecionar todos" + "Importar" executam automaticamente
-                    </div>
-                </div>
-
+                <!-- LOG -->
                 <div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                        <label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Terminal</label>
+                        <label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase">Terminal em Tempo Real</label>
                         <button id="brk-import-clear-log" style="background:transparent;border:1px solid #334155;color:#64748b;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px">Limpar</button>
                     </div>
-                    <div id="brk-import-log" style="background:#020617;border-radius:10px;padding:10px;max-height:20vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#94a3b8;border:1px solid #1e293b"></div>
+                    <div id="brk-import-log" style="background:#020617;border-radius:10px;padding:10px;max-height:18vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#94a3b8;border:1px solid #1e293b"></div>
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    HUB Hook Prime v4.0 · Magis5 Import Autopilot v2 · Visual Mode
+                    Hook Prime v4.0 · Magis5 Import v3
                 </div>
             </div>
         `;
@@ -652,23 +695,32 @@
         document.body.appendChild(box);
 
         box.querySelector('#brk-import-close').onclick = () => box.remove();
-        box.querySelector('#brk-import-start').onclick = processImportQueue;
+        box.querySelector('#brk-import-start').onclick = () => processImportQueue(false);
+        box.querySelector('#brk-import-single').onclick = () => processImportQueue(true);
+
+        box.querySelector('#brk-speed-select').onchange = (e) => {
+            activeSpeed = e.target.value;
+            log(`Velocidade alterada para: ${SPEED_PROFILES[activeSpeed].name}`, 'info');
+        };
+
         box.querySelector('#brk-import-pause').onclick = () => {
             _paused = !_paused;
             const btn = box.querySelector('#brk-import-pause');
-            btn.textContent = _paused ? '▶' : '⏸';
+            btn.textContent = _paused ? '▶ Continuar' : '⏸ Pausar';
             btn.style.background = _paused ? '#059669' : '#334155';
-            log(_paused ? '⏸ Pausado — clique ▶ para continuar' : '▶ Retomando...', 'warn');
+            log(_paused ? '⏸ Pausado pelo usuário' : '▶ Retomando...', 'warn');
         };
+
         box.querySelector('#brk-import-stop').onclick = () => {
             _shouldStop = true;
-            log('⏹ Parando após item atual...', 'warn');
+            log('⏹ Parando após o item atual...', 'warn');
         };
+
         box.querySelector('#brk-import-clear-log').onclick = () => {
             document.getElementById('brk-import-log').textContent = '';
         };
 
-        log('Painel aberto. Cole os IDs do Shopify Extractor e clique Iniciar.', 'info');
+        log('Painel pronto. Comece clicando em "🧪 Testar Apenas 1º Anúncio" para conferir tudo!', 'info');
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
