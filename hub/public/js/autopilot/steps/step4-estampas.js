@@ -1,5 +1,5 @@
 (function () {
-  \'use strict\';
+  'use strict';
   window.AutopilotModules = window.AutopilotModules || {};
   const State = window.AutopilotModules.State;
   const Registry = window.AutopilotModules.Registry;
@@ -66,6 +66,7 @@
 
   function bindStep4_Estampas(deps) {
     const { goToStep, validateAndAdvance } = deps;
+    const $$ = H.$$;
     $$('.ap-estampa-input').forEach(input => {
       input.addEventListener('input', () => {
         const base = input.dataset.base;

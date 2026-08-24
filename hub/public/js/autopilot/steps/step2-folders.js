@@ -1,5 +1,5 @@
 (function () {
-  \'use strict\';
+  'use strict';
   window.AutopilotModules = window.AutopilotModules || {};
   const State = window.AutopilotModules.State;
   const H = window.AutopilotModules.Helpers;
@@ -205,14 +205,7 @@
     return html;
   }
 
-  function H.renderStatCard(label, count, icon, color) {
-    const c = color || State.TIFFANY;
-    return `<div style="text-align:center;padding:14px;border-radius:10px;background:rgba(0,0,0,.2);border:1px solid ${c}20">
-      <div style="font-size:20px">${icon}</div>
-      <div style="font-size:22px;font-weight:700;color:${c}">${count}</div>
-      <div style="font-size:11px;color:#9ca3af">${label}</div>
-    </div>`;
-  }
+  // renderStatCard — provided by H (helpers.js), no local override needed
 
   function bindStep2(deps) {
     const { render, goToStep, validateAndAdvance } = deps;

@@ -771,11 +771,24 @@ router.post('/api/network/copy', (req, res) => {
         }
       }
 
-      function copyImagesFromDir(sourceDir, destDir) {
+      function copyImagesFromDir(sourceDir, destDir, recurseIntoVariants = true) {
         if (!fs.existsSync(sourceDir)) return;
-        const files = fs.readdirSync(sourceDir).filter(f => IMAGE_EXTENSIONS.test(f)).sort();
-        for (const file of files) {
-          copyFile(path.join(sourceDir, file), destDir);
+        const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+        // Copy images at this level
+        const imageFiles = entries.filter(e => !e.isDirectory() && IMAGE_EXTENSIONS.test(e.name)).sort((a, b) => a.name.localeCompare(b.name));
+        for (const file of imageFiles) {
+          copyFile(path.join(sourceDir, file.name), destDir);
+        }
+        // Recurse into variant/color subfolders (PRETA, BRANCA, BEGE, SITE, 3D etc.)
+        // Skip gender folders to avoid mixing (those are handled at the caller level)
+        if (recurseIntoVariants) {
+          const genderNames = Object.keys(GENDER_FOLDERS_MAP);
+          const subdirs = entries.filter(e => e.isDirectory() && !genderNames.includes(e.name.toUpperCase()) && e.name.toUpperCase() !== 'JPEG_IMAGENS');
+          for (const sub of subdirs) {
+            const subDestDir = path.join(destDir, sub.name);
+            fs.mkdirSync(subDestDir, { recursive: true });
+            copyImagesFromDir(path.join(sourceDir, sub.name), subDestDir, true);
+          }
         }
       }
 

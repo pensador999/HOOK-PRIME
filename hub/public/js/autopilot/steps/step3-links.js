@@ -154,7 +154,11 @@
     // Build lookup set from diskScanResult folderNames for O(1) checking
     const knownFolders = new Set(
       (State.state.diskScanResult && State.state.diskScanResult.folderNames) 
-        ? State.state.diskScanResult.folderNames.map(n => n.toUpperCase()) 
+        ? State.state.diskScanResult.folderNames.map(n => {
+            // Extract base code from folder names like "C02576 - TUCUNARE" or "C02576_TUCUNARE"
+            const match = n.match(/^([A-Za-z]+\d+)/);
+            return match ? match[1].toUpperCase() : n.toUpperCase();
+          })
         : []
     );
 

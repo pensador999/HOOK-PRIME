@@ -295,6 +295,37 @@ module.exports = (deps) => {
         codePath = path.join(folderPath, codeBase);
       }
   
+      // Smart folder resolution: se a pasta exata não existir, procurar pastas que
+      // COMEÇAM com codeBase (ex: "C02576 - TUCUNARE", "C02576_TUCUNARE")
+      if (!fs.existsSync(codePath) && fs.existsSync(folderPath)) {
+        try {
+          const parentEntries = fs.readdirSync(folderPath, { withFileTypes: true });
+          const codeUpper = codeBase.toUpperCase();
+          const match = parentEntries.find(e => {
+            if (!e.isDirectory()) return false;
+            const nameUpper = e.name.toUpperCase();
+            return nameUpper === codeUpper
+              || nameUpper.startsWith(codeUpper + ' ')
+              || nameUpper.startsWith(codeUpper + '_')
+              || nameUpper.startsWith(codeUpper + '-');
+          });
+          if (match) {
+            codePath = path.join(folderPath, match.name);
+            console.log(`   🔍 Smart resolve: ${codeBase} → ${match.name}`);
+            // Re-check gender subfolder inside the resolved path
+            if (gender && GENDER_FOLDERS && GENDER_FOLDERS[gender] && !isGenderSpecific) {
+              const genderPath = path.join(codePath, GENDER_FOLDERS[gender]);
+              if (fs.existsSync(genderPath)) {
+                codePath = genderPath;
+                isGenderSpecific = true;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`   ⚠️ Smart resolve failed for ${codeBase}:`, e.message);
+        }
+      }
+  
       if (!fs.existsSync(codePath)) {
         return res.status(404).json({ error: `Pasta não encontrada: ${codePath}` });
       }

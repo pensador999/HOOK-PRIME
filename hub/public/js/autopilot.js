@@ -270,6 +270,7 @@
           }
         }
         state.currentStep = 2;
+        state.completedSteps.add(1);
         window.HUB?.showToast(`✅ ${networkPayload.scanResults?.filter(r=>r.found).length || 0} códigos encontrados na rede!`, 'success');
       } catch (e) {
         console.error('Error parsing network payload:', e);

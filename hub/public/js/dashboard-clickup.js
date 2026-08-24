@@ -418,6 +418,9 @@
           <a href="https://docs.google.com/spreadsheets/d/1YQx_542qirlutjeNT5SoRlxNgPpVk5Hq/edit?gid=1549727073" target="_blank" rel="noopener noreferrer" class="btn btn--primary" style="font-size: 0.8rem;">📋 Planilha EANs</a>
         </div>
       </div>
+
+      <!-- Autopilot Agent Card -->
+      <div id="agent-container"></div>
     `;
 
     // Autopilot Agent initialization

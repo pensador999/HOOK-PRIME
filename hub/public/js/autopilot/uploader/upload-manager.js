@@ -199,7 +199,7 @@
       window.HUB.showToast(`🎉 Upload completo! ${doneJobs} link(s) gerados com sucesso!`, 'success');
     }
 
-    if (window.render) window.render(); // Refresh to update all counters (fallback if deps.render not bound directly here)
+    if (window.HUB && window.HUB.renderAutopilot) window.HUB.renderAutopilot(); // Refresh to update all counters (fallback if deps.render not bound directly here)
   }
 
   /**
@@ -410,7 +410,7 @@
       window.HUB.showToast(`✅ ${baseCode} — ${done} link(s) gerados!`, 'success');
     }
 
-    if (window.render) window.render();
+    if (window.HUB && window.HUB.renderAutopilot) window.HUB.renderAutopilot();
   }
 
   function showUploadProgress(show) {
