@@ -203,15 +203,52 @@
 
     async function visualSelectChannel(channelValue, channelName) {
         const cfg = getCFG();
-        showAction(`Selecionando canal: ${channelName}`, '🏪');
+        showAction(`Selecionando loja: ${channelName}`, '🏪');
         const select = document.getElementById('channel');
-        if (!select) throw new Error('Select de canal não encontrado');
+        if (!select) throw new Error('Select de canal não encontrado no modal da Magis5');
+
         highlight(select, '#3b82f6');
         await sleep(cfg.delayStep);
-        select.value = channelValue;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // Busca a melhor opção: por value exato OU por texto contido (ex: "FISHING", "AGRO", "MOTORS")
+        let targetOption = [...select.options].find(o => o.value === channelValue);
+        if (!targetOption) {
+            const cleanName = channelName.toUpperCase().replace('BRK', '').trim();
+            targetOption = [...select.options].find(o => o.textContent.toUpperCase().includes(cleanName));
+        }
+
+        if (targetOption) {
+            select.value = targetOption.value;
+            targetOption.selected = true;
+            
+            // Disparar eventos nativos
+            select.dispatchEvent(new Event('input', { bubbles: true }));
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Suporte a jQuery e Select2 da Magis5
+            try {
+                const win = window;
+                if (win.jQuery || win.$) {
+                    const jq = win.jQuery || win.$;
+                    jq(select).val(targetOption.value).trigger('change');
+                }
+            } catch(_) {}
+
+            // Atualiza visual do Select2 se existir
+            const select2Container = document.querySelector('#select2-channel-container, [aria-labelledby*="select2-channel"], .select2-selection__rendered');
+            if (select2Container) {
+                select2Container.textContent = targetOption.textContent;
+                select2Container.title = targetOption.textContent;
+                highlight(select2Container, '#3b82f6');
+            }
+
+            log(`Canal selecionado no modal: "${targetOption.textContent.trim()}" (ID: ${targetOption.value})`, 'success');
+        } else {
+            log(`⚠️ Opção para "${channelName}" não encontrada no select da Magis5. Usando primeira opção disponível.`, 'warn');
+        }
+
+        await sleep(cfg.delayStep);
         unhighlight(select);
-        await sleep(300);
     }
 
     async function visualFillId(shopifyId) {
