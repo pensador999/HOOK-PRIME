@@ -328,7 +328,12 @@
         return input.closest('tr, .row, .card, .panel, div') || input.parentElement;
     }
 
-    function setVendidoDiversa(registroEl) {
+    /**
+     * Define "Vendido de forma diversa" = Sim ou Não
+     * @param {Element} registroEl - container da variante
+     * @param {string} valor - 'sim' ou 'não'
+     */
+    function setVendidoDiversa(registroEl, valor = 'sim') {
         if (!registroEl) return false;
         let select = registroEl.querySelector('select[name="isProductOnChannelLocked"]');
         if (!select) {
@@ -336,13 +341,51 @@
             if (selects.length > 0) select = selects[selects.length - 1];
         }
         if (!select) return false;
-        const opt = [...select.options].find(o => norm(o.textContent).toLowerCase() === 'sim');
+        const target = valor.toLowerCase().replace('ã', 'a');
+        const opt = [...select.options].find(o => {
+            const txt = norm(o.textContent).toLowerCase().replace('ã', 'a');
+            return txt === target;
+        });
         if (!opt) return false;
         select.value = opt.value;
         opt.selected = true;
         select.dispatchEvent(new Event('input', { bubbles: true }));
         select.dispatchEvent(new Event('change', { bubbles: true }));
-        highlight(select, '#10b981');
+        highlight(select, target === 'sim' ? '#10b981' : '#f59e0b');
+        return true;
+    }
+
+    /**
+     * Define o estoque como "sankhya - ESTOQUE REVENDA" (value 1010000)
+     * O select de cada variante tem id "wareHouseSelect{N}"
+     */
+    function setEstoqueRevenda(skuInput) {
+        const idMatch = skuInput.id.match(/(\d+)/);
+        if (!idMatch) return false;
+        const numId = idMatch[1];
+
+        let whSelect = document.getElementById('wareHouseSelect' + numId);
+        if (!whSelect) {
+            const container = getRegistroContainer(skuInput);
+            if (container) whSelect = container.querySelector('select[id^="wareHouseSelect"]');
+        }
+        if (!whSelect) return false;
+
+        // Busca por value exato ou por texto
+        let opt = [...whSelect.options].find(o => o.value === '1010000');
+        if (!opt) opt = [...whSelect.options].find(o => o.textContent.toUpperCase().includes('ESTOQUE REVENDA'));
+        if (!opt) return false;
+
+        whSelect.value = opt.value;
+        opt.selected = true;
+        whSelect.dispatchEvent(new Event('input', { bubbles: true }));
+        whSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (typeof window.updateExtraFields === 'function') {
+            try { window.updateExtraFields(parseInt(numId)); } catch (_) {}
+        }
+
+        highlight(whSelect, '#f59e0b');
         return true;
     }
 
@@ -548,16 +591,36 @@
                     log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados.`);
                 }
 
-                // 8. Vendido de forma diversa
+                // 8. Produção vs Revenda
                 if (isProducao) {
-                    updateVisualBar(`${label} 7. Vendido Diversa=Sim`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('Definindo "Vendido de forma diversa" = Sim', '🔀');
+                    // PRODUÇÃO: Vendido de forma diversa = Sim
+                    updateVisualBar(`${label} 7. Diversa=Sim (Produção)`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('PRODUÇÃO: "Vendido de forma diversa" = Sim', '🏭');
                     let count = 0;
                     for (const inp of skuInputs) {
-                        if (setVendidoDiversa(getRegistroContainer(inp))) count++;
+                        if (setVendidoDiversa(getRegistroContainer(inp), 'sim')) count++;
                     }
                     await sleep(cfg.delayStep);
-                    log(`${label} Forma diversa alterada em ${count} variantes.`);
+                    log(`${label} ✅ Produção — Diversa=Sim em ${count} variantes.`);
+                } else {
+                    // REVENDA: Vendido de forma diversa = Não + Estoque Revenda
+                    updateVisualBar(`${label} 7a. Diversa=Não (Revenda)`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('REVENDA: "Vendido de forma diversa" = Não', '🔄');
+                    let countDiversa = 0;
+                    for (const inp of skuInputs) {
+                        if (setVendidoDiversa(getRegistroContainer(inp), 'nao')) countDiversa++;
+                    }
+                    await sleep(cfg.delayStep);
+                    log(`${label} Diversa=Não em ${countDiversa} variantes.`);
+
+                    updateVisualBar(`${label} 7b. Estoque Revenda`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('REVENDA: Selecionando "ESTOQUE REVENDA"', '📦');
+                    let countEstoque = 0;
+                    for (const inp of skuInputs) {
+                        if (setEstoqueRevenda(inp)) countEstoque++;
+                    }
+                    await sleep(cfg.delayStep);
+                    log(`${label} ✅ Revenda — Estoque Revenda em ${countEstoque} variantes.`);
                 }
 
                 // 9. Selecionar Todos
@@ -688,10 +751,15 @@
                     </select>
                 </div>
 
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1">
-                    <input type="checkbox" id="brk-import-producao" checked style="accent-color:#7F00FF;width:16px;height:16px">
-                    <span>Produto de <strong style="color:#a78bfa">produção</strong> (Vendido de forma diversa = Sim)</span>
-                </label>
+                <div style="background:#1e1b4b;border-radius:10px;padding:10px 12px;border:1px solid #7F00FF30">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1">
+                        <input type="checkbox" id="brk-import-producao" checked style="accent-color:#7F00FF;width:16px;height:16px">
+                        <span>Produto de <strong style="color:#a78bfa">produção</strong></span>
+                    </label>
+                    <div id="brk-import-modo-info" style="font-size:11px;margin-top:6px;padding:6px 8px;border-radius:6px;background:#0f172a;color:#10b981;border:1px solid #10b98130">
+                        🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim
+                    </div>
+                </div>
 
                 <!-- LISTA DE IDS -->
                 <div>
@@ -738,6 +806,21 @@
         box.querySelector('#brk-speed-select').onchange = (e) => {
             activeSpeed = e.target.value;
             log(`Velocidade alterada para: ${SPEED_PROFILES[activeSpeed].name}`, 'info');
+        };
+
+        box.querySelector('#brk-import-producao').onchange = (e) => {
+            const info = document.getElementById('brk-import-modo-info');
+            if (e.target.checked) {
+                info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim';
+                info.style.color = '#10b981';
+                info.style.borderColor = '#10b98130';
+                log('Modo: PRODUÇÃO (Diversa=Sim)', 'info');
+            } else {
+                info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa = Não · Estoque = REVENDA';
+                info.style.color = '#f59e0b';
+                info.style.borderColor = '#f59e0b30';
+                log('Modo: REVENDA (Diversa=Não + Estoque Revenda)', 'info');
+            }
         };
 
         box.querySelector('#brk-import-pause').onclick = () => {
