@@ -1,0 +1,289 @@
+// ==UserScript==
+// @name         Atualizador em Lote - Magis5
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Painel para aplicar SKUs e alterar a opção Vendido de forma diversa no Magis5
+// @match        https://app.magis5.com.br/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Garante que o script só crie o botão se a página pertencer ao Magis5
+    if (!document.title.toLowerCase().includes('magis') && !window.location.href.toLowerCase().includes('magis')) {
+        return;
+    }
+
+    const CFG = { maxProdutos: 50 };
+    const norm = s => (s || '').replace(/\r/g,'').trim();
+
+    // Cria o botão flutuante para abrir o painel
+    function buildLauncher() {
+        if (document.getElementById('brk-magis-launcher')) return;
+        const btn = document.createElement('button');
+        btn.id = 'brk-magis-launcher';
+        btn.innerText = '📦 Abrir Painel Magis5';
+        btn.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:999998;background:#0ea5e9;color:#fff;border:none;padding:10px 15px;border-radius:8px;font-weight:bold;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.3);';
+        btn.onclick = () => {
+            if (!document.getElementById('brk-magis-lote-panel')) buildPanel();
+        };
+        document.body.appendChild(btn);
+    }
+
+    function buildPanel() {
+        const box = document.createElement('div');
+        box.id = 'brk-magis-lote-panel';
+        box.style.cssText = 'position:fixed;top:16px;right:16px;z-index:999999;background:#111827;color:#fff;width:520px;max-height:86vh;overflow:auto;border-radius:14px;border:1px solid #374151;box-shadow:0 10px 30px rgba(0,0,0,.35);font:13px/1.45 Arial,sans-serif';
+        box.innerHTML = `
+          <div style="padding:12px 14px;border-bottom:1px solid #374151;display:flex;justify-content:space-between;align-items:center;background:#111827;position:sticky;top:0;">
+            <div>
+              <div style="font-weight:700">Magis5 por lista (Tampermonkey)</div>
+              <div style="font-size:12px;color:#9ca3af">Busca seletiva e aplicação em lote</div>
+            </div>
+            <button id="brk-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:bold;">X</button>
+          </div>
+          <div style="padding:12px 14px;display:grid;gap:10px;">
+            <div id="brk-status" style="color:#10b981;font-weight:bold;">Pronto para iniciar!</div>
+            <div id="brk-resumo" style="background:#1f2937;border-radius:10px;padding:10px;white-space:pre-line"></div>
+            <div>
+              <label style="display:block;font-size:12px;color:#9ca3af;margin-bottom:4px">SKUs atuais do Magis5</label>
+              <textarea id="brk-skus" rows="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid #374151;background:#0b1220;color:#fff"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="brk-carregar" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer">Carregar SKUs da página</button>
+              <button id="brk-copiar-skus" style="background:#2563eb;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer">Copiar SKUs</button>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;color:#9ca3af;margin-bottom:4px">Pares para alteração (SKU TAB Código TAB EAN)</label>
+              <textarea id="brk-pares" rows="6" placeholder="Ex: HYB086G2 75739 7804812157814" style="width:100%;padding:10px;border-radius:8px;border:1px solid #374151;background:#0b1220;color:#fff"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="brk-aplicar" style="background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer">▶ Aplicar lista</button>
+              <button id="brk-copy-nao" style="background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer">Copiar não encontrados</button>
+            </div>
+            <div id="brk-log" style="background:#0b1220;border-radius:10px;padding:10px;max-height:20vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;"></div>
+          </div>`;
+
+        document.body.appendChild(box);
+        box.querySelector('#brk-close').onclick = () => box.remove();
+
+        // Atrelando os eventos aos botões
+        box.querySelector('#brk-carregar').onclick = carregarSkus;
+        box.querySelector('#brk-copiar-skus').onclick = async () => { await navigator.clipboard.writeText(document.getElementById('brk-skus').value); status('Lista copiada.'); log('📋 Lista de SKUs copiada.'); };
+        box.querySelector('#brk-aplicar').onclick = aplicarLista;
+        box.querySelector('#brk-copy-nao').onclick = async () => { await navigator.clipboard.writeText(naoEncontrados.join('\n')); status('Não encontrados copiados.'); log('📋 Não encontrados copiados.'); };
+
+        status('Painel aberto com sucesso.');
+        refreshResumo(getSkuInputs().length, 0);
+    }
+
+    let naoEncontrados = [];
+    let aplicados = [];
+
+    function status(t) { document.getElementById('brk-status').textContent = t; }
+
+    function log(t) {
+        const logEl = document.getElementById('brk-log');
+        logEl.textContent += (logEl.textContent ? '\n' : '') + t;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function refreshResumo(totalSkus=0, totalPairs=0) {
+        document.getElementById('brk-resumo').textContent = [
+            `SKUs na tela: ${totalSkus}`,
+            `Pares informados: ${totalPairs}`,
+            `Aplicados com sucesso: ${aplicados.length}`,
+            `SKUs Não encontrados na tela: ${naoEncontrados.length}`
+        ].join('\n');
+    }
+
+    function getSkuInputs() {
+        return [...document.querySelectorAll('input')].filter(el => {
+            const prop = (el.id || el.name || '').toLowerCase();
+            return prop.includes('sku') && norm(el.value) !== '';
+        }).slice(0, CFG.maxProdutos);
+    }
+
+    function getMapInputsBySku() {
+        const map = new Map();
+        for (const input of getSkuInputs()) {
+            const sku = norm(input.value);
+            if (sku && !map.has(sku)) map.set(sku, input);
+        }
+        return map;
+    }
+
+    function getRegistroContainer(input) {
+        let el = input;
+        while (el && el !== document.body) {
+            if (el.innerText && el.innerText.includes('Vendido de forma diversa')) return el;
+            el = el.parentElement;
+        }
+        return input.closest('tr, .row, .card, .panel, div') || input.parentElement;
+    }
+
+    function getSelectVendido(registroEl) {
+        if(!registroEl) return null;
+        let select = registroEl.querySelector('select[name="isProductOnChannelLocked"]');
+        if (select) return select;
+
+        const todosSelects = registroEl.querySelectorAll('select');
+        if (todosSelects.length > 0) {
+           return todosSelects[todosSelects.length - 1];
+        }
+        return null;
+    }
+
+    // Localiza o input de EAN dentro do container do registro
+    function getInputEan(registroEl) {
+        if (!registroEl) return null;
+        // Busca por input cujo id contém "ean" (ex: ean54446346)
+        const inputs = registroEl.querySelectorAll('input');
+        for (const inp of inputs) {
+            const idLower = (inp.id || '').toLowerCase();
+            const nameLower = (inp.name || '').toLowerCase();
+            if (idLower.includes('ean') || nameLower.includes('ean') ||
+                idLower.includes('gtin') || nameLower.includes('gtin')) {
+                return inp;
+            }
+        }
+        return null;
+    }
+
+    function setSelectToSim(select) {
+        if (!select) return false;
+        const opt = [...select.options].find(o => norm(o.textContent).toLowerCase() === 'sim');
+        if (!opt) return false;
+        select.value = opt.value;
+        opt.selected = true;
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        select.style.outline = '2px solid #10b981';
+        select.style.background = '#ecfdf5';
+        return true;
+    }
+
+    function setInputValue(input, valor) {
+        input.focus();
+        input.select?.();
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(input, valor); else input.value = valor;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('focusout', { bubbles: true }));
+        input.blur();
+        input.style.outline = '2px solid #10b981';
+        input.style.background = '#ecfdf5';
+        input.style.color = '#000';
+    }
+
+    function parsePairs(text) {
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const pairs = [];
+        for (const line of lines) {
+            // Formato: SKU \t Código \t EAN (EAN é opcional)
+            const parts = line.split(/\t+/);
+            if (parts.length >= 2) {
+                const sku = norm(parts[0]);
+                const codigo = norm(parts[1]);
+                const ean = norm(parts[2] || '');
+                if (sku && codigo) pairs.push({ sku, codigo, ean });
+            } else {
+                // Fallback: separador por espaço
+                const spaceParts = line.split(/\s+/);
+                const sku = norm(spaceParts[0] || '');
+                const codigo = norm(spaceParts[1] || '');
+                if (sku && codigo) pairs.push({ sku, codigo, ean: '' });
+            }
+        }
+        return pairs;
+    }
+
+    function carregarSkus() {
+        const skuInputs = getSkuInputs();
+        const linhas = [];
+        let comEan = 0;
+        let semEan = 0;
+
+        for (const input of skuInputs) {
+            const sku = norm(input.value);
+            if (!sku) continue;
+
+            // Encontra o container do registro e o campo EAN
+            const registro = getRegistroContainer(input);
+            const inputEan = getInputEan(registro);
+            const eanValor = inputEan ? norm(inputEan.value) : '';
+
+            if (eanValor) {
+                // EAN já preenchido → exporta só o SKU
+                linhas.push(sku);
+                comEan++;
+            } else {
+                // EAN vazio → marca com [SEM_EAN] para o Sankhya extrair
+                linhas.push(`${sku}\t[SEM_EAN]`);
+                semEan++;
+            }
+        }
+
+        document.getElementById('brk-skus').value = linhas.join('\n');
+        status(`${skuInputs.length} SKUs | ${semEan} sem EAN | ${comEan} com EAN`);
+        log(`📋 ${skuInputs.length} SKUs extraídos da tela.`);
+        log(`   📦 ${comEan} já possuem EAN (não será extraído do Sankhya)`);
+        log(`   🔴 ${semEan} sem EAN → marcados [SEM_EAN] para extração`);
+        refreshResumo(skuInputs.length, parsePairs(document.getElementById('brk-pares').value).length);
+    }
+
+    function aplicarLista() {
+        naoEncontrados = [];
+        aplicados = [];
+
+        const textPares = document.getElementById('brk-pares').value;
+        const pairs = parsePairs(textPares);
+        const map = getMapInputsBySku();
+
+        log(`\n--- Nova Aplicação Iniciada ---`);
+
+        for (const item of pairs) {
+            const input = map.get(item.sku);
+            if (!input) {
+                naoEncontrados.push(item.sku);
+                log(`⚠️ SKU invisível na tela: ${item.sku}`);
+                continue;
+            }
+
+            const registro = getRegistroContainer(input);
+            const select = getSelectVendido(registro);
+            const okSelect = setSelectToSim(select);
+
+            setInputValue(input, item.codigo);
+
+            // ── Preencher EAN se disponível e campo estiver vazio ──
+            let eanStatus = '';
+            if (item.ean) {
+                const inputEan = getInputEan(registro);
+                if (inputEan) {
+                    const eanAtual = norm(inputEan.value);
+                    if (eanAtual === '') {
+                        setInputValue(inputEan, item.ean);
+                        eanStatus = ` | EAN: ${item.ean} ✅`;
+                    } else {
+                        eanStatus = ` | EAN já existe: ${eanAtual}`;
+                    }
+                } else {
+                    eanStatus = ' | ⚠ Campo EAN não encontrado';
+                }
+            }
+
+            aplicados.push({ sku: item.sku, codigo: item.codigo, vendidoDiversa: okSelect, ean: item.ean });
+            log(`✅ ${item.sku} → ${item.codigo} ${okSelect ? '(Diversa: Sim)' : '(Select ñ encontrado)'}${eanStatus}`);
+        }
+
+        status('Aplicação em lote concluída.');
+        refreshResumo(getSkuInputs().length, pairs.length);
+    }
+
+    // Inicializa o botão de lançamento 2 segundos após a página carregar
+    setTimeout(buildLauncher, 2000);
+
+})();

@@ -37,6 +37,7 @@
     'image-crosser':  { title: '🔀 Cruzador de Imagens',   render: () => window.HUB.renderImageCrosser?.() },
     history:          { title: 'Histórico de Tarefas',      render: () => window.HUB.renderHistory?.() },
     'ean-viewer':     { title: 'EAN Viewer',              render: () => window.HUB.renderEanViewer?.() },
+    magis5:           { title: '📦 Magis5 Bridge',         render: () => window.HUB.renderMagis5?.() },
   };
 
   // ───────── Navegação SPA ─────────
