@@ -1,10 +1,13 @@
 // ==UserScript==
 // @name         Magis5 Import Autopilot — BRK
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  Automação VISUAL e CONTROLADA de importação de anúncios Shopify → Magis5 em lote
+// @version      4.0
+// @description  Automação VISUAL de importação Shopify → Magis5 com integração automática Sankhya
 // @match        https://app.magis5.com.br/*
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -549,6 +552,145 @@
         });
     }
 
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  INTEGRAÇÃO SANKHYA — GM_setValue / GM_addValueChangeListener      ║
+    // ║                                                                      ║
+    // ║  Comunicação cross-domain via Tampermonkey:                         ║
+    // ║  1. Magis5 envia SKUs → GM_setValue('brk_skus_pendentes', [...])    ║
+    // ║  2. Sankhya detecta → processa → GM_setValue('brk_skus_resultado') ║
+    // ║  3. Magis5 detecta resultado → aplica códigos nos campos           ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    /**
+     * Lê os SKUs das variantes na tela da Magis5 e detecta quais precisam de EAN.
+     * Retorna array de { sku, precisaEan }
+     */
+    function readSkusFromScreen() {
+        const skuInputs = getSkuInputs();
+        const entries = [];
+        for (const inp of skuInputs) {
+            const sku = norm(inp.value);
+            if (!sku) continue;
+            const container = getRegistroContainer(inp);
+            // Detecta se o campo EAN está vazio
+            const eanInputs = container ? container.querySelectorAll('input') : [];
+            let temEan = false;
+            for (const ei of eanInputs) {
+                const id = (ei.id || '').toLowerCase();
+                if ((id.includes('ean') || id.includes('gtin')) && norm(ei.value)) {
+                    temEan = true;
+                    break;
+                }
+            }
+            entries.push({ sku, precisaEan: !temEan });
+        }
+        return entries;
+    }
+
+    /**
+     * Envia lista de SKUs para o Sankhya via GM_setValue
+     */
+    function sendSkusToSankhya(skuEntries) {
+        const payload = {
+            timestamp: Date.now(),
+            skus: skuEntries, // [{ sku: 'C02570PP', precisaEan: true }, ...]
+            status: 'pendente'
+        };
+        GM_setValue('brk_skus_pendentes', JSON.stringify(payload));
+        log(`📡 ${skuEntries.length} SKUs enviados ao Sankhya via GM_setValue`, 'info');
+    }
+
+    /**
+     * Aguarda o Sankhya processar e retornar os resultados.
+     * Retorna array de { sku, codigo, ean } ou null se timeout.
+     */
+    function waitForSankhyaResults(timeoutMs = 120000) {
+        return new Promise((resolve) => {
+            const startTime = Date.now();
+
+            // Listener para mudanças no GM value
+            const listenerId = GM_addValueChangeListener('brk_skus_resultado', (name, oldVal, newVal, remote) => {
+                if (!remote) return; // Ignora mudanças locais
+                try {
+                    const result = JSON.parse(newVal);
+                    if (result && result.status === 'completo' && result.pares) {
+                        GM_removeValueChangeListener(listenerId);
+                        clearInterval(timeoutCheck);
+                        log(`📡 Resultado recebido do Sankhya: ${result.pares.length} pares`, 'success');
+                        resolve(result.pares); // [{ sku, codigo, ean }, ...]
+                    }
+                } catch (e) {
+                    log(`⚠️ Erro ao parsear resultado do Sankhya: ${e.message}`, 'warn');
+                }
+            });
+
+            // Timeout check
+            const timeoutCheck = setInterval(() => {
+                if (Date.now() - startTime > timeoutMs) {
+                    GM_removeValueChangeListener(listenerId);
+                    clearInterval(timeoutCheck);
+                    log(`⏰ Timeout aguardando Sankhya (${timeoutMs / 1000}s). Continuando sem códigos.`, 'warn');
+                    resolve(null);
+                }
+            }, 5000);
+
+            // Verifica se já tem resultado disponível
+            try {
+                const existing = GM_getValue('brk_skus_resultado', '');
+                if (existing) {
+                    const result = JSON.parse(existing);
+                    if (result && result.status === 'completo' && result.timestamp > startTime - 5000) {
+                        GM_removeValueChangeListener(listenerId);
+                        clearInterval(timeoutCheck);
+                        resolve(result.pares);
+                    }
+                }
+            } catch (_) {}
+        });
+    }
+
+    /**
+     * Aplica os resultados do Sankhya nos campos da Magis5.
+     * pares = [{ sku: 'C02570PP', codigo: '75679', ean: '7804812157814' }, ...]
+     */
+    function applySankhyaResults(pares) {
+        if (!pares || pares.length === 0) return 0;
+
+        const skuInputs = getSkuInputs();
+        const inputMap = new Map();
+        skuInputs.forEach(inp => inputMap.set(norm(inp.value).toUpperCase(), inp));
+
+        let applied = 0;
+        for (const par of pares) {
+            const input = inputMap.get(par.sku.toUpperCase());
+            if (!input) continue;
+
+            // Aplica código Sankhya no campo SKU
+            setInputValue(input, par.codigo);
+            applied++;
+
+            // Aplica EAN se disponível e campo estiver vazio
+            if (par.ean) {
+                const container = getRegistroContainer(input);
+                if (container) {
+                    const eanInputs = container.querySelectorAll('input');
+                    for (const ei of eanInputs) {
+                        const id = (ei.id || '').toLowerCase();
+                        if ((id.includes('ean') || id.includes('gtin')) && !norm(ei.value)) {
+                            setInputValue(ei, par.ean);
+                            log(`  EAN aplicado: ${par.ean}`, 'info');
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return applied;
+    }
+
+    // Limpa o canal de comunicação ao iniciar
+    try { GM_setValue('brk_skus_pendentes', ''); GM_setValue('brk_skus_resultado', ''); } catch(_) {}
+
     function parseInput(text) {
         const lines = text.split('\n').map(norm).filter(Boolean);
         const items = [];
@@ -657,10 +799,11 @@
                 const skuInputs = await waitForVariants();
                 log(`${label} ${skuInputs.length} variantes carregadas na tela.`);
 
-                // 7. Aplicar SKUs Sankhya se houver
+                // 7. Consulta Sankhya (automático) ou Aplicar SKUs (manual)
                 if (item.skuPairs.length > 0) {
-                    updateVisualBar(`${label} 6. Aplicando SKUs`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('Preenchendo SKUs Sankhya...', '🔄');
+                    // MODO MANUAL: pares já vieram colados no input
+                    updateVisualBar(`${label} 6. Aplicando SKUs (manual)`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('Aplicando SKUs manuais...', '🔄');
                     const inputMap = new Map();
                     skuInputs.forEach(inp => inputMap.set(norm(inp.value).toUpperCase(), inp));
                     let applied = 0;
@@ -668,7 +811,36 @@
                         const input = inputMap.get(pair.skuAtual.toUpperCase());
                         if (input) { setInputValue(input, pair.novoSku); applied++; await sleep(250); }
                     }
-                    log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados.`);
+                    log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados (manual).`);
+                } else {
+                    // MODO AUTOMÁTICO: envia SKUs ao Sankhya e aguarda resposta
+                    updateVisualBar(`${label} 6a. Lendo SKUs da tela`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('Lendo SKUs das variantes para enviar ao Sankhya...', '📖');
+                    const skuEntries = readSkusFromScreen();
+                    log(`${label} ${skuEntries.length} SKUs lidos da tela.`);
+
+                    if (skuEntries.length > 0) {
+                        updateVisualBar(`${label} 6b. 📡 Aguardando Sankhya...`, `${i + 1}/${items.length}`, item.shopifyId);
+                        showAction(`Enviando ${skuEntries.length} SKUs ao Sankhya — aguardando resposta...`, '📡');
+
+                        // Limpa resultado anterior e envia novos SKUs
+                        GM_setValue('brk_skus_resultado', '');
+                        await sleep(300);
+                        sendSkusToSankhya(skuEntries);
+
+                        // Aguarda o Sankhya processar (timeout 2 min)
+                        const pares = await waitForSankhyaResults(120000);
+
+                        if (pares && pares.length > 0) {
+                            updateVisualBar(`${label} 6c. Aplicando códigos Sankhya`, `${i + 1}/${items.length}`, item.shopifyId);
+                            showAction(`Aplicando ${pares.length} códigos do Sankhya...`, '✅');
+                            const applied = applySankhyaResults(pares);
+                            await sleep(cfg.delayStep);
+                            log(`${label} ✅ ${applied}/${pares.length} códigos Sankhya aplicados.`, 'success');
+                        } else {
+                            log(`${label} ⚠️ Sankhya não retornou resultados. SKUs mantidos como estão.`, 'warn');
+                        }
+                    }
                 }
 
                 // 8. Produção vs Revenda
@@ -872,7 +1044,7 @@
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    Hook Prime v4.0 · Magis5 Import v3
+                    Hook Prime v4.0 · Magis5 Import v4 · Sankhya Auto ✅
                 </div>
             </div>
         `;
