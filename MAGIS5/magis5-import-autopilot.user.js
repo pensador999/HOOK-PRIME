@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magis5 Import Autopilot — BRK
 // @namespace    http://tampermonkey.net/
-// @version      4.1
+// @version      4.2
 // @description  Automação VISUAL de importação Shopify → Magis5 com integração automática Sankhya
 // @match        https://app.magis5.com.br/*
 // @grant        GM_setValue
@@ -218,11 +218,26 @@
         await sleep(cfg.delayAfterModal);
     }
 
+    /**
+     * Encontra o modal "Baixar anúncio do marketplace" aberto.
+     * ⚠️ A Magis5 duplica IDs: #channel e #channelId existem TANTO no Filtro
+     * (atrás) quanto dentro do modal. Precisamos buscar DENTRO do modal.
+     */
+    function getModal() {
+        return document.querySelector('#m_modal_2.show, #m_modal_2.in, #m_modal_2[style*="display: block"]')
+            || document.querySelector('.modal.show, .modal.in, .modal[style*="display: block"]');
+    }
+
     async function visualSelectChannel(channelValue, channelName) {
         const cfg = getCFG();
         showAction(`Selecionando loja: ${channelName}`, '🏪');
-        const select = document.getElementById('channel');
-        if (!select) throw new Error('Select de canal não encontrado no modal da Magis5');
+
+        // ⚠️ Busca o select DENTRO do modal (não no filtro atrás)
+        const modal = getModal();
+        const select = modal
+            ? modal.querySelector('#channel, select[name="channel"]')
+            : document.getElementById('channel');
+        if (!select) throw new Error('Select de canal não encontrado dentro do modal');
 
         highlight(select, '#3b82f6');
         await sleep(cfg.delayStep);
@@ -251,8 +266,9 @@
                 }
             } catch(_) {}
 
-            // Atualiza visual do Select2 se existir
-            const select2Container = document.querySelector('#select2-channel-container, [aria-labelledby*="select2-channel"], .select2-selection__rendered');
+            // Atualiza visual do Select2 se existir (dentro do modal)
+            const searchCtx = modal || document;
+            const select2Container = searchCtx.querySelector('#select2-channel-container, [aria-labelledby*="select2-channel"], .select2-selection__rendered');
             if (select2Container) {
                 select2Container.textContent = targetOption.textContent;
                 select2Container.title = targetOption.textContent;
@@ -261,7 +277,7 @@
 
             log(`Canal selecionado no modal: "${targetOption.textContent.trim()}" (ID: ${targetOption.value})`, 'success');
         } else {
-            log(`⚠️ Opção para "${channelName}" não encontrada no select da Magis5. Usando primeira opção disponível.`, 'warn');
+            log(`⚠️ Opção para "${channelName}" não encontrada no select do modal.`, 'warn');
         }
 
         await sleep(cfg.delayStep);
@@ -271,8 +287,13 @@
     async function visualFillId(shopifyId) {
         const cfg = getCFG();
         showAction(`Preenchendo ID do Anúncio: ${shopifyId}`, '🔗');
-        const input = document.getElementById('channelId');
-        if (!input) throw new Error('Input channelId não encontrado');
+
+        // ⚠️ Busca o input DENTRO do modal (não no filtro atrás)
+        const modal = getModal();
+        const input = modal
+            ? modal.querySelector('#channelId, input[name="channelId"]')
+            : document.getElementById('channelId');
+        if (!input) throw new Error('Input channelId não encontrado dentro do modal');
         highlight(input, '#f59e0b');
         await sleep(cfg.delayStep);
 
@@ -297,7 +318,11 @@
             window.createFindProductOnChannel();
             return;
         }
-        const btns = document.querySelectorAll('.modal button, .modal.show button');
+
+        // ⚠️ Busca o botão "Sim" DENTRO do modal primeiro
+        const modal = getModal();
+        const searchCtx = modal || document;
+        const btns = searchCtx.querySelectorAll('button, .btn');
         for (const btn of btns) {
             if (btn.textContent.trim() === 'Sim') {
                 highlight(btn, '#10b981');
@@ -307,7 +332,7 @@
                 return;
             }
         }
-        throw new Error('Botão "Sim" não encontrado');
+        throw new Error('Botão "Sim" não encontrado dentro do modal');
     }
 
     async function waitForVariants() {
@@ -1058,7 +1083,7 @@
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    Hook Prime v4.1 · Magis5 Import v4.1 · Sankhya Auto ✅
+                    Hook Prime v4.2 · Magis5 Import v4.2 · Modal Fix ✅
                 </div>
             </div>
         `;
