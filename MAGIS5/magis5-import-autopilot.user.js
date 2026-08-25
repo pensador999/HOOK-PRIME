@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magis5 Import Autopilot — BRK
 // @namespace    http://tampermonkey.net/
-// @version      4.0
+// @version      4.1
 // @description  Automação VISUAL de importação Shopify → Magis5 com integração automática Sankhya
 // @match        https://app.magis5.com.br/*
 // @grant        GM_setValue
@@ -195,8 +195,22 @@
     async function visualOpenModal() {
         const cfg = getCFG();
         showAction('Abrindo modal "Baixar anúncio específico"...', '📂');
-        const btn = document.getElementById('generatePurchase');
-        if (!btn) throw new Error('Botão "Baixar anúncio específico" não encontrado');
+
+        // ⚠️ A Magis5 tem 2 botões com o MESMO id="generatePurchase":
+        //   1º → "Baixar anúncios para importação" (ERRADO — sincronização em lote)
+        //   2º → "Baixar anúncio específico" (CERTO — busca por ID)
+        // getElementById() retorna o 1º, então buscamos pelo TEXTO do botão.
+        const allBtns = document.querySelectorAll('#generatePurchase, .btn-light-primary');
+        let btn = null;
+        for (const b of allBtns) {
+            const texto = b.textContent.trim().toLowerCase();
+            if (texto.includes('anúncio específico') || texto.includes('anuncio especifico')) {
+                btn = b;
+                break;
+            }
+        }
+
+        if (!btn) throw new Error('Botão "Baixar anúncio específico" não encontrado na página');
         highlight(btn, '#10b981');
         await sleep(cfg.delayStep);
         btn.click();
@@ -1044,7 +1058,7 @@
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    Hook Prime v4.0 · Magis5 Import v4 · Sankhya Auto ✅
+                    Hook Prime v4.1 · Magis5 Import v4.1 · Sankhya Auto ✅
                 </div>
             </div>
         `;
