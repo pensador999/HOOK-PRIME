@@ -336,6 +336,20 @@
         fireConfetti();
         State.state.exported = true;
         State.saveSession();
+
+        // ✅ Marcar tarefa como concluída no backend
+        if (State.state.networkTaskId) {
+          fetch(`/api/autopilot/tasks/${State.state.networkTaskId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'done' })
+          }).then(r => {
+            if (r.ok) {
+              console.log(`✅ Tarefa ${State.state.networkTaskId} marcada como concluída`);
+              window.HUB?.showToast('📋 Tarefa movida para "Completo" no Dashboard!', 'success');
+            }
+          }).catch(err => console.warn('Erro ao finalizar tarefa:', err));
+        }
       });
     }
 

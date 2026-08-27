@@ -380,6 +380,14 @@
                         if (progressLog) progressLog.innerHTML += `📊 Auto-scan: <strong style="color:${State.TIFFANY}">${scanData.folders.length}</strong> códigos, <strong style="color:${State.TIFFANY}">${scanData.totalImages}</strong> imagens detectadas<br>`;
                         // Re-render to show updated stats cards
                         render();
+
+                        // ✅ Auto-avançar para Etapa 3 (Links) após cópia + scan
+                        State.state.completedSteps.add(2);
+                        State.saveSession();
+                        if (progressLog) progressLog.innerHTML += `<br><strong style="color:${State.TIFFANY}">🚀 Avançando para Etapa 3 — Links de Imagens...</strong><br>`;
+                        setTimeout(() => {
+                          validateAndAdvance(2);
+                        }, 1500);
                       }
                     } catch (scanErr) {
                       console.log('Auto-scan falhou:', scanErr.message);

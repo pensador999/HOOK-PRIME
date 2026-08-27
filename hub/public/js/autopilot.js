@@ -269,6 +269,8 @@
         state.networkScanResult = networkPayload.scanResults;
         state.networkCopyResult = networkPayload.copyResults;
         state.networkTaskId = networkPayload.taskId;
+
+        // Injetar estampas dos resultados do scan
         if (networkPayload.scanResults) {
           for (const r of networkPayload.scanResults) {
             if (r.estampa && r.code) {
@@ -277,6 +279,8 @@
             }
           }
         }
+
+        // Injetar dados de cópia (imagens por código)
         if (networkPayload.copyResults && networkPayload.copyResults.results) {
           state.folderData = {};
           for (const cr of networkPayload.copyResults.results) {
@@ -286,9 +290,35 @@
             }));
           }
         }
-        state.currentStep = 2;
-        state.completedSteps.add(1);
-        window.HUB?.showToast(`✅ ${networkPayload.scanResults?.filter(r=>r.found).length || 0} códigos encontrados na rede!`, 'success');
+
+        // Preencher diskFolderPath com o caminho local das imagens copiadas
+        if (networkPayload.taskId) {
+          state.diskFolderPath = `uploads/autopilot/${networkPayload.taskId}`;
+        }
+        if (networkPayload.copyResults && networkPayload.copyResults.localPath) {
+          state.diskFolderPath = networkPayload.copyResults.localPath;
+        }
+
+        // Injetar URLs do CDN no state.imageUrls
+        if (networkPayload.cdnUrls && typeof networkPayload.cdnUrls === 'object') {
+          if (!state.imageUrls) state.imageUrls = {};
+          Object.assign(state.imageUrls, networkPayload.cdnUrls);
+        }
+
+        // Determinar até onde avançar com base nos dados disponíveis
+        state.completedSteps.add(1); // Config veio do agent payload
+        state.completedSteps.add(2); // Pastas já foram copiadas pelo live
+
+        if (networkPayload.cdnUrls && Object.keys(networkPayload.cdnUrls).length > 0) {
+          // CDN já foi feito — avançar para Etapa 4 (Estampas)
+          state.completedSteps.add(3);
+          state.currentStep = 4;
+          window.HUB?.showToast(`✅ ${Object.keys(networkPayload.cdnUrls).length} códigos com links CDN! Avançando para Estampas...`, 'success');
+        } else {
+          // Só cópia foi feita — avançar para Etapa 3 (Links/Upload CDN)
+          state.currentStep = 3;
+          window.HUB?.showToast(`✅ ${networkPayload.scanResults?.filter(r=>r.found).length || 0} códigos copiados! Avançando para Upload CDN...`, 'success');
+        }
       } catch (e) {
         console.error('Error parsing network payload:', e);
       }
