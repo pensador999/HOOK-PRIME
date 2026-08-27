@@ -408,10 +408,11 @@
     }
 
     /**
-     * Define o estoque como "sankhya - ESTOQUE REVENDA" (value 1010000)
-     * O select de cada variante tem id "wareHouseSelect{N}"
+     * Define o depósito da variante.
+     * @param {Element} skuInput - o input de SKU da variante
+     * @param {string} tipo - 'fabricacao' (value 1040000) ou 'revenda' (value 1010000)
      */
-    function setEstoqueRevenda(skuInput) {
+    function setDeposito(skuInput, tipo = 'fabricacao') {
         const idMatch = skuInput.id.match(/(\d+)/);
         if (!idMatch) return false;
         const numId = idMatch[1];
@@ -423,9 +424,16 @@
         }
         if (!whSelect) return false;
 
+        // Mapeia tipo para value e texto de busca
+        const config = {
+            fabricacao: { value: '1040000', texto: 'FABRICACAO' },
+            revenda:   { value: '1010000', texto: 'ESTOQUE REVENDA' },
+        };
+        const cfg = config[tipo] || config.fabricacao;
+
         // Busca por value exato ou por texto
-        let opt = [...whSelect.options].find(o => o.value === '1010000');
-        if (!opt) opt = [...whSelect.options].find(o => o.textContent.toUpperCase().includes('ESTOQUE REVENDA'));
+        let opt = [...whSelect.options].find(o => o.value === cfg.value);
+        if (!opt) opt = [...whSelect.options].find(o => o.textContent.toUpperCase().includes(cfg.texto));
         if (!opt) return false;
 
         whSelect.value = opt.value;
@@ -437,7 +445,7 @@
             try { window.updateExtraFields(parseInt(numId)); } catch (_) {}
         }
 
-        highlight(whSelect, '#f59e0b');
+        highlight(whSelect, tipo === 'fabricacao' ? '#10b981' : '#f59e0b');
         return true;
     }
 
@@ -464,16 +472,42 @@
         if (selectAllCb) {
             highlight(selectAllCb, '#7F00FF');
             await sleep(cfg.delayStep);
-            selectAllCb.checked = true;
-            selectAllCb.dispatchEvent(new Event('change', { bubbles: true }));
-            selectAllCb.click();
+
+            // Marcar o checkbox
+            if (!selectAllCb.checked) {
+                selectAllCb.checked = true;
+                selectAllCb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // ⚠️ Magis5 usa checkboxes customizados: o <span> irmão é o elemento visual
+            // Precisamos clicar nele para ativar o handler do framework
+            const parentLabel = selectAllCb.closest('label');
+            if (parentLabel) {
+                parentLabel.click();
+            } else {
+                // Tenta clicar no <span> irmão
+                const siblingSpan = selectAllCb.nextElementSibling;
+                if (siblingSpan && siblingSpan.tagName === 'SPAN') {
+                    siblingSpan.click();
+                } else {
+                    selectAllCb.click();
+                }
+            }
+
             unhighlight(selectAllCb);
         } else {
+            // Fallback: marca todos os checkboxes individuais
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+                if (!cb.checked) {
+                    cb.checked = true;
+                    cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    const span = cb.nextElementSibling;
+                    if (span && span.tagName === 'SPAN') span.click();
+                    else cb.click();
+                }
             });
         }
-        await sleep(400);
+        await sleep(600);
     }
 
     async function visualClickImport() {
@@ -894,17 +928,26 @@
 
                 // 8. Produção vs Revenda
                 if (isProducao) {
-                    // PRODUÇÃO: Vendido de forma diversa = Sim
-                    updateVisualBar(`${label} 7. Diversa=Sim (Produção)`, `${i + 1}/${items.length}`, item.shopifyId);
+                    // PRODUÇÃO: Vendido de forma diversa = Sim + Depósito = FABRICAÇÃO
+                    updateVisualBar(`${label} 7a. Diversa=Sim (Produção)`, `${i + 1}/${items.length}`, item.shopifyId);
                     showAction('PRODUÇÃO: "Vendido de forma diversa" = Sim', '🏭');
                     let count = 0;
                     for (const inp of skuInputs) {
                         if (setVendidoDiversa(getRegistroContainer(inp), 'sim')) count++;
                     }
                     await sleep(cfg.delayStep);
-                    log(`${label} ✅ Produção — Diversa=Sim em ${count} variantes.`);
+                    log(`${label} Diversa=Sim em ${count} variantes.`);
+
+                    updateVisualBar(`${label} 7b. Depósito FABRICAÇÃO`, `${i + 1}/${items.length}`, item.shopifyId);
+                    showAction('PRODUÇÃO: Selecionando "FABRICAÇÃO"', '🏭');
+                    let countDeposito = 0;
+                    for (const inp of skuInputs) {
+                        if (setDeposito(inp, 'fabricacao')) countDeposito++;
+                    }
+                    await sleep(cfg.delayStep);
+                    log(`${label} ✅ Produção — Diversa=Sim + Depósito FABRICAÇÃO em ${countDeposito} variantes.`);
                 } else {
-                    // REVENDA: Vendido de forma diversa = Não + Estoque Revenda
+                    // REVENDA: Vendido de forma diversa = Não + Depósito = ESTOQUE REVENDA
                     updateVisualBar(`${label} 7a. Diversa=Não (Revenda)`, `${i + 1}/${items.length}`, item.shopifyId);
                     showAction('REVENDA: "Vendido de forma diversa" = Não', '🔄');
                     let countDiversa = 0;
@@ -914,14 +957,14 @@
                     await sleep(cfg.delayStep);
                     log(`${label} Diversa=Não em ${countDiversa} variantes.`);
 
-                    updateVisualBar(`${label} 7b. Estoque Revenda`, `${i + 1}/${items.length}`, item.shopifyId);
+                    updateVisualBar(`${label} 7b. Depósito REVENDA`, `${i + 1}/${items.length}`, item.shopifyId);
                     showAction('REVENDA: Selecionando "ESTOQUE REVENDA"', '📦');
                     let countEstoque = 0;
                     for (const inp of skuInputs) {
-                        if (setEstoqueRevenda(inp)) countEstoque++;
+                        if (setDeposito(inp, 'revenda')) countEstoque++;
                     }
                     await sleep(cfg.delayStep);
-                    log(`${label} ✅ Revenda — Estoque Revenda em ${countEstoque} variantes.`);
+                    log(`${label} ✅ Revenda — Diversa=Não + Depósito REVENDA em ${countEstoque} variantes.`);
                 }
 
                 // 9. Selecionar Todos
@@ -1058,7 +1101,7 @@
                         <span>Produto de <strong style="color:#a78bfa">produção</strong></span>
                     </label>
                     <div id="brk-import-modo-info" style="font-size:11px;margin-top:6px;padding:6px 8px;border-radius:6px;background:#0f172a;color:#10b981;border:1px solid #10b98130">
-                        🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim
+                        🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim · Depósito = FABRICAÇÃO
                     </div>
                 </div>
 
@@ -1112,15 +1155,15 @@
         box.querySelector('#brk-import-producao').onchange = (e) => {
             const info = document.getElementById('brk-import-modo-info');
             if (e.target.checked) {
-                info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim';
+                info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim · Depósito = FABRICAÇÃO';
                 info.style.color = '#10b981';
                 info.style.borderColor = '#10b98130';
-                log('Modo: PRODUÇÃO (Diversa=Sim)', 'info');
+                log('Modo: PRODUÇÃO (Diversa=Sim + Depósito FABRICAÇÃO)', 'info');
             } else {
-                info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa = Não · Estoque = REVENDA';
+                info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa = Não · Depósito = ESTOQUE REVENDA';
                 info.style.color = '#f59e0b';
                 info.style.borderColor = '#f59e0b30';
-                log('Modo: REVENDA (Diversa=Não + Estoque Revenda)', 'info');
+                log('Modo: REVENDA (Diversa=Não + Depósito ESTOQUE REVENDA)', 'info');
             }
         };
 
