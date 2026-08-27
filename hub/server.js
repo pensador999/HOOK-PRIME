@@ -207,26 +207,42 @@ process.on('unhandledRejection', (reason) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // 🔒 Verificação de integridade do módulo de segurança da rede
-try {
-  networkSafety.verifyIntegrity();
-} catch (err) {
-  console.error('\n🔒❌ FALHA CRÍTICA: Network Safety Guard comprometido!');
-  console.error('   O servidor NÃO vai iniciar sem proteção de rede.');
-  console.error('   Restaure o arquivo config/network-safety.js');
-  process.exit(1);
+// Na Vercel, não temos acesso à rede local — pular verificação
+if (!process.env.VERCEL) {
+  try {
+    networkSafety.verifyIntegrity();
+  } catch (err) {
+    console.error('\n🔒❌ FALHA CRÍTICA: Network Safety Guard comprometido!');
+    console.error('   O servidor NÃO vai iniciar sem proteção de rede.');
+    console.error('   Restaure o arquivo config/network-safety.js');
+    process.exit(1);
+  }
+} else {
+  console.log('☁️ Vercel: Network Safety check ignorado (sem rede local)');
 }
 
-app.listen(PORT, () => {
-  const prefixCount = Object.keys(networkPrefixes).filter(k => !k.startsWith('_')).length;
-  console.log(`\n════════════════════════════════════════════════════`);
-  console.log(`  🚀 HUB Hook Prime v3.3 — Modular Architecture`);
-  console.log(`  📡 http://localhost:${PORT}`);
-  console.log(`  📁 Diretório público: ${path.join(BASE_DIR, 'public')}`);
-  console.log(`  📤 Diretório de uploads: ${uploadsDir}`);
-  console.log(`  🔗 CDN: ${BRK_LINK_URL}`);
-  console.log(`  🔒 Rede nova: ${networkSafety.NETWORK_ROOT} (PROTEGIDA)`);
-  console.log(`  🔒 Rede legado: ${networkSafety.NETWORK_ROOT_LEGACY} (PROTEGIDA)`);
-  console.log(`  📂 ${prefixCount} prefixos mapeados`);
-  console.log(`  📦 7 módulos de rotas carregados`);
-  console.log(`════════════════════════════════════════════════════\n`);
-});
+// ═══════════════════════════════════════════════════════════════════════════════
+//  INICIALIZAÇÃO (local) + EXPORT (Vercel)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Na Vercel, o app é importado como serverless function (não usa listen)
+// Localmente, continua rodando como servidor Express normal
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    const prefixCount = Object.keys(networkPrefixes).filter(k => !k.startsWith('_')).length;
+    console.log(`\n════════════════════════════════════════════════════`);
+    console.log(`  🚀 HUB Hook Prime v3.3 — Modular Architecture`);
+    console.log(`  📡 http://localhost:${PORT}`);
+    console.log(`  📁 Diretório público: ${path.join(BASE_DIR, 'public')}`);
+    console.log(`  📤 Diretório de uploads: ${uploadsDir}`);
+    console.log(`  🔗 CDN: ${BRK_LINK_URL}`);
+    console.log(`  🔒 Rede nova: ${networkSafety.NETWORK_ROOT} (PROTEGIDA)`);
+    console.log(`  🔒 Rede legado: ${networkSafety.NETWORK_ROOT_LEGACY} (PROTEGIDA)`);
+    console.log(`  📂 ${prefixCount} prefixos mapeados`);
+    console.log(`  📦 7 módulos de rotas carregados`);
+    console.log(`════════════════════════════════════════════════════\n`);
+  });
+}
+
+// Export para Vercel serverless
+module.exports = app;
