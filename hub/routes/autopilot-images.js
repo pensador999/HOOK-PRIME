@@ -508,8 +508,15 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
 
       for (const [gender, variants] of Object.entries(genderGroups)) {
         for (const [variant, imgs] of Object.entries(variants)) {
-          // Criar subpasta: code/MASC/PRETA/
-          const subDir = path.join(uploadsDir, 'autopilot', taskId, code, gender, variant);
+          // Criar subpasta: evitar GERAL/GERAL — colapsar quando não há gênero/variante
+          let subDir;
+          if (gender === 'GERAL' && variant === 'GERAL') {
+            subDir = path.join(uploadsDir, 'autopilot', taskId, code, 'GERAL');
+          } else if (variant === 'GERAL') {
+            subDir = path.join(uploadsDir, 'autopilot', taskId, code, gender);
+          } else {
+            subDir = path.join(uploadsDir, 'autopilot', taskId, code, gender, variant);
+          }
           fs.mkdirSync(subDir, { recursive: true });
 
           // Deduplicar por nome base dentro de cada grupo gênero+cor
