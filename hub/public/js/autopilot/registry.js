@@ -110,11 +110,25 @@
     const genderStr = gender === 'fem' ? ' Feminina' : gender === 'inf' ? ' Infantil' : '';
 
     const NO_UV_TYPES = ['Boné', 'Lenço Cetim', 'Lenço', 'Copo Térmico', 'Capa Almofada', 'Caneca', 'APC'];
-    const uvSuffix = NO_UV_TYPES.includes(productType) ? '' : ' com Proteção UV50+';
+
+    // ✅ Fix: Não duplicar UV50 se a estampa já contém
+    const estLower = est.toLowerCase();
+    const estAlreadyHasUV = estLower.includes('uv50') || estLower.includes('proteção uv') || estLower.includes('protecao uv');
+    const uvSuffix = (NO_UV_TYPES.includes(productType) || estAlreadyHasUV) ? '' : ' com Proteção UV50+';
+
+    // ✅ Fix: Se a estampa já é um título completo (contém tipo de produto + marca),
+    // não adicionar prefixo — apenas gênero e UV
+    const estIsFullTitle = estLower.includes('camiseta') || estLower.includes('camisa ')
+      || estLower.includes('bandana') || estLower.includes('tubeneck')
+      || estLower.includes('black mask') || estLower.includes('corta vento')
+      || estLower.includes('boné') || estLower.includes('lenço');
+    if (estIsFullTitle) {
+      return `${est}${genderStr ? ' ' + genderStr.trim() : ''}${uvSuffix}`.trim();
+    }
 
     // ArmorX: "Camisa ArmorX{Feminina} ESTAMPA com Luva e Proteção UV50+"
     if (productType === 'ArmorX') {
-      const armorSuffix = NO_UV_TYPES.includes(productType) ? '' : ' com Luva e Proteção UV50+';
+      const armorSuffix = estAlreadyHasUV ? '' : ' com Luva e Proteção UV50+';
       return `Camisa ArmorX${genderStr} ${est}${armorSuffix}`;
     }
     // FusionX: "Camisa FusionX{Feminina} ESTAMPA com Proteção UV50+" (sem Brk)

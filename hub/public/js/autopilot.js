@@ -300,9 +300,37 @@
         }
 
         // Injetar URLs do CDN no state.imageUrls
+        // ⚠️ autopilot-live salva com chaves: "BP101_MASC_GERAL", "BP101_GERAL"
+        //    step5-sheet lê com chaves: "BP101" (masc), "BP101BL" (fem), "BP101I" (inf)
+        //    Normalizar para o formato do wizard
         if (networkPayload.cdnUrls && typeof networkPayload.cdnUrls === 'object') {
           if (!state.imageUrls) state.imageUrls = {};
-          Object.assign(state.imageUrls, networkPayload.cdnUrls);
+
+          for (const [key, urls] of Object.entries(networkPayload.cdnUrls)) {
+            // Formato autopilot-live: CODE_GENDER_VARIANT ou CODE_VARIANT
+            const parts = key.split('_');
+            const baseCode = parts[0]; // BP101
+
+            // Determinar gênero da chave
+            const keyUpper = key.toUpperCase();
+            let genderSuffix = ''; // masc = sem sufixo
+            if (keyUpper.includes('_FEM')) genderSuffix = 'BL';
+            else if (keyUpper.includes('_INF')) genderSuffix = 'I';
+
+            // Mapear para o código do wizard (code[g])
+            const wizardKey = baseCode + genderSuffix;
+
+            // Se já existe, concatenar com pipe (pode ter MASC + FEM separados)
+            if (state.imageUrls[wizardKey] && state.imageUrls[wizardKey].trim()) {
+              // Não duplicar se já tem o mesmo conteúdo
+              if (!state.imageUrls[wizardKey].includes(urls)) {
+                state.imageUrls[wizardKey] += ' | ' + urls;
+              }
+            } else {
+              state.imageUrls[wizardKey] = urls;
+            }
+          }
+          console.log('✅ CDN URLs normalizadas:', Object.keys(state.imageUrls).length, 'códigos');
         }
 
         // Determinar até onde avançar com base nos dados disponíveis

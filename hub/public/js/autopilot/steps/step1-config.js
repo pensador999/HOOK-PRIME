@@ -18,6 +18,7 @@
           <div>
             <label class="form-label">Marca</label>
             <select class="form-input" id="ap-brand">
+              <option value="" ${!State.state.brand ? 'selected' : ''}>— Selecione a Marca —</option>
               ${State.BRANDS.map(b => `<option value="${b}" ${State.state.brand === b ? 'selected' : ''}>${b}</option>`).join('')}
             </select>
           </div>

@@ -61,7 +61,7 @@
         createDefaultGroup(1),
       ],
       // Global settings (shared across all groups)
-      brand: 'BRK FISHING',
+      brand: '',
       erp: 'bling',
       price: '',
       costPrice: '55',
