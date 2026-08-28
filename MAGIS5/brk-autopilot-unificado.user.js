@@ -468,44 +468,70 @@
     async function visualSelectAll() {
         const cfg = getCFG();
         showAction('Marcando "Selecionar Todos"...', '☑️');
-        const selectAllCb = document.getElementById('selectAll');
+
+        // Estratégia 1: Buscar checkbox #selectAll direto
+        let selectAllCb = document.getElementById('selectAll');
+
+        // Estratégia 2: Buscar pelo texto "Selecionar Todos" e pegar o checkbox perto
+        if (!selectAllCb) {
+            const allLabels = [...document.querySelectorAll('label, span, div')];
+            for (const el of allLabels) {
+                if (el.textContent.trim().startsWith('Selecionar Todos')) {
+                    selectAllCb = el.querySelector('input[type="checkbox"]')
+                        || el.closest('label')?.querySelector('input[type="checkbox"]')
+                        || el.previousElementSibling;
+                    if (selectAllCb && selectAllCb.tagName === 'INPUT') break;
+                    selectAllCb = null;
+                }
+            }
+        }
+
         if (selectAllCb) {
             highlight(selectAllCb, '#7F00FF');
             await sleep(cfg.delayStep);
 
-            // Marcar o checkbox
+            // Clicar no label ou span (Metronic usa checkbox customizado)
+            const parentLabel = selectAllCb.closest('label');
+            if (parentLabel) {
+                parentLabel.click();
+                log('✅ Label "Selecionar Todos" clicado.', 'success');
+            } else {
+                const siblingSpan = selectAllCb.nextElementSibling;
+                if (siblingSpan && siblingSpan.tagName === 'SPAN') {
+                    siblingSpan.click();
+                    log('✅ Span do checkbox "Selecionar Todos" clicado.', 'success');
+                } else {
+                    selectAllCb.click();
+                    log('✅ Checkbox "Selecionar Todos" clicado direto.', 'success');
+                }
+            }
+
+            // Garantir que está marcado
             if (!selectAllCb.checked) {
                 selectAllCb.checked = true;
                 selectAllCb.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            // ⚠️ Magis5 usa checkboxes customizados: o <span> irmão é o elemento visual
-            // Precisamos clicar nele para ativar o handler do framework
-            const parentLabel = selectAllCb.closest('label');
-            if (parentLabel) {
-                parentLabel.click();
-            } else {
-                // Tenta clicar no <span> irmão
-                const siblingSpan = selectAllCb.nextElementSibling;
-                if (siblingSpan && siblingSpan.tagName === 'SPAN') {
-                    siblingSpan.click();
-                } else {
-                    selectAllCb.click();
-                }
-            }
-
             unhighlight(selectAllCb);
         } else {
-            // Fallback: marca todos os checkboxes individuais
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked) {
-                    cb.checked = true;
-                    cb.dispatchEvent(new Event('change', { bubbles: true }));
-                    const span = cb.nextElementSibling;
-                    if (span && span.tagName === 'SPAN') span.click();
-                    else cb.click();
+            log('⚠️ Checkbox "Selecionar Todos" não encontrado. Marcando individualmente...', 'warn');
+            // Fallback: marcar checkboxes individuais de registros (NÃO de notificações)
+            // Escopo: apenas checkboxes dentro da área de produtos (perto de inputs SKU)
+            const skuInputs = getSkuInputs();
+            for (const sku of skuInputs) {
+                const container = getRegistroContainer(sku);
+                if (!container) continue;
+                const cb = container.querySelector('input[type="checkbox"]');
+                if (cb && !cb.checked) {
+                    const lbl = cb.closest('label');
+                    if (lbl) lbl.click();
+                    else {
+                        const span = cb.nextElementSibling;
+                        if (span && span.tagName === 'SPAN') span.click();
+                        else cb.click();
+                    }
                 }
-            });
+            }
         }
         await sleep(600);
     }
@@ -514,40 +540,73 @@
         const cfg = getCFG();
 
         // ── PASSO 1: Abrir o dropdown dos 3 pontos ──
+        // ⚠️ O botão ⋮ está na MESMA barra que "Selecionar Todos" / "Baixar anúncio específico"
+        // NÃO é o dropdown de notificações do header
         showAction('Abrindo menu de ações (3 pontos)...', '⋯');
         let dropdownOpened = false;
 
-        // Busca o botão dos 3 pontos (Metronic/Magis5 usa dropdown-toggle perto da área de importação)
-        const dropdownToggles = document.querySelectorAll(
-            '[data-toggle="dropdown"], .dropdown-toggle, ' +
-            'a.btn-clean.btn-icon, button.btn-clean.btn-icon, ' +
-            '.btn-icon-md[data-toggle="dropdown"]'
-        );
-        for (const toggle of dropdownToggles) {
-            // Procura o toggle que está próximo ao selectAll ou na área de ações do produto
-            const parent = toggle.closest('.card-toolbar, .dropdown, .btn-group, div');
-            if (parent) {
+        // Estratégia 1: Encontrar a barra de ações (contém "Selecionar Todos" ou "Baixar anúncio")
+        const actionBar = [...document.querySelectorAll('div, nav, header')].find(el => {
+            const text = el.textContent || '';
+            return (text.includes('Selecionar Todos') || text.includes('Baixar anúncio'))
+                && el.querySelector('[data-toggle="dropdown"], .dropdown-toggle');
+        });
+
+        if (actionBar) {
+            // Buscar o botão 3 pontos DENTRO da barra de ações
+            const toggle = actionBar.querySelector(
+                '[data-toggle="dropdown"], .dropdown-toggle, .btn-icon.dropdown-toggle'
+            );
+            if (toggle) {
                 highlight(toggle, '#f59e0b');
                 await sleep(cfg.delayStep);
                 toggle.click();
                 unhighlight(toggle);
                 dropdownOpened = true;
+                log('✅ Dropdown dos 3 pontos aberto (via barra de ações).', 'success');
                 await sleep(600);
-                break;
             }
         }
 
-        // Fallback: tenta abrir qualquer dropdown visível na página
+        // Estratégia 2: Buscar o botão 3 pontos que está próximo ao #selectAll
         if (!dropdownOpened) {
-            const allToggles = document.querySelectorAll('[data-toggle="dropdown"]');
-            for (const toggle of allToggles) {
-                const rect = toggle.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                    toggle.click();
-                    dropdownOpened = true;
-                    await sleep(600);
-                    break;
+            const selectAllEl = document.getElementById('selectAll');
+            if (selectAllEl) {
+                // Subir até o container pai e procurar o dropdown lá
+                let parent = selectAllEl.parentElement;
+                for (let i = 0; i < 8 && parent; i++) {
+                    const toggle = parent.querySelector('[data-toggle="dropdown"], .dropdown-toggle');
+                    if (toggle && toggle !== selectAllEl) {
+                        highlight(toggle, '#f59e0b');
+                        await sleep(cfg.delayStep);
+                        toggle.click();
+                        unhighlight(toggle);
+                        dropdownOpened = true;
+                        log('✅ Dropdown dos 3 pontos aberto (via proximity selectAll).', 'success');
+                        await sleep(600);
+                        break;
+                    }
+                    parent = parent.parentElement;
                 }
+            }
+        }
+
+        // Estratégia 3: Fallback — buscar o ÚLTIMO dropdown toggle visível (geralmente é o da ação, não do header)
+        if (!dropdownOpened) {
+            const allToggles = [...document.querySelectorAll('[data-toggle="dropdown"]')].filter(el => {
+                const rect = el.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            });
+            // Pegar o ÚLTIMO (o do header geralmente é o primeiro)
+            const toggle = allToggles[allToggles.length - 1];
+            if (toggle) {
+                highlight(toggle, '#f59e0b');
+                await sleep(cfg.delayStep);
+                toggle.click();
+                unhighlight(toggle);
+                dropdownOpened = true;
+                log('⚠️ Dropdown aberto via fallback (último toggle visível).', 'warn');
+                await sleep(600);
             }
         }
 
