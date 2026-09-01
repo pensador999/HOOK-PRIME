@@ -462,8 +462,6 @@
           const task = JSON.parse(e.data);
           if (window.HUB.showToast) {
             window.HUB.showToast('🚨 CHEFE TEMOS UMA TAREFA VAMOS TRABALHAR', 'warning');
-          } else {
-            alert('🚨 CHEFE TEMOS UMA TAREFA VAMOS TRABALHAR');
           }
           addRadarTask(task);
         } catch (err) { console.error('Erro no parse do new_task SSE', err); }

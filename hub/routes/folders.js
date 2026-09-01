@@ -204,18 +204,5 @@ router.post('/api/scan-upload-folder', (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-/**
- * Escapa valores para CSV - trata ponto-e-vírgula, aspas e quebras de linha
- * @param {string} value - Valor a ser escapado
- * @returns {string} Valor seguro para CSV
- */
-function escaparCSV(value) {
-  if (value.includes(';') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    return '"' + value.replace(/"/g, '""') + '"';
-  }
-  return value;
-}
-
   return router;
 };

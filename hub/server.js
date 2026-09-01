@@ -60,7 +60,7 @@ app.use(cors({
     if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Bloqueado pelo CORS'));
+      callback(null, false);
     }
   }
 }));

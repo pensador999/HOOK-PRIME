@@ -463,6 +463,16 @@ function logSecurityEvent(action, operation, target, folder) {
       fs.mkdirSync(logDir, { recursive: true });
     }
 
+    // Log rotation: truncate when exceeding 2MB
+    try {
+      const stats = fs.statSync(LOG_FILE);
+      if (stats.size > 2 * 1024 * 1024) {
+        const lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n');
+        // Keep last 500 entries
+        fs.writeFileSync(LOG_FILE, lines.slice(-500).join('\n'), 'utf8');
+      }
+    } catch (_) { /* file may not exist yet */ }
+
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       action,

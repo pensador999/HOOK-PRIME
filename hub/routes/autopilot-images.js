@@ -8,12 +8,7 @@ module.exports = (deps) => {
 
   const getSmartSortPriority = imageUtils.getImagePriority;
 
-function escaparCSV(value) {
-  if (value.includes(';') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    return '"' + value.replace(/"/g, '""') + '"';
-  }
-  return value;
-}
+
 
 /**
  * POST /api/autopilot/scan-folder

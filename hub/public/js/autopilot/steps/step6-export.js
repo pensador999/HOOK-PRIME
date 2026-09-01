@@ -23,7 +23,7 @@
 
     // #9 Export History
     const history = State.getExportHistory();
-    const currentTheme = State.state.theme || 'dark';
+    const currentTheme = localStorage.getItem('hub-theme') || 'dark';
 
     let html = `
     <div style="display:flex;flex-direction:column;gap:24px">
@@ -368,7 +368,7 @@
 
 
     // #12 Theme toggle
-    const currentTheme = State.state.theme || 'dark';
+    const currentTheme = localStorage.getItem('hub-theme') || 'dark';
     const themeBtn = document.getElementById('ap-toggle-theme');
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {

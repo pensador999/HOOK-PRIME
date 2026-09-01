@@ -23,15 +23,15 @@
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
 
-  /* Acentos — Emerald Premium */
+  /* Acentos — Violet Premium */
   --accent-primary: #7F00FF;
   --accent-secondary: #A855F7;
   --accent-gradient: linear-gradient(135deg, #5B21B6, #7F00FF, #A855F7);
   --accent-gradient-h: linear-gradient(90deg, #5B21B6, #7F00FF, #A855F7);
 
   /* Status */
-  --success: #7C3AED;
-  --success-bg: rgba(127, 0, 255, 0.15);
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.15);
   --warning: #f59e0b;
   --warning-bg: rgba(245, 158, 11, 0.15);
   --error: #ef4444;
@@ -111,8 +111,8 @@
 .hp-hero-svg { overflow: visible; }
 .hp-hero-dot { filter: drop-shadow(0 0 4px rgba(127, 0, 255,0.6)); }
 
-/* Hide cursor on desktop (replaced by custom) */
-@media (hover: hover) and (pointer: fine) {
+/* Hide cursor on desktop (replaced by custom glow) — respects reduced motion */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   body { cursor: none; }
   a, button, input, select, textarea, .btn, .sidebar__link, .card { cursor: none; }
 }
