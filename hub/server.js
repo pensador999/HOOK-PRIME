@@ -184,6 +184,9 @@ app.use(require('./routes/folders.js')(sharedDeps));
 // Scanner de Rede UNC & Multi-Rede
 app.use(require('./routes/network.js')(sharedDeps));
 
+// Sankhya Bridge — Ponte para HUNTER HS API (Python/Flask :5000)
+app.use(require('./routes/sankhya-bridge.js')({ express, fs, path, uploadsDir }));
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  STATIC & ERROR HANDLING
 // ═══════════════════════════════════════════════════════════════════════════════
