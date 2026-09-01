@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Lucas RTX Live Stream Panel
    Experiência visual ao vivo tipo "live stream" com preview de
    imagens, activity feed, terminal e stats em tempo real
@@ -27,6 +27,7 @@
     codeCards: [],        // { code, status, estampa, genders, imageCount, source, images: [] }
     previewImages: [],    // { src, code, gender, angle, status }
     activePreviewCode: null,
+    livePreview: true,    // Auto-navega para código sendo copiado
     // Para resume
     pendingCodes: [],
     scanResults: [],
@@ -112,8 +113,12 @@
           <div class="rtx-preview">
             <div class="rtx-preview__header">
               <span class="rtx-preview__title">🖼️ Preview ao Vivo</span>
+              <button class="rtx-preview__live-btn rtx-preview__live-btn--active" id="rtx-live-toggle" onclick="window.HUB._rtxToggleLive()">
+                <span class="rtx-live-dot"></span> AO VIVO
+              </button>
               <span class="rtx-preview__nav" id="rtx-preview-nav"></span>
             </div>
+            <div class="rtx-preview__ticker" id="rtx-preview-ticker"></div>
             <div class="rtx-preview__grid" id="rtx-preview-grid">
               <div class="rtx-preview__empty">
                 <div class="rtx-preview__empty-icon">📡</div>
@@ -338,10 +343,45 @@
         angle: img.angle || img.name || '',
         status: 'copied',
         localPath: img.localPath,
+        _addedAt: Date.now(),
       });
     }
+    // ✅ Live mode: auto-navegar para o código que acabou de receber imagens
+    if (state.livePreview) {
+      state.activePreviewCode = code;
+    }
     if (!state.activePreviewCode) state.activePreviewCode = code;
+    updatePreviewTicker();
     updatePreviewGrid();
+  }
+
+  // ═══ TICKER — Últimas imagens de TODOS os códigos ═══
+  function updatePreviewTicker() {
+    const ticker = document.getElementById('rtx-preview-ticker');
+    if (!ticker) return;
+
+    // Pegar as últimas 12 imagens (mais recentes primeiro)
+    const recent = [...state.previewImages]
+      .sort((a, b) => (b._addedAt || 0) - (a._addedAt || 0))
+      .slice(0, 12);
+
+    if (recent.length === 0) {
+      ticker.innerHTML = '';
+      ticker.style.display = 'none';
+      return;
+    }
+
+    ticker.style.display = 'flex';
+    ticker.innerHTML = recent.map(img => `
+      <div class="rtx-ticker__item" onclick="window.HUB._rtxPreviewCode('${img.code}')" title="${img.code} — ${img.gender} ${img.angle}">
+        <img src="${img.src}" alt="${img.angle}" loading="lazy" onerror="this.parentElement.style.display='none'">
+        <span class="rtx-ticker__code">${img.code}</span>
+        ${img.status === 'uploaded' ? '<span class="rtx-ticker__cdn">☁️</span>' : ''}
+      </div>
+    `).join('');
+
+    // Auto-scroll para a direita (mais recentes)
+    ticker.scrollLeft = 0;
   }
 
   function updatePreviewGrid() {
@@ -382,6 +422,9 @@
 
   // Navigation helpers
   window.HUB._rtxNavPreview = function(dir) {
+    // Manual navigation disables live mode
+    state.livePreview = false;
+    updateLiveToggle();
     const codes = [...new Set(state.previewImages.map(i => i.code))];
     const idx = codes.indexOf(state.activePreviewCode);
     const next = idx + dir;
@@ -392,11 +435,39 @@
   };
 
   window.HUB._rtxPreviewCode = function(code) {
+    // Clicking a code also disables live mode
+    state.livePreview = false;
+    updateLiveToggle();
     if (state.previewImages.some(i => i.code === code)) {
       state.activePreviewCode = code;
       updatePreviewGrid();
     }
   };
+
+  window.HUB._rtxToggleLive = function() {
+    state.livePreview = !state.livePreview;
+    updateLiveToggle();
+    if (state.livePreview) {
+      // Jump to most recent code
+      const recent = [...state.previewImages].sort((a, b) => (b._addedAt || 0) - (a._addedAt || 0));
+      if (recent.length > 0) {
+        state.activePreviewCode = recent[0].code;
+        updatePreviewGrid();
+      }
+    }
+  };
+
+  function updateLiveToggle() {
+    const btn = document.getElementById('rtx-live-toggle');
+    if (!btn) return;
+    if (state.livePreview) {
+      btn.className = 'rtx-preview__live-btn rtx-preview__live-btn--active';
+      btn.innerHTML = '<span class="rtx-live-dot"></span> AO VIVO';
+    } else {
+      btn.className = 'rtx-preview__live-btn';
+      btn.innerHTML = '⏸ MANUAL';
+    }
+  }
 
   // ═══ STATS ═══
   function updateStats() {

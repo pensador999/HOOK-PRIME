@@ -1,5 +1,5 @@
 {
-  "_VERSAO": "3.0 — Multi-rede (nova + antiga) 2026-08-20",
+  "_VERSAO": "4.0 — Multi-rede + GD/STREETWEAR/TRAYPERS + T refinado 2026-09-01",
   "_NOTA": "folder = pasta na rede. root = rede alternativa (se omitido, usa NETWORK_ROOT padrão)",
   "_REDE_NOVA": "\\\\192.168.100.100\\Linha Brk 2024",
   "_REDE_ANTIGA": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK",
@@ -15,6 +15,8 @@
   "BM": "BM_CÓDIGO",
   "OVER": "OVER_CODIGO",
   "T0": "T0_CÓDIGO",
+  "T": "T0_CÓDIGO",
+  "BPTB": "T0_CÓDIGO",
   "CASUAL": "CASUAL_CODIGO",
   "BALA": "BALA_CODIGO",
   "CADV": "CADV_CODIGO",
@@ -38,6 +40,9 @@
   "CANECA": "CANECAS",
   "BA": "BONES",
   "B": "BONES",
+  "GD": "GD",
+  "STREET": "STREETWEAR",
+  "TRAY": "TRAYPERS",
 
   "CI":   { "folder": "CI_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
   "CF":   { "folder": "CF_CODIGO",     "root": "\\\\192.168.100.100\\Linha BRK\\LINHA BRK" },
