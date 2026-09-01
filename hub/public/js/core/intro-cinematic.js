@@ -8,29 +8,26 @@
 
   // ═══ GUARDS ═══
   if (sessionStorage.getItem('hp-intro-seen') === 'true') {
-    var aw = document.querySelector('.app-wrapper');
-    if (aw) aw.style.visibility = 'visible';
+    document.querySelectorAll('.sidebar, .main').forEach(function(el) { el.style.visibility = 'visible'; });
     return;
   }
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    var aw2 = document.querySelector('.app-wrapper');
-    if (aw2) aw2.style.visibility = 'visible';
+    document.querySelectorAll('.sidebar, .main').forEach(function(el) { el.style.visibility = 'visible'; });
     sessionStorage.setItem('hp-intro-seen', 'true');
     return;
   }
 
   // ═══ APP VISIBILITY ═══
   function hideApp() {
-    var w = document.querySelector('.app-wrapper');
-    if (w) w.style.visibility = 'hidden';
+    document.querySelectorAll('.sidebar, .main').forEach(function(el) { el.style.visibility = 'hidden'; });
   }
 
   function showApp() {
-    var w = document.querySelector('.app-wrapper');
-    if (w) {
-      w.style.visibility = 'visible';
-      if (window.gsap) gsap.fromTo(w, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power2.out' });
-    }
+    var els = document.querySelectorAll('.sidebar, .main');
+    els.forEach(function(el) {
+      el.style.visibility = 'visible';
+      if (window.gsap) gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power2.out' });
+    });
     sessionStorage.setItem('hp-intro-seen', 'true');
   }
 

@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Gerenciador de Imagens
    Renomeia e organiza fotos de produtos com preview em grid,
    drag & drop para reordenação e integração com URLs de imagens.
@@ -846,7 +846,7 @@
     });
 
     // ─── Drag & drop para reordenação no grid ───
-    const imgCards = document.querySelectorAll('.img-card[draggable]');
+    const imgCards = document.querySelectorAll('.image-card[draggable]');
     imgCards.forEach(card => {
       card.addEventListener('dragstart', (e) => {
         state.dragIdx = parseInt(card.dataset.imgIdx);
@@ -1101,7 +1101,7 @@
 
     // Verificar se é uma pasta com subpastas (pasta raiz) ou pasta de código
     try {
-      const scanResp = await fetch('/api/scan-folder', {
+      const scanResp = await fetch('/api/autopilot/scan-folder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderPath }),
@@ -1197,16 +1197,16 @@
 
       try {
         const formData = new FormData();
-        formData.append('file', file, file.name);
+        formData.append('files', file, file.name);
 
-        const resp = await fetch('/api/s3-proxy/upload-single', {
+        const resp = await fetch('/api/s3-proxy/upload-batch', {
           method: 'POST',
           body: formData,
         });
         const data = await resp.json();
 
-        if (data.success && data.url) {
-          cdnResults.push({ url: data.url, fileName: file.name });
+        if (data.success && data.results && data.results.length > 0) {
+          cdnResults.push({ url: data.results[0].url, fileName: file.name });
         } else {
           console.error(`CDN upload failed for ${file.name}:`, data.error);
           window.HUB.showToast(`⚠️ Falha: ${file.name}`, 'warning');

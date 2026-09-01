@@ -200,7 +200,7 @@
     const globalFields = [['ap-price','price'],['ap-cost-price','costPrice'],['ap-price-fem','priceFem'],['ap-price-inf','priceInf'],['ap-description','description']];
     globalFields.forEach(([id, key]) => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => { state[key] = el.value; State.saveSession(); });
+      if (el) el.addEventListener('input', () => { State.state[key] = el.value; State.saveSession(); });
     });
 
     const brandSel = document.getElementById('ap-brand');

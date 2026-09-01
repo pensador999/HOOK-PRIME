@@ -89,14 +89,14 @@ router.get('/api/preview-image', (req, res) => {
 
   // 🔒 Security: only allow images from uploads/ directory
   const normalizedPath = path.resolve(imgPath);
-  const uploadsDir = path.resolve('uploads');
+  const safeUploadsDir = path.resolve(uploadsDir);
   
   // Bloquear caminhos de rede
   if (networkSafety.isNetworkPath(normalizedPath)) {
     return res.status(403).json({ error: '🔒 Access denied - network paths are not allowed' });
   }
 
-  if (!normalizedPath.startsWith(uploadsDir)) {
+  if (!normalizedPath.startsWith(safeUploadsDir)) {
     return res.status(403).json({ error: 'Access denied - path must be inside uploads/' });
   }
 
@@ -113,7 +113,12 @@ router.get('/api/preview-image', (req, res) => {
 
   res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
   res.setHeader('Cache-Control', 'public, max-age=3600');
-  fs.createReadStream(normalizedPath).pipe(res);
+  fs.createReadStream(normalizedPath)
+    .on('error', (err) => {
+      console.error('[preview-image] Stream error:', err.message);
+      if (!res.headersSent) res.status(500).end();
+    })
+    .pipe(res);
 });
 
 router.post('/api/autopilot/generate-apc-spreadsheet', (req, res) => {

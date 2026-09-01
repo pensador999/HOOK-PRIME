@@ -709,8 +709,13 @@ router.post('/api/network/copy', (req, res) => {
     'Access-Control-Allow-Origin': '*'
   });
 
+  // 🔒 Abort flag: stop copy if client disconnects
+  let aborted = false;
+  req.on('close', () => { aborted = true; });
+
   function sendEvent(event, data) {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    if (aborted) return;
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch (_) { aborted = true; }
   }
 
   try {
@@ -736,6 +741,7 @@ router.post('/api/network/copy', (req, res) => {
     const folderResults = [];
 
     for (let fi = 0; fi < foldersToProcess.length; fi++) {
+      if (aborted) { sendEvent('done', { message: 'Cópia cancelada — cliente desconectou.' }); res.end(); return; }
       const folderName = foldersToProcess[fi];
       // Pattern D: se folder === rootFolderName, usar normalizedNetwork diretamente
       const sourcePath = (folderName === path.basename(normalizedNetwork))

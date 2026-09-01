@@ -24,7 +24,8 @@ router.get('/api/autopilot/stream', (req, res) => {
   
   req.on('close', () => {
     clearInterval(heartbeat);
-    autopilotClients = autopilotClients.filter(client => client !== res);
+    const idx = autopilotClients.indexOf(res);
+    if (idx !== -1) autopilotClients.splice(idx, 1);
   });
 });
 

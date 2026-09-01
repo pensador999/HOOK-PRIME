@@ -4,7 +4,7 @@
  */
 'use strict';
 const router = require('express').Router();
-const XLSX = require('xlsx');
+
 
 module.exports = function(deps) {
   const { upload, productCategories, sizePatterns, fs, path, baseDir } = deps;
@@ -38,24 +38,35 @@ module.exports = function(deps) {
   router.get('/api/config/templates/:type', (req, res) => {
     const { type } = req.params;
     if (type === 'bling') {
-      const templateBling = JSON.parse(
-        fs.readFileSync(path.join(baseDir, 'config', 'templates-bling.json'), 'utf-8')
-      );
-      res.json(templateBling);
+      try {
+        const templateBling = JSON.parse(
+          fs.readFileSync(path.join(baseDir, 'config', 'templates-bling.json'), 'utf-8')
+        );
+        res.json(templateBling);
+      } catch (err) {
+        console.error('Erro ao ler template bling:', err.message);
+        res.status(500).json({ error: 'Erro ao carregar template.', details: err.message });
+      }
     } else {
       res.status(404).json({ error: `Template "${type}" não encontrado.` });
     }
   });
 
-  router.post('/api/crosser/parse-xls', upload.single('file'), (req, res) => {
+  router.post('/api/crosser/parse-xls', upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'Nenhum arquivo recebido.' });
       }
 
-      const wb = XLSX.readFile(req.file.path);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(req.file.path);
+
+      const ws = workbook.worksheets[0];
+      const rows = [];
+      ws.eachRow({ includeEmpty: true }, (row) => {
+        rows.push(row.values.slice(1)); // row.values is 1-indexed, slice(1) to make 0-indexed
+      });
 
       // Limpar arquivo temporário
       fs.unlink(req.file.path, () => {});
@@ -66,7 +77,7 @@ module.exports = function(deps) {
         success: true,
         rows,
         totalRows: rows.length,
-        sheetName: wb.SheetNames[0],
+        sheetName: ws.name,
       });
     } catch (err) {
       console.error('❌ Erro ao parsear XLS:', err.message);

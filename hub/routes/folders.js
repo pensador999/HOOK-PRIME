@@ -44,19 +44,32 @@ router.post('/api/folders/create', (req, res) => {
 
     const created = [];
     const errors = [];
+    const dangerousPattern = /[\\\/\.\:]/;
+    const resolvedBase = path.resolve(basePath);
 
     // Cria uma pasta para cada código
     for (const code of codes) {
-      const folderPath = path.join(basePath, code.trim());
+      const trimmed = code.trim();
+      // Sanitize: block path traversal characters
+      if (!trimmed || dangerousPattern.test(trimmed) || trimmed.includes('..')) {
+        errors.push({ code: trimmed, reason: 'Código contém caracteres inválidos' });
+        continue;
+      }
+      const folderPath = path.resolve(basePath, trimmed);
+      // Verify path stays within basePath
+      if (!folderPath.startsWith(resolvedBase + path.sep) && folderPath !== resolvedBase) {
+        errors.push({ code: trimmed, reason: 'Caminho fora do diretório base' });
+        continue;
+      }
       try {
         if (fs.existsSync(folderPath)) {
-          errors.push({ code: code.trim(), reason: 'Pasta já existe' });
+          errors.push({ code: trimmed, reason: 'Pasta já existe' });
         } else {
           fs.mkdirSync(folderPath, { recursive: true });
-          created.push(code.trim());
+          created.push(trimmed);
         }
       } catch (err) {
-        errors.push({ code: code.trim(), reason: err.message });
+        errors.push({ code: trimmed, reason: err.message });
       }
     }
 

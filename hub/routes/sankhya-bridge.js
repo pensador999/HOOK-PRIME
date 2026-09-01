@@ -129,15 +129,33 @@ module.exports = function(deps) {
 
   // ═══ Download de arquivo Sankhya ═══
   router.get('/api/sankhya/download/:taskId/:format', (req, res) => {
-    const { taskId, format } = req.params;
-    const ext = format === 'xlsx' ? 'sankhya_ouro.xlsx' : 'sankhya_ouro.csv';
-    const filePath = path.join(uploadsDir, 'autopilot', taskId, 'sankhya', ext);
+    try {
+      const { taskId, format } = req.params;
+      // Sanitize taskId — block path traversal
+      if (/[\\\/\.\:]/.test(taskId) || taskId.includes('..')) {
+        return res.status(400).json({ error: 'taskId inválido.' });
+      }
+      const ext = format === 'xlsx' ? 'sankhya_ouro.xlsx' : 'sankhya_ouro.csv';
+      const filePath = path.resolve(uploadsDir, 'autopilot', taskId, 'sankhya', ext);
+      const safeBase = path.resolve(uploadsDir);
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Arquivo não encontrado. Execute a conversão primeiro.' });
+      // Verify resolved path is within uploadsDir
+      if (!filePath.startsWith(safeBase + path.sep)) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Arquivo não encontrado. Execute a conversão primeiro.' });
+      }
+
+      res.download(filePath, (err) => {
+        if (err && !res.headersSent) {
+          res.status(500).json({ error: 'Erro ao enviar arquivo.' });
+        }
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Erro interno.', details: err.message });
     }
-
-    res.download(filePath);
   });
 
   return router;

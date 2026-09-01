@@ -673,6 +673,24 @@
         const taskList = colEl.querySelector('.task-list');
         if (!taskList) return;
 
+        // 🔒 Prevent listener accumulation: clone element to remove all old listeners
+        if (taskList.dataset.dropBound) {
+          const clone = taskList.cloneNode(true);
+          taskList.parentNode.replaceChild(clone, taskList);
+          // Re-select after replace
+          const freshList = colEl.querySelector('.task-list');
+          if (!freshList) return;
+          bindDropListeners(freshList, colEl, statusMap);
+        } else {
+          taskList.dataset.dropBound = 'true';
+          bindDropListeners(taskList, colEl, statusMap);
+        }
+      });
+    }
+
+    function bindDropListeners(taskList, colEl, statusMap) {
+      taskList.dataset.dropBound = 'true';
+
         taskList.addEventListener('dragover', (e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
@@ -723,7 +741,6 @@
             if (window.HUB.showToast) window.HUB.showToast('❌ Servidor offline', 'error');
           });
         });
-      });
     }
 
     // ── SSE listeners for live updates ──
