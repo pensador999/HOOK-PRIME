@@ -1,4 +1,4 @@
-﻿/**
+/**
  * autopilot-agent.js — Smart Task Interpreter
  * ─────────────────────────────────────────────
  * Interpreta tasks do ClickUp (texto livre) e gera planos
@@ -24,6 +24,8 @@
     { regex: /\bCV\b|CORTA[\s-]*VENTO/i, type: 'Corta-Vento', label: 'Corta-Vento', variation: true },
     { regex: /\bAPC\d*/i,            type: 'APC',            label: 'APC (Algodão)', variation: true },
     { regex: /\bTUBENECK/i,         type: 'Tubeneck',       label: 'Tubeneck', variation: false },
+    { regex: /\bBPTB\d*/i,          type: 'Tubeneck',       label: 'BPTB (Tubeneck)', variation: false },
+    { regex: /\bT\d{3,}/i,          type: 'Tubeneck',       label: 'Tubeneck (T-code)', variation: false },
     { regex: /\bCASUAL/i,           type: 'Casual',         label: 'Casual', variation: true },
     { regex: /\bCADV\d*/i,          type: 'Casual',         label: 'CADV (Casual)', variation: true },
     { regex: /\bADV\d*|\bMOTOCICLISMO/i, type: 'Motociclismo',   label: 'ADV (Motociclismo)', variation: true },
@@ -149,16 +151,50 @@
       };
       result.groups.push(group);
     } else {
-      // Multiple types: create a group per type
+      // Multiple types: create a group per type, distribute codes by prefix
+
+      // Map code prefixes to product types
+      const PREFIX_TO_TYPE = {
+        'LEN': 'Lenço', 'LC': 'Lenço Cetim', 'T': 'Tubeneck', 'BM': 'BlackMask',
+        'BA': 'Boné', 'C': 'Raglan', 'CAX': 'ArmorX', 'FUSION': 'FusionX',
+        'APC': 'APC', 'CPT': 'Copo Térmico', 'CPA': 'Capa Almofada',
+        'ADV': 'Motociclismo', 'CADV': 'Casual', 'CV': 'Corta-Vento',
+      };
+
+      // Group individual codes by their matching product type
+      const codesByType = {};
+      for (const code of individualCodes) {
+        const prefixMatch = code.match(/^([A-Z]+)/i);
+        const prefix = prefixMatch ? prefixMatch[1].toUpperCase() : '';
+        const matchedType = PREFIX_TO_TYPE[prefix] || null;
+        
+        // Find which detected type matches this code
+        let targetType = null;
+        if (matchedType) {
+          targetType = detectedTypes.find(dt => dt.type === matchedType);
+        }
+        // Fallback: assign to first detected type
+        if (!targetType) {
+          targetType = detectedTypes[0];
+        }
+        
+        if (!codesByType[targetType.type]) codesByType[targetType.type] = [];
+        codesByType[targetType.type].push(code);
+      }
+
       // If we have ranges, assign first range to first type, etc.
       detectedTypes.forEach((dt, idx) => {
+        const typeCodes = codesByType[dt.type] || [];
+        const hasRange = ranges.length > idx;
+        const hasCodes = typeCodes.length > 0;
+        
         const group = {
           productType: dt.type,
           label: dt.label,
-          codeMode: ranges.length > idx ? 'range' : (individualCodes.length ? 'manual' : 'range'),
-          codeStart: ranges.length > idx ? ranges[idx].start : '',
-          codeEnd: ranges.length > idx ? ranges[idx].end : '',
-          manualCodes: '',
+          codeMode: hasRange ? 'range' : (hasCodes ? 'manual' : 'range'),
+          codeStart: hasRange ? ranges[idx].start : '',
+          codeEnd: hasRange ? ranges[idx].end : '',
+          manualCodes: hasCodes ? typeCodes.join('\n') : '',
           genders: dt.type === 'BlackMask' || dt.type === 'Bandana' || dt.type === 'Tubeneck'
             ? { masc: true, fem: false, inf: false }
             : { ...result.genders },
