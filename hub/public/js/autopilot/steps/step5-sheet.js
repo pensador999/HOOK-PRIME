@@ -164,25 +164,47 @@
 
     if (hasNormal) {
       // ═══════════════════════════════════════
-      // Produtos normais (Raglan, Camisa UV, etc.)
+      // Produtos normais + Únicos
       // ═══════════════════════════════════════
 
-      // NCM por gênero
+      // NCM por gênero (para camisas/variação)
       const NCM_GENDER = {
         masc: '6101.30.00',
         fem:  '6102.30.00',
         inf:  '6101.30.00',
       };
 
+      const Unique = window.AutopilotModules.Unique;
+
       State.state.generatedCodes.forEach(code => {
         if (code._isAPC) return; // Skip APC codes — handled above
         const codeGroup = code._groupId ? State.getGroupById(code._groupId) : State.getFirstGroup();
+        const codeProductType = code.productType || State.getFirstGroup().productType;
+
+        // ═══════════════════════════════════════
+        // PRODUTOS ÚNICOS (Lenço, Tubeneck, Bandana, BlackMask, etc.)
+        // → Uma única linha por código, sem PAI+FILHO
+        // ═══════════════════════════════════════
+        if (Registry.isUniqueProduct(codeProductType) && Unique) {
+          const uniqueRows = Unique.buildCsvRows(code, State.state, {
+            getGroupById: State.getGroupById,
+            getFirstGroup: State.getFirstGroup,
+            buildProductTitle: Registry.buildProductTitle,
+          });
+          rows.push(...uniqueRows);
+          return;
+        }
+
+        // ═══════════════════════════════════════
+        // PRODUTOS COM VARIAÇÃO (Raglan, Camisa UV, etc.)
+        // → PAI + FILHOS por tamanho
+        // ═══════════════════════════════════════
         const genders = codeGroup ? H.activeGenders(codeGroup) : ['masc'];
         genders.forEach(g => {
           const codeKey = code[g]; // C02759, C02759BL, C02759I
           if (!codeKey) return;
 
-          const sizes  = H.sizesFor(g, code.productType || State.getFirstGroup().productType);
+          const sizes  = H.sizesFor(g, codeProductType);
           const urls   = (State.state.imageUrls[codeKey] || '').trim();
           const ncm    = NCM_GENDER[g] || '6101.30.00';
           const marca  = State.state.brand || '';
@@ -197,7 +219,6 @@
 
           // Get estampa from the code's group (codeGroup already defined above)
           const estampa = (State.state.estampas[code.base] && State.state.estampas[code.base].trim()) || (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim()) || '*ESTAMPA A SER DEFINIDA';
-          const codeProductType = code.productType || State.getFirstGroup().productType;
 
           // Use buildProductTitle for correct type-based titles
           const titulo = Registry.buildProductTitle(codeProductType, marca, estampa, g);

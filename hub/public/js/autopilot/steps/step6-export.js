@@ -193,7 +193,7 @@
       cols[7]  = '0';                          // Valor IPI fixo
       cols[9]  = 'Ativo';                      // Situação
       cols[10] = row.estoque;                  // Estoque (0 pai, 1000 variação)
-      cols[11] = State.state.costPrice || '22,83';         // Preço de custo
+      cols[11] = row.custoBase || State.state.costPrice || '22,83'; // Preço de custo
       cols[15] = '0';                          // Estoque máximo
       cols[16] = '0';                          // Estoque mínimo
       cols[17] = row.pesoLiq;                  // Peso líquido (Kg)
@@ -205,8 +205,8 @@
       cols[23] = row.profundidade || '30';       // Profundidade do produto
       cols[27] = '1';                          // Itens p/ caixa
       cols[28] = row.produtoVariacao;          // Produto Variação
-      cols[29] = 'Terceiros';                  // Tipo Produção
-      cols[32] = 'Mercadoria para Revenda';    // Tipo do item
+      cols[29] = row.tipoProducao || 'Terceiros';                  // Tipo Produção
+      cols[32] = row.tipoItem || 'Mercadoria para Revenda';    // Tipo do item
       cols[34] = '0';                          // Tributos
       cols[35] = row.codigoPai;                // Código Pai
       cols[36] = '0';                          // Código Integração

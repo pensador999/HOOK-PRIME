@@ -92,6 +92,22 @@
     'Caneca':          { fishing: 'Caneca BRK Fishing', agro: 'Caneca BRK Agro', motors: 'Caneca BRK Motors' },
   };
 
+  // ═══════════════════════════════════════
+  // Configuração específica para produtos ÚNICOS
+  // Baseado nas planilhas reais "Tubeneck Bling 3" e "LEN B1"
+  // ═══════════════════════════════════════
+  const UNIQUE_CONFIG = {
+    'Tubeneck':       { ncm: '6214.30.00', peso: '0,25', larg: '8', alt: '1', prof: '13', tipoProducao: 'Terceiros',  tipoItem: 'Mercadoria para Revenda', custoBase: '55' },
+    'Lenço':          { ncm: '6214.30.00', peso: '0,25', larg: '8', alt: '1', prof: '13', tipoProducao: 'Própria',    tipoItem: 'Produto Acabado',         custoBase: '55' },
+    'Lenço Cetim':    { ncm: '6214.30.00', peso: '0,20', larg: '8', alt: '1', prof: '13', tipoProducao: 'Própria',    tipoItem: 'Produto Acabado',         custoBase: '55' },
+    'Bandana':        { ncm: '6214.30.00', peso: '0,25', larg: '8', alt: '1', prof: '13', tipoProducao: 'Terceiros',  tipoItem: 'Mercadoria para Revenda', custoBase: '55' },
+    'BlackMask':      { ncm: '6214.30.00', peso: '0,15', larg: '8', alt: '1', prof: '13', tipoProducao: 'Terceiros',  tipoItem: 'Mercadoria para Revenda', custoBase: '35' },
+    'Boné':           { ncm: '6505.00.22', peso: '0,15', larg: '15', alt: '8', prof: '15', tipoProducao: 'Terceiros', tipoItem: 'Mercadoria para Revenda', custoBase: '35' },
+    'Copo Térmico':   { ncm: '9617.00.10', peso: '0,30', larg: '10', alt: '15', prof: '10', tipoProducao: 'Terceiros', tipoItem: 'Mercadoria para Revenda', custoBase: '25' },
+    'Capa Almofada':  { ncm: '6304.91.00', peso: '0,20', larg: '45', alt: '2', prof: '45', tipoProducao: 'Própria',   tipoItem: 'Produto Acabado',         custoBase: '30' },
+    'Caneca':         { ncm: '6912.00.00', peso: '0,35', larg: '12', alt: '10', prof: '10', tipoProducao: 'Terceiros', tipoItem: 'Mercadoria para Revenda', custoBase: '20' },
+  };
+
   function sizesFor(gender, productType) {
     const pt = productType || 'FusionX';
     if (isUniqueProduct(pt)) return [''];
@@ -161,6 +177,7 @@
     PRODUCT_CATALOG,
     SIZE_MAP,
     NCM_MAP,
+    UNIQUE_CONFIG,
     APC_COLORS,
     APC_COLOR_SUFFIX,
     APC_COLOR_DISPLAY,

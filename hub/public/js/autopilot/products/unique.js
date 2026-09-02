@@ -1,26 +1,37 @@
-﻿(function(modules) {
+(function(modules) {
   
   /**
    * Build CSV rows for a Unique product.
-   * Unique products have only 'masc' gender internally and no sizes (tamanho: '').
+   * Unique products generate a SINGLE ROW per code (no PAI + FILHO).
+   * Based on real Bling spreadsheets: "Tubeneck Bling 3" and "LEN B1".
+   * 
+   * Características:
+   * - Produto Variação = "Variação" (linha única)
+   * - Estoque = 1000
+   * - Sem código pai
+   * - NCM, peso, dimensões vêm do UNIQUE_CONFIG
    */
   function buildUniqueCsvRows(code, state, helpers) {
     const rows = [];
-    const g = 'masc'; // unique products typically have only masc gender
+    const g = 'masc'; // unique products use only 'masc' internally
     const codeKey = code.base; // no gender suffixes
     
     const getGroupById = helpers.getGroupById || (() => null);
     const getFirstGroup = helpers.getFirstGroup || (() => null);
-    const getWeightForSize = helpers.getWeightForSize || (() => '0,25');
     const buildProductTitle = helpers.buildProductTitle || ((...args) => args.join(' '));
 
     const codeGroup = code._groupId ? getGroupById(code._groupId) : getFirstGroup();
     const codeProductType = code.productType || (codeGroup ? codeGroup.productType : 'Unique');
     
+    // Get UNIQUE_CONFIG for this product type
+    const Registry = window.AutopilotModules.Registry;
+    const uConfig = (Registry && Registry.UNIQUE_CONFIG && Registry.UNIQUE_CONFIG[codeProductType]) || {};
+    
     const urls = (state.imageUrls[codeKey] || '').trim();
-    const ncm = '6101.30.00'; // Default NCM
+    const ncm = uConfig.ncm || '6214.30.00';
     const marca = state.brand || '';
     const preco = state.price || '0';
+    const peso = uConfig.peso || '0,25';
 
     const estampa = (state.estampas[code.base] && state.estampas[code.base].trim()) || 
                     (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim()) || 
@@ -28,44 +39,31 @@
 
     const titulo = buildProductTitle(codeProductType, marca, estampa, g);
 
-    // Parent row
+    // ── LINHA ÚNICA (conforme planilhas reais Bling) ──
     rows.push({
-      _isParent: true,
+      _isParent: false,
+      _isUnique: true,
       _gender: g,
       codigo: codeKey,
       descricao: titulo,
       ncm,
       preco,
       marca,
-      estoque: '0',
-      pesoLiq: getWeightForSize(codeProductType, g, 'default'),
-      pesoBruto: getWeightForSize(codeProductType, g, 'default'),
+      estoque: '1.000,00',
+      pesoLiq: peso,
+      pesoBruto: peso,
       ean: '',
       eanEmb: '',
       codigoPai: '',
-      produtoVariacao: 'Produto',
-      imagens: urls,
-      tamanho: '',
-    });
-
-    // Single child row for Unique product
-    rows.push({
-      _isParent: false,
-      _gender: g,
-      codigo: codeKey,
-      descricao: `Tamanho:Único`,
-      ncm,
-      preco,
-      marca,
-      estoque: '1000',
-      pesoLiq: getWeightForSize(codeProductType, g, ''),
-      pesoBruto: getWeightForSize(codeProductType, g, ''),
-      ean: '',
-      eanEmb: '',
-      codigoPai: codeKey,
       produtoVariacao: 'Variação',
       imagens: urls,
       tamanho: '',
+      largura: uConfig.larg || '8',
+      altura: uConfig.alt || '1',
+      profundidade: uConfig.prof || '13',
+      tipoProducao: uConfig.tipoProducao || 'Terceiros',
+      tipoItem: uConfig.tipoItem || 'Mercadoria para Revenda',
+      custoBase: uConfig.custoBase || '55',
     });
 
     return rows;
