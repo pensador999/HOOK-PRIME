@@ -7,6 +7,7 @@ module.exports = (deps) => {
   const router = require('express').Router();
 
   const getSmartSortPriority = imageUtils.getImagePriority;
+  const { isUniqueProductCode, shouldExcludeImage } = imageUtils;
 
 
 
@@ -483,9 +484,18 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
 
       summaryTotalCodes++;
 
-      // Filtrar imagens humanizadas (com modelo)
+      // Filtrar imagens: excluir layouts/design + humanizadas (apenas para camisas)
+      // Produtos únicos (Lenço, Tubeneck, Bandana) MANTÊM humanizadas — são fotos reais do produto
+      const codeIsUnique = isUniqueProductCode(code);
       const filteredImages = images.filter(img => {
-        if (img.isHumanized) {
+        // Sempre excluir layout/design/gabarito
+        if (shouldExcludeImage(img.name)) {
+          summaryFiltered++;
+          return false;
+        }
+        // Para produtos ÚNICOS: manter humanizadas (são fotos do produto!)
+        // Para camisas: filtrar humanizadas (preferimos mockup 3D)
+        if (img.isHumanized && !codeIsUnique) {
           summaryFiltered++;
           return false;
         }
@@ -559,6 +569,8 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
 
               deduplicatedImages.push({
                 name: finalName,
+                originalName: largestImg.name || finalName,
+                isHumanized: !!largestImg.isHumanized,
                 localPath: localDestPath,
                 url: `/api/autopilot/images/${taskId}/${code}/${gender}/${variant}/${finalName}`,
                 sizeKB,
@@ -571,12 +583,16 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
           }
 
           // Sort images by priority
+          // Para produtos únicos: humanizadas ficam na 3ª posição (após frente e lado)
           const sortedInGroup = [...deduplicatedImages.filter(img => img.gender === gender && img.variant === variant)];
           sortedInGroup.sort((a, b) => {
-            const prioA = getSmartSortPriority(a.name);
-            const prioB = getSmartSortPriority(b.name);
+            let prioA = getSmartSortPriority(a.originalName || a.name);
+            let prioB = getSmartSortPriority(b.originalName || b.name);
+            // Humanizadas em produtos únicos → 3ª posição (prioridade 85, após LADO=70)
+            if (codeIsUnique && a.isHumanized) prioA = 85;
+            if (codeIsUnique && b.isHumanized) prioB = 85;
             if (prioA !== prioB) return prioA - prioB;
-            return a.name.localeCompare(b.name, undefined, { numeric: true });
+            return (a.originalName || a.name).localeCompare(b.originalName || b.name, undefined, { numeric: true });
           });
 
           // Rename to 1.jpg, 2.jpg, 3.jpg... (using extension from the original file to be safe if not jpg)

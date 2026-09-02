@@ -6,7 +6,7 @@ module.exports = (deps) => {
   const { fs, path, networkSafety, imageUtils, resolvePrefixConfig, networkPrefixes } = deps;
   const router = require('express').Router();
   
-  const { IMAGE_EXTENSIONS, GENDER_FOLDERS_MAP, GENDER_NAMES, smartSortImageObjects, detectGenderFromFilename, classifyGender } = imageUtils;
+  const { IMAGE_EXTENSIONS, GENDER_FOLDERS_MAP, GENDER_NAMES, smartSortImageObjects, detectGenderFromFilename, classifyGender, shouldExcludeImage } = imageUtils;
 
 function detectFolderPattern(folderPath) {
   try {
@@ -325,24 +325,18 @@ router.post('/api/network/smart-scan', (req, res) => {
     // GENDER_NAMES + classifyGender → unified in config/image-utils.js
 
     // ── Helper: buscar imagens numa pasta, incluindo JPEG_imagens (#4) ──
-    // Filtrar placeholders (SUBSTITUIR.jpg, SUBSTITUIR AQUI.jpg)
-    const PLACEHOLDER_NAMES = ['SUBSTITUIR', 'SUBSTITUIR AQUI', 'SUBSTITUIR_AQUI'];
-    function isPlaceholder(fileName) {
-      const base = fileName.toUpperCase().replace(/\.[^.]+$/, '').trim();
-      return PLACEHOLDER_NAMES.includes(base);
-    }
-
+    // Filtrar placeholders, layouts, designs, gabaritos
     function scanImagesInDir(dirPath) {
       try {
         let imgs = networkSafety.safeReadImages(dirPath)
-          .filter(img => !isPlaceholder(img.name));
+          .filter(img => !shouldExcludeImage(img.name));
         // FIX #4: Se não encontrou imagens diretas, tentar JPEG_imagens
         if (imgs.length === 0) {
           const sub = networkSafety.safeReadDir(dirPath).filter(c => c.isDirectory);
           const jpegDir = sub.find(s => s.name.toUpperCase() === 'JPEG_IMAGENS');
           if (jpegDir) {
             imgs = networkSafety.safeReadImages(path.join(dirPath, jpegDir.name))
-              .filter(img => !isPlaceholder(img.name));
+              .filter(img => !shouldExcludeImage(img.name));
           }
         }
         return imgs;
@@ -581,7 +575,7 @@ router.post('/api/network/smart-scan', (req, res) => {
 
         // ── Cascata 8: imagens soltas na raiz (filtrar placeholders) ──
         if (images.length === 0) {
-          images = contents.filter(c => c.isFile && c.isImage && !isPlaceholder(c.name));
+          images = contents.filter(c => c.isFile && c.isImage && !shouldExcludeImage(c.name));
           if (images.length > 0) source = 'RAIZ';
         }
 

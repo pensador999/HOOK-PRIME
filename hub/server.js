@@ -187,6 +187,9 @@ app.use(require('./routes/network.js')(sharedDeps));
 // Sankhya Bridge — Ponte para HUNTER HS API (Python/Flask :5000)
 app.use(require('./routes/sankhya-bridge.js')({ express, fs, path, uploadsDir }));
 
+// Gemini Vision — Reconhecimento de Estampas por IA
+app.use(require('./routes/gemini-vision.js')({ fs, path }));
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  STATIC & ERROR HANDLING
 // ═══════════════════════════════════════════════════════════════════════════════

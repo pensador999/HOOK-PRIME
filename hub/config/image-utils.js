@@ -35,6 +35,58 @@ const GENDER_FOLDERS = { masc: 'MASC', fem: 'FEM', inf: 'INF' };
 const GENDER_NAMES = ['MASC', 'FEM', 'INF', 'MASCULINO', 'FEMININO', 'INFANTIL', 'KIDS'];
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  PRODUTO ÚNICO — Detecção por prefixo de código
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Prefixos que identificam produtos únicos (sem grade de tamanho) */
+const UNIQUE_PREFIXES = {
+  'T': 'Tubeneck', 'LEN': 'Lenço', 'BPTB': 'Tubeneck', 'BM': 'BlackMask',
+  'BA': 'Bandana', 'BN': 'Boné', 'LC': 'Lenço Cetim', 'CT': 'Copo Térmico',
+  'CA': 'Capa Almofada', 'CN': 'Caneca',
+};
+
+/**
+ * Detecta se um código pertence a um produto único pelo prefixo.
+ * @param {string} code - Código do produto (ex: 'T659', 'LEN089')
+ * @returns {boolean}
+ */
+function isUniqueProductCode(code) {
+  if (!code) return false;
+  const upper = code.toUpperCase();
+  return Object.keys(UNIQUE_PREFIXES).some(p => {
+    const after = upper.slice(p.length);
+    return upper.startsWith(p) && /^\d/.test(after);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  EXCLUSÃO DE IMAGENS — Layout, Design, Gabarito
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Nomes exatos de arquivos a excluir (sem extensão, case-insensitive) */
+const EXCLUDED_IMAGE_NAMES = [
+  'SUBSTITUIR', 'SUBSTITUIR AQUI', 'SUBSTITUIR_AQUI',  // Placeholders
+];
+
+/** Prefixos de nomes de arquivo a excluir */
+const EXCLUDED_IMAGE_PREFIXES = [
+  'LAYOUT', 'MKP', 'GABARITO', 'ARTE_', 'TEMPLATE', 'DESIGN',
+];
+
+/**
+ * Verifica se um arquivo de imagem deve ser excluído da cópia.
+ * Exclui: placeholders, layouts, mockups PSD, gabaritos, artes.
+ * @param {string} fileName - Nome do arquivo
+ * @returns {boolean} true se deve ser excluído
+ */
+function shouldExcludeImage(fileName) {
+  const base = fileName.toUpperCase().replace(/\.[^.]+$/, '').trim();
+  if (EXCLUDED_IMAGE_NAMES.includes(base)) return true;
+  if (EXCLUDED_IMAGE_PREFIXES.some(p => base.startsWith(p))) return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  SMART SORT — Priorização de Imagens
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -168,11 +220,16 @@ module.exports = {
   GENDER_FOLDERS_MAP,
   GENDER_FOLDERS,
   GENDER_NAMES,
+  UNIQUE_PREFIXES,
 
   // Smart Sort
   getImagePriority,
   smartSortImages,
   smartSortImageObjects,
+
+  // Exclusão / Filtragem
+  shouldExcludeImage,
+  isUniqueProductCode,
 
   // Gender Classification
   detectGenderFromFilename,

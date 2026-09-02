@@ -53,6 +53,9 @@
       <div style="display:flex;justify-content:space-between;gap:12px;padding-bottom:24px">
         <button class="btn btn--secondary" id="ap-prev-4-est">← Voltar</button>
         <div style="display:flex;gap:12px;align-items:center">
+          <button class="btn btn--secondary" id="ap-gemini-estampas" style="color:#a855f7;border-color:#a855f740" title="Usar IA Gemini para reconhecer estampas automaticamente">
+            🤖 IA Gemini
+          </button>
           <button class="btn btn--secondary" id="ap-skip-estampas" style="color:#f59e0b;border-color:#f59e0b40" title="Pular esta etapa e ir direto para a planilha">
             ⏩ Pular Estampas
           </button>
@@ -106,6 +109,94 @@
         }
       });
     });
+
+    // ── 🤖 Gemini IA — Reconhecimento automático de estampas ──
+    const geminiBtn = document.getElementById('ap-gemini-estampas');
+    if (geminiBtn) {
+      geminiBtn.addEventListener('click', async () => {
+        geminiBtn.disabled = true;
+        geminiBtn.textContent = '🤖 Verificando IA...';
+
+        try {
+          // Checar status da Gemini API
+          const statusRes = await fetch('/api/gemini/status');
+          const status = await statusRes.json();
+
+          if (!status.ready) {
+            window.HUB?.showToast(status.message, 'error');
+            geminiBtn.disabled = false;
+            geminiBtn.textContent = '🤖 IA Gemini';
+            return;
+          }
+
+          // Montar lista de imagens para análise (primeira imagem de cada código)
+          const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+          const batchImages = [];
+
+          for (const base of bases) {
+            // Tentar encontrar imagem local (pasta copiada pelo autopilot)
+            const diskPath = State.state.diskFolderPath;
+            if (!diskPath) continue;
+
+            const codeObj = State.state.generatedCodes.find(c => c.base === base);
+            const group = codeObj?._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
+            const productType = codeObj?.productType || group?.productType || '';
+
+            // Buscar a primeira imagem (1.jpg ou qualquer jpg na pasta do código)
+            const imagePath = `${diskPath}/${base}/GERAL/GERAL/1.jpg`;
+            batchImages.push({ code: base, imagePath, productType });
+          }
+
+          if (batchImages.length === 0) {
+            window.HUB?.showToast('⚠️ Nenhuma imagem encontrada para análise', 'warning');
+            geminiBtn.disabled = false;
+            geminiBtn.textContent = '🤖 IA Gemini';
+            return;
+          }
+
+          geminiBtn.textContent = `🤖 Analisando ${batchImages.length} imgs...`;
+
+          const res = await fetch('/api/gemini/batch-describe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: batchImages }),
+          });
+
+          const data = await res.json();
+
+          if (data.success && data.results) {
+            let filled = 0;
+            for (const r of data.results) {
+              if (r.estampa && r.code) {
+                const input = document.querySelector(`.ap-estampa-input[data-base="${r.code}"]`);
+                if (input && (!input.value || !input.value.trim())) {
+                  input.value = r.estampa;
+                  State.state.estampas[r.code] = r.estampa;
+                  filled++;
+
+                  const previewEl = document.querySelector(`.ap-estampa-preview[data-base="${r.code}"]`);
+                  if (previewEl) {
+                    const type = previewEl.dataset.type;
+                    const preview = Registry.buildProductTitle(type, State.state.brand || 'BRK FISHING', r.estampa, 'masc');
+                    previewEl.textContent = '→ ' + preview;
+                    previewEl.title = preview;
+                  }
+                }
+              }
+            }
+            State.saveSession();
+            window.HUB?.showToast(`🤖 Gemini: ${filled} estampas reconhecidas!`, 'success');
+          } else {
+            window.HUB?.showToast(`❌ Erro: ${data.error || 'Falha na análise'}`, 'error');
+          }
+        } catch (err) {
+          window.HUB?.showToast(`❌ Erro Gemini: ${err.message}`, 'error');
+        }
+
+        geminiBtn.disabled = false;
+        geminiBtn.textContent = '🤖 IA Gemini';
+      });
+    }
 
     const prevBtn = document.getElementById('ap-prev-4-est');
     if (prevBtn) prevBtn.addEventListener('click', () => goToStep(3));
