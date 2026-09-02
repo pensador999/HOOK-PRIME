@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Cruzador de Imagens
    Cruza automaticamente imagens com títulos de produtos da planilha
    ═══════════════════════════════════════════════════════════════ */
@@ -873,59 +873,8 @@
         //   7. DETALHES: gola → costas → logo → manga/pulso
         //   8. Numéricos → final (thumbs/extras)
         // ═══════════════════════════════════════════════════════════
-        function getImagePriority(fileName) {
-          const name = fileName.toUpperCase().replace(/\.[^.]+$/, '');
-
-          // Numéricos puros (13.jpg, 15.jpg) → extras no final
-          if (/^\d+$/.test(name.trim())) return 900 + parseInt(name.trim());
-
-          // Detectar categorias pelo nome do arquivo
-          const isFrente  = /FRENTE/.test(name);
-          const isCostas  = /COSTA/.test(name);
-          const isCorpo   = /CORPO/.test(name);
-          const isCinto   = /CINTO/.test(name);
-          const isChapeu  = /CHAP/.test(name);
-          const isSolta   = /SOLTA/.test(name);
-          const isDetalhe = /DETALHE|DETAIL/.test(name);
-          const isGola    = /GOLA/.test(name);
-          const isLogo    = /LOGO/.test(name);
-          const isManga   = /MANGA|PULSO/.test(name);
-          const isPerspec = /PERSPEC|PERSPECTIVA/.test(name);
-          const hasAcessorio = isCinto || isChapeu;
-
-          // Extrair sufixo numérico para sub-ordenação (frente01, frente04...)
-          const numMatch = name.match(/(\d+)/);
-          const numSub   = numMatch ? parseInt(numMatch[1]) * 0.01 : 0;
-
-          // ── DETALHES (checar primeiro para não confundir "detalhe_costas" com "costas")
-          if (isDetalhe && isGola)    return 700 + numSub;     // Detalhe gola
-          if (isDetalhe && isCostas)  return 710 + numSub;     // Detalhe costas
-          if (isDetalhe && isLogo)    return 720 + numSub;     // Detalhe logo
-          if (isDetalhe && isManga)   return 730 + numSub;     // Detalhe manga/pulso
-          if (isDetalhe)             return 750 + numSub;     // Detalhe genérico
-
-          // ── FRENTE (posição 1–2)
-          if (isFrente && hasAcessorio && !isPerspec) return 100 + numSub;  // Frente com cinto/chapéu (HERO)
-          if (isFrente && isSolta)                    return 200 + numSub;  // Frente solta/limpa
-          if (isFrente && isPerspec)                  return 250 + numSub;  // Frente perspectiva
-          if (isFrente)                               return 150 + numSub;  // Frente genérica
-
-          // ── COSTAS (posição 3–4)
-          if (isCostas && hasAcessorio && !isPerspec) return 300 + numSub;  // Costas com cinto/chapéu
-          if (isCostas && isSolta)                    return 400 + numSub;  // Costas solta/limpa
-          if (isCostas && isPerspec)                  return 450 + numSub;  // Costas perspectiva
-          if (isCostas)                               return 350 + numSub;  // Costas genérica
-
-          // ── CORPO (posição 5)
-          if (isCorpo && hasAcessorio) return 500 + numSub;  // Corpo com acessório
-          if (isCorpo)                return 510 + numSub;  // Corpo limpo
-
-          // ── CHAPÉU/CINTO combos (posição 6)
-          if (isChapeu || isCinto)    return 600 + numSub;
-
-          // ── FALLBACK
-          return 800 + numSub;
-        }
+        // Usa módulo compartilhado (core/image-priority.js)
+        const getImagePriority = window.HUB.getImagePriority;
 
         images.sort((a, b) => {
           const prioA = getImagePriority(a.name);

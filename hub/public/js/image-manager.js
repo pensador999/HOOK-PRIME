@@ -92,31 +92,8 @@
       });
     }
 
-    // Função que atribui prioridade com base no nome do arquivo
-    function getPriority(fileName) {
-      const name = fileName.toUpperCase().replace(/\.[^.]+$/, ''); // Remove extensão
-
-      const isFrente = /FRENTE/.test(name);
-      const isCostas = /COSTA/.test(name);
-      const isPerspec = /PERSPEC|PERSPECTIVA/.test(name);
-      const isPerspec2 = /PERSPECTIVA\s*2|PERSPEC\s*2/.test(name);
-      const isZoom = /ZOOM/.test(name);
-      const isDetalhe = /DETALHE|DETAIL/.test(name);
-      const isPesp = /PESP/.test(name);
-
-      // Prioridade: menor = vem primeiro
-      if (isFrente && !isPerspec)               return 10; // 1º FRENTE plano
-      if (isCostas && !isPerspec && !isPerspec2) return 20; // 2º COSTAS plano
-      if (isFrente && isPerspec)                 return 30; // 3º FRENTE perspectiva
-      if (isCostas && isPerspec && !isPerspec2)  return 40; // 4º COSTAS perspectiva
-      if (isCostas && isPerspec2)                return 50; // 5º COSTAS perspectiva 2
-      if (isZoom)                                return 60; // 6º ZOOM
-      if (isDetalhe)                             return 65; // 7º DETALHE
-      if (isPesp)                                return 70; // 8º PESP (perspectiva genérica)
-
-      // Fallback: se não reconhece o padrão, ordena por nome original
-      return 100;
-    }
+    // Usa módulo compartilhado (core/image-priority.js)
+    const getPriority = window.HUB.getImagePriority;
 
     return files.sort((a, b) => {
       const nameA = a.originalName || a.name || '';

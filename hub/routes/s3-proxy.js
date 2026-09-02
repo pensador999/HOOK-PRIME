@@ -10,7 +10,7 @@ module.exports = (deps) => {
 
   const { getImagePriority, GENDER_FOLDERS, detectGenderFromFilename } = imageUtils || {};
 
-  const BRK_LINK_URL = 'https://brk-link-vz77.vercel.app';
+  const BRK_LINK_URL = process.env.BRK_LINK_URL || 'https://brk-link-vz77.vercel.app';
 
   /**
    * Faz upload de múltiplos arquivos para o BRK Link (Cloudflare R2).

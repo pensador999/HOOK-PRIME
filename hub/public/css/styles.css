@@ -1372,17 +1372,7 @@ input:focus, select:focus, textarea:focus {
 [data-theme="light"] .topbar { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
 [data-theme="light"] body { background: var(--bg-primary); color: var(--text-primary); }
 
-/* ═══════════════════════════════════════════════════════════════
-   HOOK PRIME v4.0 — Extensões Premium
-   Classes adicionais para Image Manager BRK, Flow Editor, etc.
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ── Image Card (padrão BRK e-commerce) ── */
-.image-card {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--bg-tertiary, #1A2035);
+/* ═══════════════════════════════════════════
   border: 1px solid var(--border-color, rgba(255,255,255,0.08));
   cursor: grab;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);

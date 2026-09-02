@@ -55,7 +55,6 @@
     if (titleEl) titleEl.textContent = pages[page].title;
 
     // Renderiza conteúdo (GSAP handles transition via gsap-init.js)
-    const content = document.getElementById('app-content');
     pages[page].render();
 
     // Atualiza hash na URL

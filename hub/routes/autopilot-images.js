@@ -3,7 +3,7 @@
  * @audit Extracted from server.js
  */
 module.exports = (deps) => {
-  const { upload, uploadsDir, fs, path, networkSafety, imageUtils, resolvePrefixConfig, autopilotTasks, autopilotClients, saveTasksToDisk } = deps;
+  const { uploadsDir, fs, path, networkSafety, imageUtils } = deps;
   const router = require('express').Router();
 
   const getSmartSortPriority = imageUtils.getImagePriority;

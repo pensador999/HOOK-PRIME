@@ -8,7 +8,7 @@
 module.exports = function(deps) {
   const { express, fs, path, uploadsDir } = deps;
   const router = express.Router();
-  const HUNTER_API = 'http://127.0.0.1:5000';
+  const HUNTER_API = process.env.HUNTER_API_URL || 'http://127.0.0.1:5000';
 
   // ═══ Health check do HUNTER HS ═══
   router.get('/api/sankhya/health', async (req, res) => {

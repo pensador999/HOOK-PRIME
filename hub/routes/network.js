@@ -6,7 +6,7 @@ module.exports = (deps) => {
   const { fs, path, networkSafety, imageUtils, resolvePrefixConfig, networkPrefixes } = deps;
   const router = require('express').Router();
   
-  const { IMAGE_EXTENSIONS, GENDER_FOLDERS_MAP, GENDER_FOLDERS, GENDER_NAMES, getImagePriority, smartSortImages, smartSortImageObjects, detectGenderFromFilename, classifyGender } = imageUtils;
+  const { IMAGE_EXTENSIONS, GENDER_FOLDERS_MAP, GENDER_NAMES, smartSortImageObjects, detectGenderFromFilename, classifyGender } = imageUtils;
 
 function detectFolderPattern(folderPath) {
   try {
