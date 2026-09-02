@@ -338,10 +338,23 @@
         state.completedSteps.add(2); // Pastas já foram copiadas pelo live
 
         if (networkPayload.cdnUrls && Object.keys(networkPayload.cdnUrls).length > 0) {
-          // CDN já foi feito — avançar para Etapa 4 (Estampas)
+          // CDN já foi feito — verificar se estampas estão todas preenchidas
           state.completedSteps.add(3);
-          state.currentStep = 4;
-          window.HUB?.showToast(`✅ ${Object.keys(networkPayload.cdnUrls).length} códigos com links CDN! Avançando para Estampas...`, 'success');
+          
+          // Auto-skip estampas se TODAS vieram da rede
+          const bases = [...new Set(state.generatedCodes.map(c => c.base))];
+          const allEstampasFilled = bases.length > 0 && bases.every(b => state.estampas[b] && state.estampas[b].trim());
+          
+          if (allEstampasFilled) {
+            // Todas as estampas vieram das pastas — pular direto para planilha!
+            state.completedSteps.add(4);
+            state.currentStep = 5;
+            window.HUB?.showToast(`✅ ${bases.length} estampas extraídas da rede! Avançando para Planilha...`, 'success');
+          } else {
+            state.currentStep = 4;
+            const missing = bases.filter(b => !state.estampas[b] || !state.estampas[b].trim()).length;
+            window.HUB?.showToast(`✅ CDN pronto! ${missing} estampa(s) precisam de revisão.`, 'success');
+          }
         } else {
           // Só cópia foi feita — avançar para Etapa 3 (Links/Upload CDN)
           state.currentStep = 3;

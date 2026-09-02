@@ -354,6 +354,11 @@ router.post('/api/network/smart-scan', (req, res) => {
         .trim()
         .split(' ')
         .map(w => {
+          // Casos especiais de marca
+          if (/^ArmorX$/i.test(w)) return 'ArmorX';
+          if (/^FusionX$/i.test(w)) return 'FusionX';
+          if (/^BRK$/i.test(w)) return 'BRK';
+          if (/^UV\d*\+?$/i.test(w)) return w.toUpperCase();
           // Preservar siglas: palavras 100% maiúsculas com ≤ 4 chars ou com números
           if (w.length <= 4 && w === w.toUpperCase() && /[A-Z]/.test(w)) return w;
           if (/\d/.test(w)) return w.toUpperCase();
@@ -395,12 +400,49 @@ router.post('/api/network/smart-scan', (req, res) => {
 
         // ── Estampa: regex com hífens, separadores, BONES (BA010 - NOME) ──
         let estampa = null;
+        let fullTitle = null;
         // Padrão 1: CODIGO_NOME ou CODIGO NOME ou CODIGO-NOME
         let estampaMatch = matchingFolder.match(/^[A-Z]+\d*[-_ ]+(.+)$/i);
         // Padrão 2: BONES: BA010 - SAO BENTO PRETO (com " - ")
         if (!estampaMatch) estampaMatch = matchingFolder.match(/^[A-Z]+\d+\s*-\s*(.+)$/i);
         if (estampaMatch) {
-          estampa = smartTitleCase(estampaMatch[1]);
+          const raw = estampaMatch[1].trim();
+          const rawLower = raw.toLowerCase();
+          
+          // Detectar se é um título completo (contém tipo de produto)
+          const TITLE_KEYWORDS = [
+            'bandana tubeneck', 'tubeneck brk', 'lenço com proteção', 'lenço com protecao',
+            'camisa de pesca', 'camiseta', 'camisa brk', 'camisa armorx', 'camisa fusionx',
+            'black mask', 'corta vento', 'boné', 'caneca', 'copo térmico', 'capa almofada',
+          ];
+          const isFullTitle = TITLE_KEYWORDS.some(kw => rawLower.includes(kw));
+          
+          if (isFullTitle) {
+            fullTitle = raw; // Guardar título original
+            
+            // Extrair SOMENTE a estampa do título completo
+            // Padrão Tubeneck: "Bandana Tubeneck Brk {ESTAMPA} com Proteção UV50+"
+            let m = raw.match(/Bandana\s+Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            if (!m) m = raw.match(/Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            // Padrão Lenço: "Lenço com Proteção UV50 Brk {ESTAMPA}"
+            if (!m) m = raw.match(/Len[çc]o\s+com\s+Prote[çc][ãa]o\s+UV\d*\s+Brk\s+(.+)$/i);
+            // Padrão Camisa: "Camisa de Pesca Brk {ESTAMPA} com Proteção UV50+"
+            if (!m) m = raw.match(/Camisa\s+(?:de\s+Pesca\s+)?Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            // Padrão ArmorX: "Camisa ArmorX {ESTAMPA} com Luva"
+            if (!m) m = raw.match(/Camisa\s+ArmorX\s+(.+?)\s+com\s+/i);
+            // Padrão FusionX: "Camisa FusionX {ESTAMPA} com Proteção"
+            if (!m) m = raw.match(/Camisa\s+FusionX\s+(.+?)\s+com\s+/i);
+            
+            if (m) {
+              estampa = smartTitleCase(m[1].trim());
+            } else {
+              // Fallback: usar título inteiro como estampa (buildProductTitle já sabe lidar)
+              estampa = smartTitleCase(raw);
+            }
+          } else {
+            // Nome simples da pasta (ex: "ARMORX_PRETO") → estampa pura
+            estampa = smartTitleCase(raw);
+          }
         }
 
         // Buscar imagens com algoritmo cascata
@@ -629,6 +671,7 @@ router.post('/api/network/smart-scan', (req, res) => {
           code: codeUpper,
           folder: matchingFolder,
           estampa,
+          fullTitle,  // Título completo da pasta (se detectado)
           images,
           source,
           totalImages: images.length,

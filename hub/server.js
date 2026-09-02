@@ -15,6 +15,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const express = require('express');
+try { require('dotenv').config(); } catch (_e) { /* dotenv opcional */ }
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');

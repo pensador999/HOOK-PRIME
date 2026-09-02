@@ -26,8 +26,8 @@ module.exports = (deps) => {
     try {
       const { GoogleGenerativeAI } = require('@google/generative-ai');
       genAI = new GoogleGenerativeAI(apiKey);
-      model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      console.log('✅ Gemini Vision inicializado (gemini-2.0-flash)');
+      model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      console.log('✅ Gemini Vision inicializado (gemini-2.5-flash)');
       return true;
     } catch (err) {
       console.warn('⚠️ Erro ao inicializar Gemini:', err.message);
@@ -87,7 +87,7 @@ Responda APENAS com o nome da estampa.`,
     res.json({
       available: hasKey,
       ready: isReady,
-      model: isReady ? 'gemini-2.0-flash' : null,
+      model: isReady ? 'gemini-2.5-flash' : null,
       message: hasKey
         ? (isReady ? '✅ Gemini Vision pronto' : '⚠️ Gemini SDK não instalado (npm install @google/generative-ai)')
         : '❌ GEMINI_API_KEY não configurada no .env',
