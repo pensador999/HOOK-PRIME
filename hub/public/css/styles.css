@@ -105,24 +105,409 @@ body, .sidebar, .card, .modal-overlay,
   transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
-/* ───────── Light Theme Overrides ───────── */
-.theme-light .card,
-.theme-light .hp-topbar,
+/* ───────── Light Theme Overrides (Comprehensive) ───────── */
+
+/* Sidebar — fundo claro com texto escuro */
 .theme-light .sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+  border-color: var(--border-color);
+}
+.theme-light .sidebar__link {
+  color: var(--text-secondary);
+}
+.theme-light .sidebar__link:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+.theme-light .sidebar__link.active {
+  background: rgba(0, 102, 255, 0.08);
+  color: var(--accent-primary);
+  border-left-color: var(--accent-primary);
+  box-shadow: -2px 0 10px rgba(0, 102, 255, 0.08);
+}
+.theme-light .sidebar__link.active .sidebar__icon {
+  color: var(--accent-primary);
+}
+.theme-light .sidebar__logo-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.theme-light .sidebar__logo-sub {
+  color: var(--text-muted);
+}
+.theme-light .sidebar__section-title {
+  color: var(--text-muted);
+}
+.theme-light .sidebar__separator {
+  background: var(--border-color);
+}
+.theme-light .sidebar__footer {
+  border-top-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+/* Topbar — fundo branco */
+.theme-light .hp-topbar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.theme-light .hp-topbar * {
+  color: inherit;
+}
+
+/* Cards — fundo branco com bordas e sombra sutil */
+.theme-light .card,
+.theme-light .module-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+}
+.theme-light .card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Stat Cards — fundo cinza claro, texto escuro */
+.theme-light .stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+.theme-light .stat-card__icon {
+  background: rgba(0, 0, 0, 0.04);
+  box-shadow: none;
+}
+.theme-light .stat-card__label {
+  color: var(--text-secondary);
+}
+
+/* Inputs — bordas visíveis, fundo branco */
+.theme-light input,
+.theme-light select,
+.theme-light textarea,
+.theme-light .form-input,
+.theme-light .form-select,
+.theme-light .form-textarea {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: var(--text-primary);
+}
+.theme-light input:focus,
+.theme-light select:focus,
+.theme-light textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15);
+  background: #FFFFFF;
+}
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #999;
+}
+
+/* Stepper — circles com bordas visíveis */
+.theme-light .stepper {
+  background: var(--bg-primary);
+  border-bottom-color: var(--border-color);
+}
+.theme-light .stepper__circle,
+.theme-light .stepper__number {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--text-muted);
+}
+.theme-light .stepper__step.active .stepper__circle,
+.theme-light .stepper__step.active .stepper__number {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #FFFFFF;
+  box-shadow: 0 0 12px rgba(0, 102, 255, 0.3);
+}
+.theme-light .stepper__step.completed .stepper__circle,
+.theme-light .stepper__step.completed .stepper__number {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  color: #FFFFFF;
+}
+.theme-light .stepper__step.active .stepper__label {
+  color: var(--accent-primary);
+}
+.theme-light .stepper__step.completed .stepper__label {
+  color: var(--accent-dark);
+}
+.theme-light .stepper__line {
+  background: rgba(0, 0, 0, 0.10);
+}
+.theme-light .stepper__line.completed {
+  background: var(--accent-dark);
+}
+
+/* Gradient text — needs to be visible on white bg */
+.theme-light .gradient-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Badges & Pills */
+.theme-light .badge {
+  color: var(--text-primary);
   border-color: var(--border-color);
 }
 
-.theme-light .card:hover {
+/* Buttons */
+.theme-light .btn-primary,
+.theme-light .btn--primary {
+  background: var(--accent-primary);
+  color: #FFFFFF;
+}
+.theme-light .btn-primary:hover,
+.theme-light .btn--primary:hover {
+  background: var(--accent-dark);
+}
+
+/* Modals */
+.theme-light .modal-overlay {
+  background: rgba(0, 0, 0, 0.3);
+}
+.theme-light .modal-content,
+.theme-light .modal {
+  background: #FFFFFF;
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+/* Dropdown */
+.theme-light .dropdown-menu {
+  background: #FFFFFF;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+.theme-light .dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
+/* Toast */
+.theme-light .hp-toast {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  border-color: var(--border-color);
   box-shadow: var(--shadow-md);
 }
 
-/* Accent text on light bg needs to be darker for contrast */
-.theme-light .accent-text { color: var(--accent-primary); }
+/* Cursor glow — hide on light mode */
+.theme-light .hp-cursor-glow,
+.theme-light .hp-cursor-ring {
+  display: none;
+}
 
-/* Scrollbar light */
+/* Scrollbar */
 .theme-light ::-webkit-scrollbar-track { background: var(--bg-secondary); }
-.theme-light ::-webkit-scrollbar-thumb { background: var(--border-color); }
-.theme-light ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.theme-light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border: none; }
+.theme-light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+
+/* Selection */
+.theme-light ::selection {
+  background: rgba(0, 102, 255, 0.2);
+  color: var(--text-primary);
+}
+
+/* Hero section — manter escura (tem vídeo de fundo) */
+.theme-light .dashboard-hero {
+  color: #F8FAFC;
+}
+
+/* RTX Live Panel — legível em branco */
+.theme-light .rtx-panel {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+/* ClickUp pills + Radar */
+.theme-light .clickup-pill {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+.theme-light .clickup-pill__title,
+.theme-light .clickup-pill__count {
+  color: var(--text-primary) !important;
+}
+
+/* AP Wizard cards */
+.theme-light .card.ap-link-code-card {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+/* Validation items */
+.theme-light .ap-validation-item {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Topbar (actual class) */
+.theme-light .topbar {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border-bottom-color: var(--border-color);
+}
+.theme-light .topbar__title {
+  color: var(--text-primary);
+}
+.theme-light .topbar__time {
+  color: var(--text-secondary);
+}
+
+/* Canvas background — lighter dots on white */
+.theme-light .hp-canvas-bg {
+  opacity: 0.3;
+}
+
+/* RTX Live Panel overrides */
+.theme-light .rtx-tl-step__label,
+.theme-light .rtx-tl-step__dot {
+  color: var(--text-primary);
+}
+.theme-light .rtx-ac-card {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+.theme-light .rtx-ac-card__code {
+  color: var(--text-primary);
+}
+.theme-light .rtx-ac-card__estampa {
+  color: var(--accent-primary);
+}
+.theme-light .rtx-preview__nav-btn:hover:not(:disabled) {
+  background: rgba(0, 102, 255, 0.08);
+  color: var(--accent-primary);
+}
+.theme-light .rtx-preview__nav-label {
+  color: var(--accent-primary);
+}
+
+/* Code text on light bg */
+.theme-light code,
+.theme-light pre {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+/* Tables */
+.theme-light th {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+.theme-light td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+.theme-light tr:hover td {
+  background: var(--bg-secondary);
+}
+
+/* ───── Dashboard Light Overrides (inline <style> from JS) ───── */
+
+/* Hero — keep dark (has video background), just adjust edges */
+.theme-light .dash-hero {
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* Tool Cards — light bg, dark text */
+.theme-light .tool-card {
+  border-color: rgba(0, 0, 0, 0.10);
+  background: var(--bg-secondary);
+}
+.theme-light .tool-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 20px rgba(0, 102, 255, 0.15);
+}
+.theme-light .tool-card__overlay {
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.85) 100%) !important;
+}
+.theme-light .tool-card__name {
+  color: var(--text-primary) !important;
+}
+.theme-light .tool-card__desc {
+  color: var(--text-secondary) !important;
+}
+
+/* Tools section title */
+.theme-light .tools-section__title {
+  color: var(--text-muted) !important;
+}
+
+/* ClickUp Radar Card */
+.theme-light .clickup-radar-card {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+.theme-light .clickup-radar__title {
+  color: var(--text-primary);
+}
+
+/* ClickUp Pills — force readable on light bg */
+.theme-light .clickup-pill--todo,
+.theme-light .clickup-pill--in-progress,
+.theme-light .clickup-pill--done,
+.theme-light .clickup-pill--priority {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+.theme-light .clickup-pill__title {
+  color: var(--text-primary) !important;
+}
+.theme-light .clickup-pill__count {
+  color: var(--text-secondary) !important;
+}
+.theme-light .clickup-pill__tag {
+  background: rgba(0, 102, 255, 0.08) !important;
+  color: var(--accent-primary) !important;
+}
+
+/* ClickUp task list cards */
+.theme-light .clickup-task-card {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* AP Step cards + Wizard */
+.theme-light .ap-step-card {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+.theme-light [style*="background: rgba(170, 255, 0"] {
+  background: rgba(0, 102, 255, 0.06) !important;
+}
+.theme-light [style*="color: #AAFF00"],
+.theme-light [style*="color: #88CC00"],
+.theme-light [style*="color: #CCFF44"],
+.theme-light [style*="color:#AAFF00"],
+.theme-light [style*="color:#88CC00"] {
+  color: var(--accent-primary) !important;
+}
+.theme-light [style*="border-color: #AAFF00"],
+.theme-light [style*="border-color:#AAFF00"] {
+  border-color: var(--accent-primary) !important;
+}
+
+/* Generic dark backgrounds forced by inline styles */
+.theme-light [style*="background: rgba(15"],
+.theme-light [style*="background:rgba(15"] {
+  background: var(--bg-secondary) !important;
+}
+
+/* RTX Button go */
+.theme-light .rtx-btn--go {
+  background: var(--accent-gradient) !important;
+  color: #FFFFFF !important;
+}
 
 /* Theme Toggle Button */
 .theme-toggle {
@@ -1432,31 +1817,7 @@ input:focus, select:focus, textarea:focus {
 /* ═══════════════════════════════════════════════════════════════
    MODO CLARO (Light Theme)
    ═══════════════════════════════════════════════════════════════ */
-[data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  --bg-input: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-
-  --border-color: rgba(0, 0, 0, 0.1);
-  --border-subtle: rgba(0, 0, 0, 0.05);
-
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="light"] .card { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; box-shadow: var(--shadow-sm); }
-[data-theme="light"] .form-input, [data-theme="light"] input, [data-theme="light"] select, [data-theme="light"] textarea { background: var(--bg-input) !important; color: var(--text-primary) !important; border-color: var(--border-color) !important; }
-[data-theme="light"] .sidebar { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
-[data-theme="light"] .topbar { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
-[data-theme="light"] body { background: var(--bg-primary); color: var(--text-primary); }
+/* [data-theme="light"] removed — replaced by :root.theme-light at top */
 
 /* ═══════════════════════════════════════════
   border: 1px solid var(--border-color, rgba(255,255,255,0.08));
