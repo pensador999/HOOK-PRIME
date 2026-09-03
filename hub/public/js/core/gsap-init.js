@@ -47,7 +47,7 @@
     document.addEventListener('mouseenter', (e) => {
       if (e.target.closest('button, a, .card, .sidebar__link, .btn, input, select')) {
         gsap.to(glow, { scale: 2.5, opacity: 0.15, duration: 0.3 });
-        gsap.to(ring, { scale: 1.8, borderColor: 'rgba(127,0,255,0.5)', duration: 0.3 });
+        gsap.to(ring, { scale: 1.8, borderColor: 'rgba(170, 255, 0,0.5)', duration: 0.3 });
       }
     }, true);
 
@@ -206,7 +206,7 @@
       onComplete: () => {
         // Subtle pulse when done
         gsap.fromTo(element,
-          { scale: 1.2, color: '#7F00FF' },
+          { scale: 1.2, color: '#AAFF00' },
           { scale: 1, color: '', duration: 0.4, ease: 'elastic.out(1, 0.5)' }
         );
       }
@@ -413,7 +413,7 @@
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', d);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', `rgba(127,0,255,${0.15 - i * 0.03})`);
+      path.setAttribute('stroke', `rgba(170, 255, 0,${0.15 - i * 0.03})`);
       path.setAttribute('stroke-width', '1');
       svg.appendChild(path);
     });
@@ -424,7 +424,7 @@
       circle.setAttribute('cx', cx);
       circle.setAttribute('cy', 40);
       circle.setAttribute('r', '2');
-      circle.setAttribute('fill', '#7F00FF');
+      circle.setAttribute('fill', '#AAFF00');
       circle.setAttribute('class', 'hp-hero-dot');
       svg.appendChild(circle);
     });

@@ -24,7 +24,7 @@
         overflow: hidden;
         min-height: 420px;
         background: rgba(15, 14, 23, 0.6);
-        border: 1px solid rgba(127, 0, 255, 0.2);
+        border: 1px solid rgba(170, 255, 0, 0.2);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         display: flex;
@@ -55,12 +55,12 @@
       .dash-hero__left { flex: 1; }
       .dash-hero__badge {
         display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(127, 0, 255, 0.15);
-        border: 1px solid rgba(127, 0, 255, 0.3);
+        background: rgba(170, 255, 0, 0.15);
+        border: 1px solid rgba(170, 255, 0, 0.3);
         border-radius: 20px;
         padding: 4px 14px;
         font-size: 0.7rem;
-        color: #A855F7;
+        color: #88CC00;
         text-transform: uppercase;
         letter-spacing: 2px;
         font-weight: 600;
@@ -72,7 +72,7 @@
         font-weight: 800;
         letter-spacing: -1px;
         line-height: 1.1;
-        background: linear-gradient(135deg, #fff 0%, #A855F7 100%);
+        background: linear-gradient(135deg, #fff 0%, #88CC00 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -86,7 +86,7 @@
       .dash-hero__cta {
         margin-top: 1.5rem;
         padding: 12px 28px;
-        background: linear-gradient(135deg, #5B21B6, #7F00FF);
+        background: linear-gradient(135deg, #668800, #AAFF00);
         border: none;
         border-radius: 12px;
         color: #fff;
@@ -94,11 +94,11 @@
         font-size: 0.95rem;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 0 20px rgba(127, 0, 255, 0.3);
+        box-shadow: 0 0 20px rgba(170, 255, 0, 0.3);
       }
       .dash-hero__cta:hover {
         transform: translateY(-2px);
-        box-shadow: 0 0 35px rgba(127, 0, 255, 0.5);
+        box-shadow: 0 0 35px rgba(170, 255, 0, 0.5);
       }
       .dash-hero__stats {
         display: flex; flex-direction: column; gap: 1.2rem;
@@ -146,12 +146,12 @@
         overflow: hidden;
         aspect-ratio: 16/10;
         cursor: pointer;
-        border: 1px solid rgba(127, 0, 255, 0.15);
+        border: 1px solid rgba(170, 255, 0, 0.15);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .tool-card:hover {
-        border-color: rgba(127, 0, 255, 0.6);
-        box-shadow: 0 0 30px rgba(127, 0, 255, 0.25), inset 0 0 30px rgba(127, 0, 255, 0.05);
+        border-color: rgba(170, 255, 0, 0.6);
+        box-shadow: 0 0 30px rgba(170, 255, 0, 0.25), inset 0 0 30px rgba(170, 255, 0, 0.05);
         transform: translateY(-4px) scale(1.02);
       }
       .tool-card__bg {
@@ -275,31 +275,31 @@
 
         <div class="clickup-radar__columns" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: start;">
           <div class="clickup-radar-col" id="col-pending">
-            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #7F00FF; background: rgba(127, 0, 255,0.05);">
+            <div class="clickup-pill clickup-pill--todo clickup-pill--priority" style="margin-bottom: 1rem; border-color: #AAFF00; background: rgba(170, 255, 0,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #7F00FF; box-shadow: 0 0 8px #7F00FF;"></span>
-                <span class="clickup-pill__name" style="color: #7F00FF;">1. A Fazer</span>
+                <span class="clickup-pill__dot" style="background: #AAFF00; box-shadow: 0 0 8px #AAFF00;"></span>
+                <span class="clickup-pill__name" style="color: #AAFF00;">1. A Fazer</span>
               </div>
-              <span class="clickup-pill__tag" style="background: rgba(127, 0, 255,0.1); color: #7F00FF;">Principal</span>
+              <span class="clickup-pill__tag" style="background: rgba(170, 255, 0,0.1); color: #AAFF00;">Principal</span>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-in-progress">
-            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #A855F7; background: rgba(127, 0, 255,0.05);">
+            <div class="clickup-pill clickup-pill--in-progress clickup-pill--priority" style="margin-bottom: 1rem; border-color: #88CC00; background: rgba(170, 255, 0,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #A855F7;"></span>
-                <span class="clickup-pill__name" style="color: #A855F7;">2. Em Execução</span>
+                <span class="clickup-pill__dot" style="background: #88CC00;"></span>
+                <span class="clickup-pill__name" style="color: #88CC00;">2. Em Execução</span>
               </div>
             </div>
             <div class="task-list"></div>
           </div>
 
           <div class="clickup-radar-col" id="col-done">
-            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #5B21B6; background: rgba(91,33,182,0.05);">
+            <div class="clickup-pill clickup-pill--done" style="margin-bottom: 1rem; border-color: #668800; background: rgba(91,33,182,0.05);">
               <div class="clickup-pill__content">
-                <span class="clickup-pill__dot" style="background: #5B21B6;"></span>
-                <span class="clickup-pill__name" style="color: #5B21B6;">3. Completo</span>
+                <span class="clickup-pill__dot" style="background: #668800;"></span>
+                <span class="clickup-pill__name" style="color: #668800;">3. Completo</span>
               </div>
             </div>
             <div class="task-list"></div>
@@ -503,13 +503,13 @@
       card.setAttribute('draggable', 'true');
       card.style.cssText = `
         padding: 12px; display: flex; flex-direction: column; gap: 8px;
-        border: 1px solid rgba(127, 0, 255,0.2); background: rgba(11, 15, 25, 0.7);
+        border: 1px solid rgba(170, 255, 0,0.2); background: rgba(11, 15, 25, 0.7);
         cursor: grab; position: relative; transition: all 0.2s ease;
       `;
       
       const codes = task.groups ? Object.values(task.groups).flat() : [];
       const codesHtml = codes.length > 0 
-        ? `<div style="font-size: 11px; color: #A855F7; font-family: monospace; font-weight: bold; background: rgba(127, 0, 255,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
+        ? `<div style="font-size: 11px; color: #88CC00; font-family: monospace; font-weight: bold; background: rgba(170, 255, 0,0.1); padding: 4px; border-radius: 4px;">Códigos: ${codes.join(', ')}</div>` 
         : '';
       
       const dateStr = task.timestamp ? new Date(task.timestamp).toLocaleString() : new Date().toLocaleString();
@@ -534,8 +534,8 @@
         </div>
         <div style="font-size: 10px; color: #888;">${dateStr}</div>
         ${codesHtml}
-        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#7F00FF;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
-        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #5B21B6, #7F00FF); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
+        ${task.url && task.url !== '#' ? `<a href="${task.url}" target="_blank" rel="noopener" style="font-size:10px;color:#AAFF00;text-decoration:none;display:flex;align-items:center;gap:3px">🔗 ClickUp</a>` : ''}
+        <button class="radar-task-autopilot btn btn--primary" style="margin-top: 4px; padding: 6px 10px; font-size: 12px; background: linear-gradient(135deg, #668800, #AAFF00); border: none; width: 100%; display: flex; justify-content: center; gap: 6px;">
                 <span>🚀</span> Iniciar no Lucas RTX
         </button>
       `;
@@ -636,7 +636,7 @@
         // Highlight drop zones
         document.querySelectorAll('.task-list').forEach(tl => {
           tl.style.minHeight = '80px';
-          tl.style.border = '2px dashed rgba(127, 0, 255,0.3)';
+          tl.style.border = '2px dashed rgba(170, 255, 0,0.3)';
           tl.style.borderRadius = '8px';
           tl.style.transition = 'all 0.2s';
         });
@@ -692,13 +692,13 @@
         taskList.addEventListener('dragover', (e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
-          taskList.style.background = 'rgba(127, 0, 255,0.08)';
-          taskList.style.border = '2px dashed rgba(127, 0, 255,0.6)';
+          taskList.style.background = 'rgba(170, 255, 0,0.08)';
+          taskList.style.border = '2px dashed rgba(170, 255, 0,0.6)';
         });
 
         taskList.addEventListener('dragleave', () => {
           taskList.style.background = '';
-          taskList.style.border = '2px dashed rgba(127, 0, 255,0.3)';
+          taskList.style.border = '2px dashed rgba(170, 255, 0,0.3)';
         });
 
         taskList.addEventListener('drop', (e) => {

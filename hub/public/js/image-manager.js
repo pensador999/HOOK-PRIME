@@ -508,7 +508,7 @@
               const statusMap = {
                 pending: '<span style="color:var(--text-muted);">⏳ Aguardando</span>',
                 uploading: '<span style="color:var(--accent);">🔄 Enviando...</span>',
-                done: '<span style="color:#8B5CF6;">✅ Pronto</span>',
+                done: '<span style="color:#88CC00;">✅ Pronto</span>',
                 error: '<span style="color:var(--error);">❌ Erro</span>',
               };
               const rowBg = b.status === 'done' ? 'rgba(34,197,94,0.04)' : b.status === 'uploading' ? 'rgba(132,204,22,0.06)' : 'transparent';
@@ -528,7 +528,7 @@
       
       ${doneCount === state.batchBlocks.length && doneCount > 0 ? `
         <div style="margin-top:16px;padding:14px 16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:var(--radius-md);">
-          <div style="font-size:14px;font-weight:700;color:#8B5CF6;margin-bottom:8px;">✅ Upload Completo!</div>
+          <div style="font-size:14px;font-weight:700;color:#88CC00;margin-bottom:8px;">✅ Upload Completo!</div>
           <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
             ${totalImgs} imagens enviadas para o CDN com sucesso.
           </div>

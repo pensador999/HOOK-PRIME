@@ -12,7 +12,7 @@
     <div style="display:flex;flex-direction:column;gap:24px">
 
       <!-- EAN Section -->
-      <div style="padding:16px;background:rgba(127, 0, 255,.06);border:1px solid rgba(127, 0, 255,.12);border-radius:8px;margin-bottom:20px"><small style="color:#9ca3af">ℹ️ EANs não são necessários. As colunas EAN/EAN Emb. serão exportadas vazias no CSV.</small></div>
+      <div style="padding:16px;background:rgba(170, 255, 0,.06);border:1px solid rgba(170, 255, 0,.12);border-radius:8px;margin-bottom:20px"><small style="color:#9ca3af">ℹ️ EANs não são necessários. As colunas EAN/EAN Emb. serão exportadas vazias no CSV.</small></div>
 
       <!-- CSV Preview -->
       <div class="card" style="padding:28px">

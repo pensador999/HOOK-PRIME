@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   if (!window.HUB) window.HUB = {};
   if (window.HUB.ImagePreview) return; // Already initialized
 
@@ -6,7 +6,7 @@
   const COLORS = {
     bg: '#0f172a',
     card: '#1e293b',
-    accent: '#7F00FF', // Tiffany
+    accent: '#AAFF00', // Tiffany
     text: '#f8fafc',
     textMuted: '#94a3b8',
     overlay: 'rgba(15, 23, 42, 0.85)',
@@ -15,7 +15,7 @@
       2: '#3b82f6', // COSTAS blue
       3: '#f97316', // PERSPEC orange
       4: '#64748b', // DETALHE gray
-      5: '#8b5cf6'  // OTHER purple
+      5: '#88CC00'  // OTHER purple
     }
   };
 
@@ -48,7 +48,7 @@
       height: 90%;
       max-height: 900px;
       border-radius: 16px;
-      border: 1px solid rgba(127, 0, 255, 0.2);
+      border: 1px solid rgba(170, 255, 0, 0.2);
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       display: flex;
       flex-direction: column;
@@ -161,7 +161,7 @@
     }
     .hub-ip-card:hover {
       transform: translateY(-4px);
-      border-color: rgba(127, 0, 255, 0.4);
+      border-color: rgba(170, 255, 0, 0.4);
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
     .hub-ip-img-wrap {

@@ -76,7 +76,7 @@
   function renderUniqueLinkCards(code, group, helpers) {
     const state = helpers.state || {};
     const esc = helpers.esc || (str => str);
-    const TIFFANY = helpers.TIFFANY || '#7F00FF';
+    const TIFFANY = helpers.TIFFANY || '#AAFF00';
     const TIFFANY_D = helpers.TIFFANY_D || '#09a09c';
     const codeIdx = typeof helpers.codeIdx !== 'undefined' ? helpers.codeIdx : (code._index || 0);
 
@@ -97,7 +97,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:700;font-family:'Cascadia Code','Fira Code',monospace;font-size:16px;color:#e5e7eb">📁 ${esc(code.base)}</span>
-          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(168,85,247,0.15);color:#a855f7;font-weight:600">Produto Único</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(168,85,247,0.15);color:#88CC00;font-weight:600">Produto Único</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${hasImages && !isDone ? `
@@ -117,7 +117,7 @@
       <div class="ap-gender-row" data-gender-code="${esc(codeKey)}" style="padding:12px;background:rgba(${isDone ? '65,255,10' : '255,255,255'},0.03);border:1px solid ${isDone ? TIFFANY + '30' : 'rgba(255,255,255,.06)'};border-radius:8px;transition:all .3s">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:rgba(168,85,247,0.25);color:#a855f7;font-size:11px;padding:3px 10px;border-radius:6px">Único</span>
+            <span class="badge" style="background:rgba(168,85,247,0.25);color:#88CC00;font-size:11px;padding:3px 10px;border-radius:6px">Único</span>
             <span class="ap-gender-status" style="font-size:12px;color:${isDone ? TIFFANY : '#6b7280'}">
               ${isDone ? '✅' : '⏳'}
             </span>

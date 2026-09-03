@@ -46,12 +46,12 @@
 
         ${hasDiskPath ? `
         <!-- Caminho configurado — pronto para upload -->
-        <div style="background:linear-gradient(135deg,rgba(127, 0, 255,0.12),rgba(127, 0, 255,0.03));border:1px solid rgba(127, 0, 255,0.3);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+        <div style="background:linear-gradient(135deg,rgba(170, 255, 0,0.12),rgba(170, 255, 0,0.03));border:1px solid rgba(170, 255, 0,0.3);border-radius:12px;padding:16px 20px;margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
             <span style="font-size:20px">✅</span>
             <span style="font-size:14px;font-weight:700;color:${State.TIFFANY}">Pasta Configurada — Pronto para Upload!</span>
           </div>
-          <div style="font-size:13px;color:#A855F7;line-height:1.6">
+          <div style="font-size:13px;color:#88CC00;line-height:1.6">
             <strong>📁 ${H.esc(State.state.diskFolderPath)}</strong><br>
             O servidor lê as subpastas de cada código automaticamente (MASC / FEM / INF).
             Clique em <strong>"🚀 Gerar TODOS os Links"</strong> para enviar ao CDN.
@@ -142,7 +142,7 @@
     <style>
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       .ap-uploading-card { animation: uploadPulse 1.5s ease-in-out infinite; }
-      @keyframes uploadPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(127, 0, 255,0); } 50% { box-shadow: 0 0 0 3px rgba(127, 0, 255,0.15); } }
+      @keyframes uploadPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(170, 255, 0,0); } 50% { box-shadow: 0 0 0 3px rgba(170, 255, 0,0.15); } }
     </style>`;
 
     return html;
@@ -375,7 +375,7 @@
         if (data.online) {
           s3Badge.textContent = '🟢 BRK Link Online';
           s3Badge.style.color = State.TIFFANY;
-          s3Badge.style.background = 'rgba(127, 0, 255,0.08)';
+          s3Badge.style.background = 'rgba(170, 255, 0,0.08)';
         } else {
           s3Badge.textContent = '🔴 BRK Link Offline';
           s3Badge.style.color = '#ef4444';

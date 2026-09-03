@@ -34,7 +34,7 @@
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
           ${H.renderStatCard('Códigos', totalCodes, '📋', State.TIFFANY)}
           ${H.renderStatCard('SKUs', totalSkus, '📦', '#3b82f6')}
-          ${H.renderStatCard('Imagens', totalImages, '🖼️', '#8b5cf6')}
+          ${H.renderStatCard('Imagens', totalImages, '🖼️', '#88CC00')}
           ${H.renderStatCard('Marca', State.state.brand, '🏷️', '#f59e0b')}
         </div>
       </div>
@@ -255,7 +255,7 @@
     const container = document.getElementById('app-content');
     if (!container) return;
 
-    const colors = [State.TIFFANY, State.TIFFANY_S || '#c084fc', State.TIFFANY_D || '#9333ea', '#3b82f6', '#ec4899', '#f59e0b', '#8b5cf6', '#06b6d4'];
+    const colors = [State.TIFFANY, State.TIFFANY_S || '#c084fc', State.TIFFANY_D || '#9333ea', '#3b82f6', '#ec4899', '#f59e0b', '#88CC00', '#06b6d4'];
 
     for (let i = 0; i < 30; i++) {
       const piece = document.createElement('div');

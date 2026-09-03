@@ -126,7 +126,7 @@
             statusEl.style.color = State.TIFFANY;
           }
           row.style.borderColor = State.TIFFANY + '30';
-          row.style.background = 'rgba(127, 0, 255,0.03)';
+          row.style.background = 'rgba(170, 255, 0,0.03)';
         }
 
         doneJobs++;

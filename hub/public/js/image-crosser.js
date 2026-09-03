@@ -439,7 +439,7 @@
           <div style="font-size:15px;font-weight:600;color:${hasData ? LIME : '#e5e7eb'}">
             ${hasData ? 'Planilha carregada: ' + crosserState.products.length + ' produtos' : 'Arraste o arquivo XLS/CSV aqui ou clique para selecionar'}
           </div>
-          ${hasData ? '<div style="margin-top:12px;display:flex;gap:16px;justify-content:center"><span style="color:#8B5CF6;font-size:13px">✅ ' + withUrls + ' com imagens</span><span style="color:#f59e0b;font-size:13px">⚠️ ' + withoutUrls + ' sem imagens</span></div>' : '<div style="font-size:12px;color:#6b7280;margin-top:8px">Suporta .xls, .xlsx, .csv no padrão Bling</div>'}
+          ${hasData ? '<div style="margin-top:12px;display:flex;gap:16px;justify-content:center"><span style="color:#88CC00;font-size:13px">✅ ' + withUrls + ' com imagens</span><span style="color:#f59e0b;font-size:13px">⚠️ ' + withoutUrls + ' sem imagens</span></div>' : '<div style="font-size:12px;color:#6b7280;margin-top:8px">Suporta .xls, .xlsx, .csv no padrão Bling</div>'}
           <input type="file" id="crosser-xls-input" accept=".xls,.xlsx,.csv" style="display:none">
         </div>
 
@@ -551,7 +551,7 @@
         <h3 style="margin:0 0 16px;color:${LIME}">🔀 Etapa 3: Resultado do Cruzamento</h3>
         <div style="display:flex;gap:12px;margin-bottom:16px">
           <div style="flex:1;padding:12px;border-radius:8px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);text-align:center">
-            <div style="font-size:24px;font-weight:700;color:#8B5CF6">${matched}</div>
+            <div style="font-size:24px;font-weight:700;color:#88CC00">${matched}</div>
             <div style="font-size:11px;color:#6b7280">✅ Confirmados</div>
           </div>
           <div style="flex:1;padding:12px;border-radius:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);text-align:center">
@@ -584,7 +584,7 @@
             </thead>
             <tbody>
               ${crosserState.matches.map((m, idx) => {
-                const scoreColor = m.score >= 50 ? '#8B5CF6' : m.score >= 30 ? '#f59e0b' : '#ef4444';
+                const scoreColor = m.score >= 50 ? '#88CC00' : m.score >= 30 ? '#f59e0b' : '#ef4444';
                 // Gerar preview da primeira imagem da pasta
                 let previewHtml = '';
                 if (m.folder && m.folder.images.length > 0) {
@@ -596,7 +596,7 @@
                 }
 
                 // Badges
-                const modelBadge = m.modelMatch ? '<span style="background:rgba(34,197,94,0.15);color:#8B5CF6;padding:1px 4px;border-radius:3px;font-size:9px">MOD</span>' : '';
+                const modelBadge = m.modelMatch ? '<span style="background:rgba(34,197,94,0.15);color:#88CC00;padding:1px 4px;border-radius:3px;font-size:9px">MOD</span>' : '';
                 const genderBadge = m.genderMatch ? '<span style="background:rgba(59,130,246,0.15);color:#3b82f6;padding:1px 4px;border-radius:3px;font-size:9px">GEN</span>' : '';
 
                 return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);background:' + (m.confirmed ? 'rgba(34,197,94,0.03)' : '') + '">' +
@@ -606,7 +606,7 @@
                   '<td style="padding:6px 10px;font-size:10px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(m.folder?.name || '') + '">' +
                     (m.folder ? '<span style="color:#93c5fd">' + esc(m.folder.name) + '</span> ' + modelBadge + ' ' + genderBadge : '<span style="color:#ef4444">— sem match —</span>') +
                   '</td>' +
-                  '<td style="padding:6px 10px;text-align:center;font-weight:600;color:' + (m.colorScore >= 50 ? '#8B5CF6' : m.colorScore >= 20 ? '#f59e0b' : '#ef4444') + ';font-size:11px">' + (m.folder ? (m.colorScore || 0) + '%' : '-') + '</td>' +
+                  '<td style="padding:6px 10px;text-align:center;font-weight:600;color:' + (m.colorScore >= 50 ? '#88CC00' : m.colorScore >= 20 ? '#f59e0b' : '#ef4444') + ';font-size:11px">' + (m.folder ? (m.colorScore || 0) + '%' : '-') + '</td>' +
                   '<td style="padding:6px 10px;text-align:center;font-weight:700;color:' + scoreColor + '">' + (m.folder ? m.score + '%' : '-') + '</td>' +
                   '<td style="padding:6px 10px;text-align:center;color:#fbbf24">' + (m.sleeve || '-') + '</td>' +
                   '<td style="padding:6px 10px;text-align:center">' +
@@ -665,7 +665,7 @@
               ${confirmed.map(m => `
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
                   <td style="padding:6px 10px;color:${LIME};font-family:monospace">${esc(m.product.code)}</td>
-                  <td style="padding:6px 10px;color:${m.uploaded ? '#8B5CF6' : '#9ca3af'}">${m.uploaded ? '✅ Enviado' : '⏳ Pendente'}</td>
+                  <td style="padding:6px 10px;color:${m.uploaded ? '#88CC00' : '#9ca3af'}">${m.uploaded ? '✅ Enviado' : '⏳ Pendente'}</td>
                   <td style="padding:6px 10px;color:#93c5fd;font-size:10px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.urls) || '-'}</td>
                 </tr>
               `).join('')}

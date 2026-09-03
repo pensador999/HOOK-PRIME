@@ -53,7 +53,7 @@
       <div style="display:flex;justify-content:space-between;gap:12px;padding-bottom:24px">
         <button class="btn btn--secondary" id="ap-prev-4-est">← Voltar</button>
         <div style="display:flex;gap:12px;align-items:center">
-          <button class="btn btn--secondary" id="ap-gemini-estampas" style="color:#a855f7;border-color:#a855f740" title="Usar IA Gemini para reconhecer estampas automaticamente">
+          <button class="btn btn--secondary" id="ap-gemini-estampas" style="color:#88CC00;border-color:#88CC0040" title="Usar IA Gemini para reconhecer estampas automaticamente">
             🤖 IA Gemini
           </button>
           <button class="btn btn--secondary" id="ap-skip-estampas" style="color:#f59e0b;border-color:#f59e0b40" title="Pular esta etapa e ir direto para a planilha">

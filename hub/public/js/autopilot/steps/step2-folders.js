@@ -28,19 +28,19 @@
     <div style="display:flex;flex-direction:column;gap:24px">
 
       <!-- 📡 Network Image Scraper -->
-      <div class="card" style="padding:28px;border:1px solid rgba(127, 0, 255,0.15)">
+      <div class="card" style="padding:28px;border:1px solid rgba(170, 255, 0,0.15)">
         <h3 style="margin:0 0 6px;color:${State.TIFFANY}">📡 Buscar Imagens da Rede</h3>
         <p style="margin:0 0 16px;color:#9ca3af;font-size:14px">
           Cole o caminho da pasta da rede onde estão as imagens. O sistema detecta automaticamente a estrutura 
           (<code style="color:#60a5fa">3d/</code>, <code style="color:#f472b6">MASC/FEM/INF</code>, ou soltas).
         </p>
 
-        <div style="background:rgba(127, 0, 255,0.06);border:1px solid rgba(127, 0, 255,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#A855F7">
+        <div style="background:rgba(170, 255, 0,0.06);border:1px solid rgba(170, 255, 0,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#88CC00">
           <strong>🔒 Modo seguro:</strong> Apenas leitura e cópia. Nenhum arquivo da rede será editado ou apagado.
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <input type="text" id="ap-network-path" placeholder="Ex: \\\\\\\\SERVIDOR\\\\Projetos\\\\COLECAO_FUSION ou Z:\\\\Projetos\\\\..." value="${H.esc(State.state.networkPath || '')}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid rgba(127, 0, 255,0.15);background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
+          <input type="text" id="ap-network-path" placeholder="Ex: \\\\\\\\SERVIDOR\\\\Projetos\\\\COLECAO_FUSION ou Z:\\\\Projetos\\\\..." value="${H.esc(State.state.networkPath || '')}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid rgba(170, 255, 0,0.15);background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
           <button class="btn btn--primary" id="ap-network-scan" style="font-size:13px;padding:10px 18px;white-space:nowrap;background:linear-gradient(135deg,${State.TIFFANY_D},${State.TIFFANY})">🔍 Escanear Rede</button>
         </div>
         <div id="ap-network-status" style="font-size:13px;margin-top:8px;color:#6b7280;min-height:20px"></div>
@@ -53,7 +53,7 @@
         <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.06);padding-top:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
             <h4 style="margin:0;color:${State.TIFFANY_S}">📊 Estrutura Detectada</h4>
-            <span style="font-size:12px;padding:4px 12px;border-radius:20px;background:rgba(127, 0, 255,0.15);color:${State.TIFFANY}">
+            <span style="font-size:12px;padding:4px 12px;border-radius:20px;background:rgba(170, 255, 0,0.15);color:${State.TIFFANY}">
               Padrão: ${scan.detectedPattern === 'gender_folders' ? 'Subpastas por Gênero' : scan.detectedPattern === '3d_folder' ? 'Pasta 3D' : scan.detectedPattern === 'loose_images' ? 'Imagens Soltas' : scan.detectedPattern}
             </span>
           </div>
@@ -84,7 +84,7 @@
                   looseCount > 0 ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(156,163,175,.15);color:#9ca3af">📎 ${looseCount}</span>` : '',
                 ].filter(Boolean).join(' ');
                 return `
-                <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);cursor:pointer;transition:background .2s" onmouseover="this.style.background='rgba(127, 0, 255,.08)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+                <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);cursor:pointer;transition:background .2s" onmouseover="this.style.background='rgba(170, 255, 0,.08)'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
                   <input type="checkbox" class="network-folder-check" value="${H.esc(f.name)}" checked style="accent-color:${State.TIFFANY}">
                   <span style="color:#e5e7eb;font-size:13px;font-family:monospace;flex:1">📁 ${H.esc(f.name)}</span>
                   <span style="display:flex;gap:6px">${badges}</span>
@@ -123,7 +123,7 @@
       if (State.state.networkCopyResult) {
         const result = State.state.networkCopyResult;
         html += `
-        <div style="margin-top:16px;padding:14px 18px;border-radius:10px;background:rgba(127, 0, 255,0.1);border:1px solid rgba(127, 0, 255,0.2)">
+        <div style="margin-top:16px;padding:14px 18px;border-radius:10px;background:rgba(170, 255, 0,0.1);border:1px solid rgba(170, 255, 0,0.2)">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:18px">✅</span>
             <strong style="color:${State.TIFFANY}">Cópia concluída!</strong>
@@ -145,7 +145,7 @@
           Cada código deve ter subpastas <code style="color:#60a5fa">MASC</code>, <code style="color:#f472b6">FEM</code> e/ou <code style="color:#fbbf24">INF</code> com as imagens dentro.
         </p>
 
-        <div style="background:rgba(127, 0, 255,0.06);border:1px solid rgba(127, 0, 255,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#A855F7">
+        <div style="background:rgba(170, 255, 0,0.06);border:1px solid rgba(170, 255, 0,0.15);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#88CC00">
           <strong>📂 Estrutura esperada:</strong> PastaRaiz → C02576 → MASC / FEM / INF → imagens.jpg
         </div>
 
@@ -184,7 +184,7 @@
           <div>
             <div style="font-weight:600;font-size:14px;color:#e5e7eb">🔄 Renomeação Automática</div>
             <div style="font-size:12px;color:#6b7280;margin-top:4px">
-              Renomeia automaticamente as imagens para o padrão <code style="color:#A855F7">01MASC.jpg</code>, <code style="color:#f472b6">02FEM.jpg</code>, etc.
+              Renomeia automaticamente as imagens para o padrão <code style="color:#88CC00">01MASC.jpg</code>, <code style="color:#f472b6">02FEM.jpg</code>, etc.
             </div>
           </div>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer">

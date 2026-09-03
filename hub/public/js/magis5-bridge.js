@@ -8,7 +8,7 @@
   'use strict';
   window.HUB = window.HUB || {};
 
-  const ACCENT = '#7F00FF';
+  const ACCENT = '#AAFF00';
   const CHANNELS = {
     'BRK FISHING': 'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
     'BRK AGRO': 'shopify-21b47dd8ee4b4a44b8b8d891bb3e2265',
@@ -36,23 +36,23 @@
         <div class="card" style="padding:24px">
           <h3 style="margin:0 0 16px;color:${ACCENT};font-size:15px">📋 Fluxo de Trabalho</h3>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center">
-            <div style="background:rgba(127,0,255,0.1);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}20">
+            <div style="background:rgba(170, 255, 0,0.1);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}20">
               <div style="font-size:22px">📋</div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Lucas RTX<br/>Planilha OK</div>
             </div>
-            <div style="background:rgba(127,0,255,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
+            <div style="background:rgba(170, 255, 0,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
               <div style="font-size:22px">🛒</div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Upload<br/>Shopify CSV</div>
             </div>
-            <div style="background:rgba(127,0,255,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
+            <div style="background:rgba(170, 255, 0,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
               <div style="font-size:22px">🔗</div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Ativar +<br/>Copiar IDs</div>
             </div>
-            <div style="background:rgba(127,0,255,0.1);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}30">
+            <div style="background:rgba(170, 255, 0,0.1);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}30">
               <div style="font-size:22px;color:${ACCENT}">📦</div>
               <div style="font-size:11px;color:${ACCENT};margin-top:4px;font-weight:600">Magis5<br/>Bridge</div>
             </div>
-            <div style="background:rgba(127,0,255,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
+            <div style="background:rgba(170, 255, 0,0.07);border-radius:10px;padding:12px 8px;border:1px solid ${ACCENT}15">
               <div style="font-size:22px">✅</div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Importado<br/>na Magis5</div>
             </div>

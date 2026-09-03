@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    HUB HOOK PRIME — Histórico de Tarefas & Activity Log
    Registra todas as operações realizadas no HUB com persistência
    em localStorage e timeline visual.
@@ -16,8 +16,8 @@
   // Tipos de tarefa com suas cores e ícones
   const TASK_TYPES = {
     'planilha_bling':   { label: 'Planilha Bling',   color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)',  icon: '📋' },
-    'planilha_sankhya': { label: 'Planilha Sankhya', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)',  icon: '📊' },
-    'pastas':           { label: 'Pastas',           color: '#8B5CF6', bg: 'rgba(127, 0, 255, 0.12)',   icon: '📁' },
+    'planilha_sankhya': { label: 'Planilha Sankhya', color: '#88CC00', bg: 'rgba(136, 204, 0, 0.12)',  icon: '📊' },
+    'pastas':           { label: 'Pastas',           color: '#88CC00', bg: 'rgba(170, 255, 0, 0.12)',   icon: '📁' },
     'sql':              { label: 'SQL',              color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)',  icon: '🔍' },
     'imagens':          { label: 'Imagens',          color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)',   icon: '🖼️' },
     'fluxo':            { label: 'Fluxo',            color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)',  icon: '🔄' },

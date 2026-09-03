@@ -37,7 +37,7 @@
           <p>Módulos do Autopilot não carregaram corretamente.</p>
           <p style="color:#9ca3af;font-size:13px">Verifique o console do navegador (F12) para detalhes.</p>
           <p style="color:#6b7280;font-size:12px;margin-top:16px">Módulos: State=${!!State}, Helpers=${!!H}, Step1=${!!Step1}, Step2=${!!Step2}</p>
-          <button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#7F00FF;color:#fff;border:none;border-radius:8px;cursor:pointer">🔄 Recarregar Página</button>
+          <button onclick="location.reload()" style="margin-top:16px;padding:8px 24px;background:#AAFF00;color:#fff;border:none;border-radius:8px;cursor:pointer">🔄 Recarregar Página</button>
         </div>`;
     };
     return; // Abort IIFE — don't register broken handlers
@@ -51,7 +51,7 @@
   // ───────── Stepper ─────────
 
   function renderStepper() {
-    let html = '<div class="stepper" style="position:sticky;top:0;z-index:50;background:var(--surface-card,#1e1e2e);padding:20px 0 16px;border-bottom:1px solid rgba(127, 0, 255,.15)">';
+    let html = '<div class="stepper" style="position:sticky;top:0;z-index:50;background:var(--surface-card,#1e1e2e);padding:20px 0 16px;border-bottom:1px solid rgba(170, 255, 0,.15)">';
 
     State.STEP_LABELS.forEach((label, idx) => {
       const num = idx + 1;

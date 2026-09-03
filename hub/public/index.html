@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+<script>
+  // Restore theme before first paint to avoid flash
+  (function() {
+    var t = localStorage.getItem('hp-theme');
+    if (t === 'light') document.documentElement.classList.add('theme-light');
+  })();
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -295,5 +302,25 @@
   <script src="js/autopilot/steps/step6-export.js"></script>
   <!-- Autopilot Orchestrator -->
   <script src="js/autopilot.js"></script>
+
+  <!-- Theme Toggle -->
+  <button class="theme-toggle" id="themeToggle" title="Alternar tema Claro/Escuro">🌙</button>
+  <script>
+    (function() {
+      var btn = document.getElementById('themeToggle');
+      var root = document.documentElement;
+      function update() {
+        var isLight = root.classList.contains('theme-light');
+        btn.textContent = isLight ? '☀️' : '🌙';
+        btn.title = isLight ? 'Mudar para tema Escuro' : 'Mudar para tema Claro';
+      }
+      update();
+      btn.addEventListener('click', function() {
+        root.classList.toggle('theme-light');
+        localStorage.setItem('hp-theme', root.classList.contains('theme-light') ? 'light' : 'dark');
+        update();
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -65,7 +65,7 @@
 
       ${State.state.productGroups.map((group, gIdx) => renderGroupCard(group, gIdx)).join('')}
 
-      <button class="btn btn--secondary" id="ap-add-group" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed rgba(127, 0, 255,.3);background:transparent">
+      <button class="btn btn--secondary" id="ap-add-group" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed rgba(170, 255, 0,.3);background:transparent">
         ➕ Adicionar Grupo de Produto
       </button>
 

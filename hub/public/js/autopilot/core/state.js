@@ -5,9 +5,9 @@
 
   // ───────── Constantes ─────────
 
-  const TIFFANY   = '#7F00FF';
-  const TIFFANY_S = '#A855F7';
-  const TIFFANY_D = '#5B21B6';
+  const TIFFANY   = '#AAFF00';
+  const TIFFANY_S = '#88CC00';
+  const TIFFANY_D = '#668800';
 
   const STEP_LABELS = [
     'Configuração',
@@ -21,8 +21,8 @@
   const BRANDS = ['BRK FISHING', 'BRK AGRO', 'Brk Motors'];
 
   const PRODUCT_TYPE_COLORS = {
-    'Raglan': '#3b82f6', 'Camisa UV': '#06b6d4', 'FusionX': '#8b5cf6', 'ArmorX': '#d946ef',
-    'Hybrid': '#a855f7', 'Capuz': '#6366f1', 'APC': '#f59e0b',
+    'Raglan': '#3b82f6', 'Camisa UV': '#06b6d4', 'FusionX': '#88CC00', 'ArmorX': '#d946ef',
+    'Hybrid': '#88CC00', 'Capuz': '#6366f1', 'APC': '#f59e0b',
     'Casual': '#14b8a6', 'Corta-Vento': '#ef4444', 'BlackMask': '#6b7280',
     'Bandana': '#ec4899', 'Tubeneck': '#7C3AED', 'Motociclismo': '#f97316',
   };
