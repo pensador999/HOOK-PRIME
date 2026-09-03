@@ -115,6 +115,7 @@ function getImagePriority(fileName) {
   const isDetalhe   = /DETALHE|DETAIL/.test(name);
   const isPesp      = /PESP/.test(name);
 
+  // Nomes de imagens de camisas (ordem padrão)
   if (isFrente && !isPerspec)               return 10; // 1º FRENTE plano
   if (isCostas && !isPerspec && !isPerspec2) return 20; // 2º COSTAS plano
   if (isFrente && isPerspec)                 return 30; // 3º FRENTE perspectiva
@@ -123,6 +124,13 @@ function getImagePriority(fileName) {
   if (isZoom)                                return 60; // 6º ZOOM
   if (isDetalhe)                             return 65; // 7º DETALHE
   if (isPesp)                                return 70; // 8º PESP genérica
+
+  // Nomes de imagens de produtos únicos (Lenço, Tubeneck, Bandana)
+  if (/\bMESA\b/.test(name))                 return 10; // Lenço: flat na mesa = PRINCIPAL
+  if (/\bLADO\b/.test(name))                 return 20; // Tubeneck: LADO TUB = 2ª
+  if (/\bCABE[ÇC]A\b/.test(name))           return 20; // Lenço: modelo cabeça = 2ª
+  if (/\bCINTURA\b/.test(name))              return 25; // Lenço: modelo cintura = 3ª
+
   return 100; // Fallback
 }
 
