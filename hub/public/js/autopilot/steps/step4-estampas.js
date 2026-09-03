@@ -142,8 +142,8 @@
             const group = codeObj?._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
             const productType = codeObj?.productType || group?.productType || '';
 
-            // Buscar a primeira imagem (1.jpg ou qualquer jpg na pasta do código)
-            const imagePath = `${diskPath}/${base}/GERAL/GERAL/1.jpg`;
+            // Buscar a primeira imagem (1.jpg diretamente na pasta do código)
+            const imagePath = `${diskPath}/${base}/1.jpg`;
             batchImages.push({ code: base, imagePath, productType });
           }
 

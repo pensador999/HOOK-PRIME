@@ -518,14 +518,22 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
 
       for (const [gender, variants] of Object.entries(genderGroups)) {
         for (const [variant, imgs] of Object.entries(variants)) {
-          // Criar subpasta: evitar GERAL/GERAL — colapsar quando não há gênero/variante
+          // Criar subpasta: produtos únicos sem gênero → direto na pasta do código
+          // Camisas com gênero → subpasta MASC/FEM/INF
           let subDir;
+          let urlGenderPath; // Para construir URL que bate com o disco
           if (gender === 'GERAL' && variant === 'GERAL') {
-            subDir = path.join(uploadsDir, 'autopilot', taskId, code, 'GERAL');
+            // Produto único (Lenço, Tubeneck) ou camisa sem gênero detectado
+            subDir = path.join(uploadsDir, 'autopilot', taskId, code);
+            urlGenderPath = '';
           } else if (variant === 'GERAL') {
+            // Camisa com gênero (MASC, FEM, INF)
             subDir = path.join(uploadsDir, 'autopilot', taskId, code, gender);
+            urlGenderPath = `/${gender}`;
           } else {
+            // Camisa com gênero + variante de cor (PRETA, BRANCA)
             subDir = path.join(uploadsDir, 'autopilot', taskId, code, gender, variant);
+            urlGenderPath = `/${gender}/${variant}`;
           }
           fs.mkdirSync(subDir, { recursive: true });
 
@@ -572,7 +580,7 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
                 originalName: largestImg.name || finalName,
                 isHumanized: !!largestImg.isHumanized,
                 localPath: localDestPath,
-                url: `/api/autopilot/images/${taskId}/${code}/${gender}/${variant}/${finalName}`,
+                url: `/api/autopilot/images/${taskId}/${code}${urlGenderPath}/${finalName}`,
                 sizeKB,
                 gender,
                 variant
@@ -604,7 +612,7 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
               fs.renameSync(img.localPath, newPath);
               img.localPath = newPath;
               img.name = newName;
-              img.url = `/api/autopilot/images/${taskId}/${code}/${gender}/${variant}/${newName}`;
+              img.url = `/api/autopilot/images/${taskId}/${code}${urlGenderPath}/${newName}`;
             }
           });
         }
