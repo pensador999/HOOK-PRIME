@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Magis5 Import Autopilot — BRK
 // @namespace    http://tampermonkey.net/
-// @version      4.2
-// @description  Automação VISUAL de importação Shopify → Magis5 com integração automática Sankhya
+// @version      6.0
+// @description  Automação VISUAL de importação Multi-Canal → Magis5 com Auto-Detecção de tipo e integração Sankhya
 // @match        https://app.magis5.com.br/*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -61,9 +61,21 @@
     }
 
     const CHANNELS = {
-        'BRK FISHING': 'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
-        'BRK AGRO':    'shopify-21b47dd8ee4b4a44b8b8d891bb3e2265',
-        'BRK MOTORS':  'shopify-7495282216c04726834a39582e5369dd',
+        // Amazon
+        '🛒 Amazon — USEBRK':              'amazon-550c5247c30e4eb9a5710d5853f2bb43',
+        // Mercado Livre
+        '🟡 ML — BRK COMERCIO':            'ml-594c421a091a4546b9dda6762771322e',
+        '🟡 ML — BRK FILIAL (Oficial)':     'ml-738289f2b87f4f0892558d591454f31d',
+        '🟡 ML — BRK MATRIZ':              'ml-47da6d90fc2f489c9f7d0acc61ca458c',
+        // Shopee
+        '🟠 Shopee — BRK AGRO':            'shopee-d19e97cdeba849399f2a3bf04cf7cf2b',
+        '🟠 Shopee — BRK FILIAL':          'shopee-1b953452d1e74475bd27492dba97f98a',
+        // Shopify
+        '🟢 Shopify — BRK AGRO':           'shopify-21b47dd8ee4b4a44b8b8d891bb3e2265',
+        '🟢 Shopify — BRK FISHING':        'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
+        '🟢 Shopify — BRK MOTORS':         'shopify-7495282216c04726834a39582e5369dd',
+        // TikTok
+        '🎵 TikTok — BRK FILIAL':          'tiktok-5b3145553c2b4984ac9a98e2d4ccc3a1',
     };
 
     const norm = s => (s || '').replace(/\r/g, '').trim();
@@ -749,6 +761,26 @@
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  AUTO-DETECÇÃO TIPO DE PRODUTO                                      ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    /**
+     * Detecta tipo do produto baseado nos SKUs das variantes:
+     *   - Começa com ALL ou KIT → 'pular' (descarta)
+     *   - Contém _FULL → 'revenda'
+     *   - Qualquer outro → 'producao'
+     */
+    function detectarTipoProduto(skuInputs) {
+        for (const inp of skuInputs) {
+            const sku = norm(inp.value).toUpperCase();
+            if (!sku) continue;
+            if (sku.startsWith('ALL') || sku.startsWith('KIT')) return 'pular';
+            if (sku.includes('_FULL') || sku.includes('FULL')) return 'revenda';
+        }
+        return 'producao';
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
     // ║  EXECUÇÃO CONTROLADA                                                ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
@@ -761,7 +793,7 @@
         const inputText = document.getElementById('brk-import-list')?.value || '';
         let items = parseInput(inputText);
         if (items.length === 0) {
-            log('Nenhum ID encontrado na lista. Cole os IDs do Shopify Extractor!', 'warn');
+            log('Nenhum ID encontrado na lista. Cole os IDs do canal!', 'warn');
             _running = false;
             return;
         }
@@ -780,7 +812,8 @@
             return;
         }
 
-        const isProducao = document.getElementById('brk-import-producao')?.checked ?? true;
+        // Lê o override do tipo de produto (auto / forçar produção / forçar revenda)
+        const tipoOverride = document.getElementById('brk-import-tipo')?.value || 'auto';
         const cfg = getCFG();
 
         createVisualBar();
@@ -882,11 +915,28 @@
                     }
                 }
 
-                // 8. Produção vs Revenda
-                if (isProducao) {
+                // 8. Auto-Detecção Tipo de Produto (ou override manual)
+                const tipoDetectado = detectarTipoProduto(skuInputs);
+                const tipoFinal = tipoOverride === 'auto' ? tipoDetectado : tipoOverride;
+
+                log(`${label} 🔍 Tipo detectado: ${tipoDetectado.toUpperCase()}${tipoOverride !== 'auto' ? ' → Override: ' + tipoFinal.toUpperCase() : ''}`);
+
+                // Se é ALL/KIT → PULAR
+                if (tipoFinal === 'pular') {
+                    log(`${label} ⏭ PULANDO — Código ALL/KIT detectado nos SKUs`, 'warn');
+                    showAction('⏭ PULANDO — Produto ALL/KIT (descartado)', '🚫');
+                    closeModals();
+                    await sleep(1000);
+                    stats.titlesDone++;
+                    continue;
+                }
+
+                const isProducaoFinal = (tipoFinal === 'producao');
+
+                if (isProducaoFinal) {
                     // PRODUÇÃO: Vendido de forma diversa = Sim
                     updateVisualBar(`${label} 7. Diversa=Sim (Produção)`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('PRODUÇÃO: "Vendido de forma diversa" = Sim', '🏭');
+                    showAction('🏭 PRODUÇÃO: "Vendido de forma diversa" = Sim', '🏭');
                     let count = 0;
                     for (const inp of skuInputs) {
                         if (setVendidoDiversa(getRegistroContainer(inp), 'sim')) count++;
@@ -896,7 +946,7 @@
                 } else {
                     // REVENDA: Vendido de forma diversa = Não + Estoque Revenda
                     updateVisualBar(`${label} 7a. Diversa=Não (Revenda)`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('REVENDA: "Vendido de forma diversa" = Não', '🔄');
+                    showAction('📦 REVENDA (_FULL): "Vendido de forma diversa" = Não', '📦');
                     let countDiversa = 0;
                     for (const inp of skuInputs) {
                         if (setVendidoDiversa(getRegistroContainer(inp), 'nao')) countDiversa++;
@@ -905,7 +955,7 @@
                     log(`${label} Diversa=Não em ${countDiversa} variantes.`);
 
                     updateVisualBar(`${label} 7b. Estoque Revenda`, `${i + 1}/${items.length}`, item.shopifyId);
-                    showAction('REVENDA: Selecionando "ESTOQUE REVENDA"', '📦');
+                    showAction('📦 REVENDA: Selecionando "ESTOQUE REVENDA"', '📦');
                     let countEstoque = 0;
                     for (const inp of skuInputs) {
                         if (setEstoqueRevenda(inp)) countEstoque++;
@@ -1001,15 +1051,34 @@
             font: 13px/1.5 'Inter', system-ui, sans-serif;
         `;
 
-        const channelOptions = Object.entries(CHANNELS).map(([name, val]) =>
-            `<option value="${val}">${name}</option>`
-        ).join('');
+        const channelOptions = `
+            <optgroup label="🛒 Amazon">
+                <option value="amazon-550c5247c30e4eb9a5710d5853f2bb43">Amazon USEBRK</option>
+            </optgroup>
+            <optgroup label="🟡 Mercado Livre">
+                <option value="ml-594c421a091a4546b9dda6762771322e">ML — BRK COMERCIO</option>
+                <option value="ml-738289f2b87f4f0892558d591454f31d">ML — BRK FILIAL (Oficial)</option>
+                <option value="ml-47da6d90fc2f489c9f7d0acc61ca458c">ML — BRK MATRIZ</option>
+            </optgroup>
+            <optgroup label="🟠 Shopee">
+                <option value="shopee-d19e97cdeba849399f2a3bf04cf7cf2b">Shopee — BRK AGRO</option>
+                <option value="shopee-1b953452d1e74475bd27492dba97f98a">Shopee — BRK FILIAL</option>
+            </optgroup>
+            <optgroup label="🟢 Shopify">
+                <option value="shopify-21b47dd8ee4b4a44b8b8d891bb3e2265">Shopify — BRK AGRO</option>
+                <option value="shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f" selected>Shopify — BRK FISHING</option>
+                <option value="shopify-7495282216c04726834a39582e5369dd">Shopify — BRK MOTORS</option>
+            </optgroup>
+            <optgroup label="🎵 TikTok">
+                <option value="tiktok-5b3145553c2b4984ac9a98e2d4ccc3a1">TikTok — BRK FILIAL</option>
+            </optgroup>
+        `;
 
         box.innerHTML = `
             <div style="padding:14px 16px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#0f172a,#1e1b4b);border-radius:16px 16px 0 0">
                 <div>
-                    <div style="font-weight:800;font-size:15px;color:#a78bfa">🚀 Magis5 Import Autopilot v3</div>
-                    <div style="font-size:11px;color:#64748b">Importação com Modo de Inspeção Visual</div>
+                    <div style="font-weight:800;font-size:15px;color:#a78bfa">🚀 Magis5 Import Autopilot v6.0</div>
+                    <div style="font-size:11px;color:#64748b">Importação Multi-Canal com Auto-Detecção</div>
                 </div>
                 <button id="brk-import-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold;font-size:12px">✕</button>
             </div>
@@ -1034,28 +1103,31 @@
                     </select>
                 </div>
 
-                <!-- CANAL -->
+                <!-- CANAL DE VENDA (TODAS AS LOJAS) -->
                 <div>
-                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">Canal de Venda</label>
+                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">🏪 Canal de Venda (10 lojas)</label>
                     <select id="brk-import-channel" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px">
                         ${channelOptions}
                     </select>
                 </div>
 
+                <!-- TIPO DE PRODUTO (AUTO-DETECÇÃO) -->
                 <div style="background:#1e1b4b;border-radius:10px;padding:10px 12px;border:1px solid #7F00FF30">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1">
-                        <input type="checkbox" id="brk-import-producao" checked style="accent-color:#7F00FF;width:16px;height:16px">
-                        <span>Produto de <strong style="color:#a78bfa">produção</strong></span>
-                    </label>
+                    <label style="display:block;font-size:11px;color:#a78bfa;margin-bottom:6px;font-weight:700;text-transform:uppercase">🔍 Tipo de Produto</label>
+                    <select id="brk-import-tipo" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;font-weight:600">
+                        <option value="auto" selected>🤖 Auto-Detectar (lê o código SKU)</option>
+                        <option value="producao">🏭 Forçar PRODUÇÃO (Diversa=Sim · FABRICAÇÃO)</option>
+                        <option value="revenda">📦 Forçar REVENDA (Diversa=Não · ESTOQUE REVENDA)</option>
+                    </select>
                     <div id="brk-import-modo-info" style="font-size:11px;margin-top:6px;padding:6px 8px;border-radius:6px;background:#0f172a;color:#10b981;border:1px solid #10b98130">
-                        🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim
+                        🤖 <strong>AUTO</strong>: _FULL → Revenda · ALL/KIT → Pular · Outros → Produção
                     </div>
                 </div>
 
                 <!-- LISTA DE IDS -->
                 <div>
-                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">IDs dos Anúncios (Cole do Shopify Extractor)</label>
-                    <textarea id="brk-import-list" rows="5" placeholder="Cole aqui os IDs da Shopify (um por linha)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                    <label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">IDs dos Anúncios (um por linha)</label>
+                    <textarea id="brk-import-list" rows="5" placeholder="Cole aqui os IDs do canal selecionado (um por linha)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea>
                 </div>
 
                 <!-- BOTÕES DE CONTROLE -->
@@ -1083,7 +1155,7 @@
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    Hook Prime v4.2 · Magis5 Import v4.2 · Modal Fix ✅
+                    Hook Prime v4.2 · Magis5 Import v6.0 · Multi-Canal + Auto-Detect ✅
                 </div>
             </div>
         `;
@@ -1099,18 +1171,24 @@
             log(`Velocidade alterada para: ${SPEED_PROFILES[activeSpeed].name}`, 'info');
         };
 
-        box.querySelector('#brk-import-producao').onchange = (e) => {
+        box.querySelector('#brk-import-tipo').onchange = (e) => {
             const info = document.getElementById('brk-import-modo-info');
-            if (e.target.checked) {
-                info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim';
+            const val = e.target.value;
+            if (val === 'auto') {
+                info.innerHTML = '🤖 <strong>AUTO</strong>: _FULL → Revenda · ALL/KIT → Pular · Outros → Produção';
                 info.style.color = '#10b981';
                 info.style.borderColor = '#10b98130';
-                log('Modo: PRODUÇÃO (Diversa=Sim)', 'info');
+                log('Tipo: AUTO-DETECTAR (lê o código SKU)', 'info');
+            } else if (val === 'producao') {
+                info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa = Sim · Depósito = FABRICAÇÃO';
+                info.style.color = '#a78bfa';
+                info.style.borderColor = '#a78bfa30';
+                log('Tipo: FORÇAR PRODUÇÃO', 'info');
             } else {
-                info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa = Não · Estoque = REVENDA';
+                info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa = Não · Depósito = ESTOQUE REVENDA';
                 info.style.color = '#f59e0b';
                 info.style.borderColor = '#f59e0b30';
-                log('Modo: REVENDA (Diversa=Não + Estoque Revenda)', 'info');
+                log('Tipo: FORÇAR REVENDA', 'info');
             }
         };
 
