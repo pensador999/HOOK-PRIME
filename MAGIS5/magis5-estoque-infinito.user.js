@@ -554,14 +554,56 @@
     // ║  UI — PAINEL DE CONTROLE                                            ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
+    function injectHoloStyles() {
+        if (document.getElementById('brk-holo-styles')) return;
+        var style = document.createElement('style');
+        style.id = 'brk-holo-styles';
+        style.textContent = ''
+            + '@keyframes brk-holo-gradient {'
+            + '  0%   { background-position: 0% 50%; }'
+            + '  50%  { background-position: 100% 50%; }'
+            + '  100% { background-position: 0% 50%; }'
+            + '}'
+            + '@keyframes brk-holo-shimmer {'
+            + '  0%   { left: -100%; }'
+            + '  100% { left: 200%; }'
+            + '}'
+            + '@keyframes brk-holo-glow {'
+            + '  0%, 100% { box-shadow: 0 4px 15px rgba(168,85,247,0.4), 0 0 30px rgba(59,130,246,0.2); }'
+            + '  25%  { box-shadow: 0 4px 15px rgba(59,130,246,0.5), 0 0 30px rgba(16,185,129,0.3); }'
+            + '  50%  { box-shadow: 0 4px 15px rgba(16,185,129,0.5), 0 0 30px rgba(245,158,11,0.3); }'
+            + '  75%  { box-shadow: 0 4px 15px rgba(236,72,153,0.5), 0 0 30px rgba(168,85,247,0.3); }'
+            + '}'
+            + '#brk-stock-launcher {'
+            + '  position: fixed; bottom: 20px; left: 20px; z-index: 999998;'
+            + '  background: linear-gradient(135deg, #a855f7, #3b82f6, #10b981, #f59e0b, #ec4899, #a855f7);'
+            + '  background-size: 300% 300%;'
+            + '  animation: brk-holo-gradient 4s ease infinite, brk-holo-glow 4s ease infinite;'
+            + '  color: #fff; border: none; padding: 14px 22px; border-radius: 14px;'
+            + '  font-weight: 800; cursor: pointer; font-size: 14px; letter-spacing: 0.3px;'
+            + '  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), filter 0.25s;'
+            + '  overflow: hidden; text-shadow: 0 1px 3px rgba(0,0,0,0.3);'
+            + '}'
+            + '#brk-stock-launcher::before {'
+            + '  content: ""; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;'
+            + '  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);'
+            + '  animation: brk-holo-shimmer 3s ease-in-out infinite;'
+            + '  pointer-events: none;'
+            + '}'
+            + '#brk-stock-launcher:hover {'
+            + '  transform: scale(1.08) translateY(-2px);'
+            + '  filter: brightness(1.15) saturate(1.2);'
+            + '}'
+            + '#brk-stock-launcher:active { transform: scale(0.97); }';
+        document.head.appendChild(style);
+    }
+
     function buildLauncher() {
         if (document.getElementById('brk-stock-launcher')) return;
+        injectHoloStyles();
         var btn = document.createElement('button');
         btn.id = 'brk-stock-launcher';
-        btn.innerText = '📦 Estoque Infinito';
-        btn.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:999998;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(16,185,129,0.4);transition:transform 0.2s,box-shadow 0.2s';
-        btn.onmouseenter = function() { btn.style.transform = 'scale(1.05)'; };
-        btn.onmouseleave = function() { btn.style.transform = 'scale(1)'; };
+        btn.innerHTML = '📦 Estoque Infinito';
         btn.onclick = function() {
             var existing = document.getElementById('brk-stock-panel');
             if (existing) { existing.remove(); return; }
