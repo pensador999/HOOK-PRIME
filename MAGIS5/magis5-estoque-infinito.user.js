@@ -178,19 +178,9 @@
             console.log('[BRK-STOCK] ✅ ID ' + task.id + ' atualizado!');
             reportResult(task.id, 'ok', 'Estoque ' + valor + ' aplicado');
 
-            // ── 6. Fechar aba ──
-            await sleep(500);
-            try { window.close(); } catch(_) {}
-
-            setTimeout(function() {
-                if (!window.closed) {
-                    document.title = '✅ ESTOQUE ATUALIZADO — Feche esta aba';
-                    const banner = document.createElement('div');
-                    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(90deg,#059669,#10b981);color:#fff;text-align:center;padding:16px;font:bold 16px system-ui;box-shadow:0 4px 20px rgba(0,0,0,0.3)';
-                    banner.textContent = '✅ Estoque Infinito = ' + valor + ' aplicado! Pode fechar esta aba.';
-                    document.body.prepend(banner);
-                }
-            }, 1000);
+            // Não fechar — a janela será reutilizada para a próxima variante
+            // O orquestrador navega automaticamente para o próximo edit.php
+            document.title = '✅ ' + task.id + ' — Estoque ' + valor;
         }
 
         function checkForErrors() {
@@ -226,6 +216,7 @@
     if (!isListPage) return;
 
     let _running = false, _paused = false, _shouldStop = false;
+    let _editorWindow = null;
     let stats = { totalTitles: 0, titlesDone: 0, totalVariants: 0, variantsDone: 0, errors: 0 };
 
     // ╔══════════════════════════════════════════════════════════════════════╗
@@ -371,27 +362,37 @@
             var id = variant.id;
             var href = variant.href;
 
-            // 1. Enviar tarefa
+            // 1. Enviar tarefa via GM
             GM_setValue('brk_stock_result', '');
             GM_setValue('brk_stock_task', JSON.stringify({
                 id: String(id), value: STOCK_VALUE, status: 'pendente', timestamp: Date.now()
             }));
 
-            // 2. Abrir aba
-            log('  📂 Abrindo edit.php?id=' + id + '...');
-            var editTab = null;
-            try { editTab = window.open(href, '_blank'); } catch(e) {
-                log('  ❌ Falha ao abrir aba: ' + e.message, 'error');
-                resolve(false); return;
-            }
-            if (!editTab) {
-                log('  ❌ Popup bloqueado! Permita popups para app.magis5.com.br', 'error');
-                resolve(false); return;
+            // 2. Navegar a janela pré-aberta (sem popup blocker)
+            log('  📂 Navegando para edit.php?id=' + id + '...');
+
+            if (!_editorWindow || _editorWindow.closed) {
+                // Tentar reabrir (pode falhar fora de gesto do usuario)
+                try { _editorWindow = window.open(href, 'brk-stock-editor'); } catch(e) {}
+                if (!_editorWindow || _editorWindow.closed) {
+                    log('  ❌ Janela do editor foi fechada! Reabra clicando em Processar novamente.', 'error');
+                    resolve(false); return;
+                }
+            } else {
+                // Navegar a mesma janela — SEM popup blocker
+                try { _editorWindow.location.href = href; } catch(e) {
+                    // Fallback: se perdeu acesso cross-origin
+                    try { _editorWindow = window.open(href, 'brk-stock-editor'); } catch(e2) {}
+                    if (!_editorWindow || _editorWindow.closed) {
+                        log('  ❌ Falha ao navegar janela do editor', 'error');
+                        resolve(false); return;
+                    }
+                }
             }
 
-            // 3. Aguardar resultado
+            // 3. Aguardar resultado do executor (via GM_addValueChangeListener)
             var resolved = false;
-            var timeout = cfg().pollTimeout + cfg().delayAfterSave + 5000;
+            var timeout = cfg().pollTimeout + cfg().delayAfterSave + 8000;
 
             var listenerId = GM_addValueChangeListener('brk_stock_result', function(name, oldVal, newVal, remote) {
                 if (resolved || !remote || !newVal) return;
@@ -401,7 +402,6 @@
                         resolved = true;
                         GM_removeValueChangeListener(listenerId);
                         clearTimeout(timeoutId);
-                        clearInterval(closePoll);
                         if (result.status === 'ok') {
                             log('  ✅ ID ' + id + ' — Estoque ' + STOCK_VALUE + ' aplicado', 'success');
                             resolve(true);
@@ -413,42 +413,25 @@
                 } catch(_) {}
             });
 
+            // Timeout de segurança
             var timeoutId = setTimeout(function() {
                 if (resolved) return;
                 resolved = true;
                 GM_removeValueChangeListener(listenerId);
-                clearInterval(closePoll);
-                log('  ⏰ ID ' + id + ' — Timeout', 'warn');
-                try { if (editTab && !editTab.closed) editTab.close(); } catch(_) {}
-                resolve(false);
-            }, timeout);
-
-            var closePoll = setInterval(function() {
-                if (resolved) { clearInterval(closePoll); return; }
+                // Verificar resultado uma ultima vez
                 try {
-                    if (editTab && editTab.closed) {
-                        clearInterval(closePoll);
-                        setTimeout(function() {
-                            if (resolved) return;
-                            resolved = true;
-                            GM_removeValueChangeListener(listenerId);
-                            clearTimeout(timeoutId);
-                            try {
-                                var lastResult = GM_getValue('brk_stock_result', '');
-                                if (lastResult) {
-                                    var r = JSON.parse(lastResult);
-                                    if (r.id === String(id) && r.status === 'ok') {
-                                        log('  ✅ ID ' + id + ' — Estoque ' + STOCK_VALUE + ' aplicado', 'success');
-                                        resolve(true); return;
-                                    }
-                                }
-                            } catch(_) {}
-                            log('  ⚠️ ID ' + id + ' — Aba fechou, assumindo sucesso', 'warn');
-                            resolve(true);
-                        }, 500);
+                    var lastResult = GM_getValue('brk_stock_result', '');
+                    if (lastResult) {
+                        var r = JSON.parse(lastResult);
+                        if (r.id === String(id) && r.status === 'ok') {
+                            log('  ✅ ID ' + id + ' — Estoque ' + STOCK_VALUE + ' aplicado (tardio)', 'success');
+                            resolve(true); return;
+                        }
                     }
                 } catch(_) {}
-            }, 1000);
+                log('  ⏰ ID ' + id + ' — Timeout, tentando novamente...', 'warn');
+                resolve(false);
+            }, timeout);
         });
     }
 
@@ -471,6 +454,21 @@
         var titles = testOnly ? [titlesRaw[0]] : titlesRaw;
         stats = { totalTitles: titles.length, titlesDone: 0, totalVariants: 0, variantsDone: 0, errors: 0 };
 
+        // ── PRÉ-ABRIR JANELA DO EDITOR (no contexto do clique = sem bloqueio) ──
+        log('🔓 Abrindo janela do editor...');
+        try {
+            _editorWindow = window.open('about:blank', 'brk-stock-editor');
+        } catch(e) {}
+
+        if (!_editorWindow || _editorWindow.closed) {
+            log('❌ POPUP BLOQUEADO! Permita popups para app.magis5.com.br nas configurações do navegador e clique novamente.', 'error');
+            log('💡 Dica: Clique no ícone 🔒 na barra de endereço → Permitir popups', 'info');
+            _running = false;
+            updateBtnState(false);
+            return;
+        }
+
+        log('✅ Janela do editor aberta! Todas as variantes serão processadas nela.');
         log('━━━ ESTOQUE INFINITO — INICIADO ' + (testOnly ? '(TESTE)' : '(' + titles.length + ' TÍTULOS)') + ' ━━━');
         log('Valor: ' + STOCK_VALUE + ' | Velocidade: ' + cfg().name);
         updateBtnState(true);
@@ -499,6 +497,7 @@
                 stats.totalVariants += variants.length;
                 updateProgress();
 
+                // Processar cada variante com retry
                 for (var v = 0; v < variants.length; v++) {
                     if (_shouldStop) break;
                     while (_paused) { setStatus('⏸ PAUSADO'); await sleep(500); if (_shouldStop) break; }
@@ -510,7 +509,15 @@
                     log(varLabel + ' Processando ID ' + variant.id + '...');
 
                     await sleep(cfg().delayBeforeOpen);
+
+                    // Tentar até 2x (1 tentativa + 1 retry)
                     var success = await processVariant(variant);
+                    if (!success) {
+                        log(varLabel + ' 🔄 Retry ID ' + variant.id + '...', 'warn');
+                        await sleep(2000);
+                        success = await processVariant(variant);
+                    }
+
                     if (success) stats.variantsDone++; else stats.errors++;
                     updateProgress();
 
@@ -529,11 +536,16 @@
             }
         }
 
+        // ── FECHAR JANELA DO EDITOR ──
+        try { if (_editorWindow && !_editorWindow.closed) _editorWindow.close(); } catch(_) {}
+        _editorWindow = null;
+
         setStatus('✅ Finalizado!');
         log('━━━ FIM ━━━');
         log('✅ Títulos: ' + stats.titlesDone + '/' + stats.totalTitles);
         log('✅ Variantes: ' + stats.variantsDone + '/' + stats.totalVariants);
-        log('❌ Erros: ' + stats.errors);
+        if (stats.errors > 0) log('❌ Erros: ' + stats.errors);
+        else log('🎉 ZERO erros! Todos processados com sucesso!');
         _running = false;
         updateBtnState(false);
         try { GM_setValue('brk_stock_task', ''); GM_setValue('brk_stock_result', ''); } catch(_) {}
