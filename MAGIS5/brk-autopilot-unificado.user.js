@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BRK Autopilot Unificado - Magis5 + Sankhya
 // @namespace    http://tampermonkey.net/
-// @version      6.0
-// @description  Script unificado: Import Autopilot Multi-Canal + Auto-Detecção Tipo + Extrator SKU (Sankhya) com GM_setValue compartilhado
+// @version      6.1
+// @description  Script unificado: Import Autopilot Multi-Canal + Auto-Detecção Tipo + Modo Página + Extrator SKU (Sankhya)
 // @match        https://app.magis5.com.br/*
 // @match        https://brk.sankhyacloud.com.br/*
 // @grant        GM_setValue
@@ -1143,6 +1143,196 @@
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  MODO PÁGINA — ATUALIZAÇÃO DE PRODUTOS JÁ NA TELA                  ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    /**
+     * Escaneia SKUs visíveis na página e retorna resumo categorizado.
+     */
+    function scanPageSkus() {
+        const skuInputs = getSkuInputs();
+        const entries = [];
+
+        for (const inp of skuInputs) {
+            const sku = norm(inp.value);
+            if (!sku) continue;
+            const skuUpper = sku.toUpperCase();
+            const container = getRegistroContainer(inp);
+
+            // Detecta EAN
+            const eanInputs = container ? container.querySelectorAll('input') : [];
+            let temEan = false;
+            for (const ei of eanInputs) {
+                const id = (ei.id || '').toLowerCase();
+                if ((id.includes('ean') || id.includes('gtin')) && norm(ei.value)) {
+                    temEan = true;
+                    break;
+                }
+            }
+
+            // Categoriza
+            let categoria;
+            if (skuUpper.startsWith('ALL') || skuUpper.startsWith('KIT')) {
+                categoria = 'descartar';
+            } else if (/^\d+$/.test(sku)) {
+                categoria = 'ja_sankhya';
+            } else if (skuUpper.includes('_FULL') || skuUpper.includes('FULL')) {
+                categoria = 'revenda';
+            } else {
+                categoria = 'consultar';
+            }
+
+            entries.push({ sku, input: inp, container, temEan, categoria });
+        }
+
+        return {
+            total: entries.length,
+            jaTemSankhya: entries.filter(e => e.categoria === 'ja_sankhya'),
+            paraConsultar: entries.filter(e => e.categoria === 'consultar'),
+            revenda: entries.filter(e => e.categoria === 'revenda'),
+            descartar: entries.filter(e => e.categoria === 'descartar'),
+            semEan: entries.filter(e => !e.temEan && e.categoria !== 'descartar'),
+            all: entries,
+        };
+    }
+
+    /**
+     * Fluxo completo: Carregar SKUs da página → Sankhya → Aplicar → Tipo
+     */
+    async function processPageUpdate() {
+        if (_running) { log('Já está em execução!', 'warn'); return; }
+        _running = true;
+        _shouldStop = false;
+
+        const tipoOverride = document.getElementById('brk-import-tipo')?.value || 'auto';
+        const cfg = getCFG();
+
+        log(`━━━ MODO PÁGINA — PROCESSAMENTO INICIADO ━━━`);
+
+        // 1. Escanear SKUs da página
+        const scan = scanPageSkus();
+        log(`📊 Resumo da página:`);
+        log(`   Total: ${scan.total} variantes`);
+        log(`   ✅ Já têm código Sankhya: ${scan.jaTemSankhya.length}`);
+        log(`   🔍 Precisam consultar Sankhya: ${scan.paraConsultar.length}`);
+        log(`   📦 Revenda (_FULL): ${scan.revenda.length}`);
+        log(`   🚫 Descartáveis (ALL/KIT): ${scan.descartar.length}`);
+        log(`   🔴 Sem EAN: ${scan.semEan.length}`);
+
+        if (scan.total === 0) {
+            log('❌ Nenhum SKU encontrado na página. Verifique se há produtos visíveis.', 'warn');
+            _running = false;
+            return;
+        }
+
+        // 2. Preparar SKUs para consulta Sankhya (os que precisam + revenda que podem precisar de EAN)
+        const precisaSankhya = [...scan.paraConsultar, ...scan.revenda];
+        const skuEntriesParaSankhya = precisaSankhya.map(e => ({
+            sku: e.sku,
+            precisaEan: !e.temEan,
+        }));
+
+        let sucesso = 0;
+        let falhas = 0;
+
+        // 3. Enviar ao Sankhya (se houver SKUs para consultar)
+        if (skuEntriesParaSankhya.length > 0) {
+            log(`\n📡 Enviando ${skuEntriesParaSankhya.length} SKUs ao Sankhya...`);
+            status('Aguardando Sankhya...');
+
+            GM_setValue('brk_skus_resultado', '');
+            await sleep(300);
+            sendSkusToSankhya(skuEntriesParaSankhya);
+
+            const pares = await waitForSankhyaResults(180000); // 3 min timeout
+
+            if (pares && pares.length > 0) {
+                log(`✅ Sankhya retornou ${pares.length} resultados. Aplicando...`);
+                const applied = applySankhyaResults(pares);
+                sucesso += applied;
+                log(`✅ ${applied}/${pares.length} códigos + EAN aplicados.`, 'success');
+                await sleep(cfg.delayStep || 500);
+            } else {
+                log('⚠️ Sankhya não retornou resultados.', 'warn');
+                falhas += skuEntriesParaSankhya.length;
+            }
+        } else {
+            log('ℹ️ Nenhum SKU precisa de consulta Sankhya.');
+        }
+
+        // 4. Auto-detectar tipo e configurar Diversa + Depósito para TODOS
+        log(`\n🔍 Configurando tipo de produto para ${scan.total - scan.descartar.length} variantes...`);
+        status('Configurando Diversa + Depósito...');
+
+        // Recarrega os SKUs (podem ter mudado após aplicação do Sankhya)
+        const skuInputsAtual = getSkuInputs();
+        let countProd = 0, countRev = 0, countSkipped = 0;
+
+        for (const inp of skuInputsAtual) {
+            const sku = norm(inp.value).toUpperCase();
+            if (!sku) continue;
+
+            // ALL/KIT → pular
+            if (sku.startsWith('ALL') || sku.startsWith('KIT')) {
+                countSkipped++;
+                continue;
+            }
+
+            const container = getRegistroContainer(inp);
+
+            // Determina tipo
+            let tipo;
+            if (tipoOverride !== 'auto') {
+                tipo = tipoOverride;
+            } else if (sku.includes('_FULL') || sku.includes('FULL')) {
+                tipo = 'revenda';
+            } else {
+                tipo = 'producao';
+            }
+
+            if (tipo === 'producao') {
+                setVendidoDiversa(container, 'sim');
+                setDeposito(inp, 'fabricacao');
+                countProd++;
+            } else {
+                setVendidoDiversa(container, 'nao');
+                setDeposito(inp, 'revenda');
+                countRev++;
+            }
+        }
+
+        log(`\n📊 Tipo configurado:`);
+        log(`   🏭 Produção (Diversa=Sim + FABRICAÇÃO): ${countProd}`);
+        log(`   📦 Revenda (Diversa=Não + ESTOQUE REVENDA): ${countRev}`);
+        log(`   🚫 Descartados (ALL/KIT): ${countSkipped}`);
+
+        // 5. Selecionar todos os checkboxes
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        let checked = 0;
+        for (const cb of checkboxes) {
+            // Seleciona checkboxes de produto (não os de filtro/cabeçalho)
+            const parent = cb.closest('tr, .row, .card, .panel');
+            if (parent && parent.querySelector('input[id^="sku"], input[name^="sku"]')) {
+                if (!cb.checked) {
+                    cb.click();
+                    checked++;
+                }
+            }
+        }
+        if (checked > 0) log(`☑️ ${checked} checkboxes selecionados.`);
+
+        // 6. Resumo final
+        log(`\n━━━ MODO PÁGINA — CONCLUÍDO ━━━`);
+        log(`✅ Sankhya aplicados: ${sucesso} | ❌ Falhas: ${falhas}`);
+        log(`🏭 Produção: ${countProd} | 📦 Revenda: ${countRev} | 🚫 Descartados: ${countSkipped}`);
+        log(`\n⚠️ Clique "Atualizar" no Magis5 para SALVAR as alterações!`, 'warn');
+        status('✅ Concluído — Clique "Atualizar" para salvar!');
+
+        _running = false;
+        updateBtnState(false);
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
     // ║  UI — PAINEL DE CONTROLE                                            ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
@@ -1275,6 +1465,28 @@
                     <button id="brk-import-stop" disabled style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏹ Parar</button>
                 </div>
 
+                <!-- SEPARADOR -->
+                <div style="border-top:2px solid #334155;margin:4px 0;position:relative">
+                    <span style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#0f172a;padding:0 10px;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px">ou</span>
+                </div>
+
+                <!-- MODO PÁGINA — PRODUTOS JÁ NA TELA -->
+                <div style="background:linear-gradient(135deg,#0f2922,#1e1b4b);border-radius:10px;padding:10px 12px;border:1px solid #10b98140">
+                    <label style="display:block;font-size:11px;color:#10b981;margin-bottom:6px;font-weight:700;text-transform:uppercase">📋 Modo Página — Produtos já na tela</label>
+                    <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">
+                        Para produtos já importados que precisam de código Sankhya, EAN, Diversa e Depósito.
+                    </div>
+                    <div id="brk-page-resumo" style="font-size:11px;padding:6px 8px;border-radius:6px;background:#0b1220;color:#94a3b8;border:1px solid #1e293b;margin-bottom:8px;display:none;white-space:pre-line"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        <button id="brk-page-scan" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">
+                            🔍 Escanear Página
+                        </button>
+                        <button id="brk-page-process" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">
+                            ▶ Processar Tudo
+                        </button>
+                    </div>
+                </div>
+
                 <!-- LOG -->
                 <div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -1285,7 +1497,7 @@
                 </div>
 
                 <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
-                    Hook Prime v4.2 · BRK Autopilot v6.0 · Multi-Canal + Auto-Detect ✅
+                    Hook Prime v4.2 · BRK Autopilot v6.1 · Multi-Canal + Auto-Detect + Modo Página ✅
                 </div>
             </div>
         `;
@@ -1339,7 +1551,25 @@
             document.getElementById('brk-import-log').textContent = '';
         };
 
-        log('Painel pronto. Comece clicando em "🧪 Testar Apenas 1º Anúncio" para conferir tudo!', 'info');
+        // Modo Página — Handlers
+        box.querySelector('#brk-page-scan').onclick = () => {
+            const scan = scanPageSkus();
+            const resumoEl = document.getElementById('brk-page-resumo');
+            resumoEl.style.display = 'block';
+            resumoEl.innerHTML = [
+                `<strong style="color:#10b981">📊 ${scan.total} variantes encontradas</strong>`,
+                `✅ Já têm código Sankhya: <strong>${scan.jaTemSankhya.length}</strong>`,
+                `🔍 Precisam consultar Sankhya: <strong>${scan.paraConsultar.length}</strong>`,
+                `📦 Revenda (_FULL): <strong>${scan.revenda.length}</strong>`,
+                `🚫 Descartáveis (ALL/KIT): <strong>${scan.descartar.length}</strong>`,
+                `🔴 Sem EAN: <strong>${scan.semEan.length}</strong>`,
+            ].join('\n');
+            log(`🔍 Escaneamento: ${scan.total} variantes | ${scan.paraConsultar.length} para Sankhya | ${scan.jaTemSankhya.length} já têm código`);
+        };
+
+        box.querySelector('#brk-page-process').onclick = () => processPageUpdate();
+
+        log('Painel pronto! Use "Importar" para novos anúncios ou "Modo Página" para atualizar produtos na tela.', 'info');
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
