@@ -398,51 +398,78 @@ router.post('/api/network/smart-scan', (req, res) => {
 
         const folderPath = path.join(basePath, matchingFolder);
 
+        // Normalizar formato (CÓDIGO) titulo para extração
+        let folderForEstampa = matchingFolder;
+        if (folderForEstampa.match(/^\([A-Z]+\d+\)\s+/i)) {
+          folderForEstampa = folderForEstampa.replace(/^\(([A-Z]+\d+)\)\s*/, '$1 ');
+        }
+
         // ── Estampa: regex com hífens, separadores, BONES (BA010 - NOME) ──
         let estampa = null;
         let fullTitle = null;
         // Padrão 1: CODIGO_NOME ou CODIGO NOME ou CODIGO-NOME
-        let estampaMatch = matchingFolder.match(/^[A-Z]+\d*[-_ ]+(.+)$/i);
+        let estampaMatch = folderForEstampa.match(/^[A-Z]+\d*[-_ ]+(.+)$/i);
         // Padrão 2: BONES: BA010 - SAO BENTO PRETO (com " - ")
-        if (!estampaMatch) estampaMatch = matchingFolder.match(/^[A-Z]+\d+\s*-\s*(.+)$/i);
+        if (!estampaMatch) estampaMatch = folderForEstampa.match(/^[A-Z]+\d+\s*-\s*(.+)$/i);
         if (estampaMatch) {
           const raw = estampaMatch[1].trim();
-          const rawLower = raw.toLowerCase();
+          const rawNorm = raw.replace(/_/g, ' ');  // normalize underscores
+          const rawLower = rawNorm.toLowerCase();
           
           // Detectar se é um título completo (contém tipo de produto)
           const TITLE_KEYWORDS = [
             'bandana tubeneck', 'tubeneck brk', 'lenço com proteção', 'lenço com protecao',
             'camisa de pesca', 'camiseta', 'camisa brk', 'camisa armorx', 'camisa fusionx',
             'black mask', 'corta vento', 'boné', 'caneca', 'copo térmico', 'capa almofada',
+            'hybrid', 'capuz com luva', 'motociclismo', 'casual brk', 'raglan brk', 'oversized', 'corta-vento', 'jaqueta corta vento', 'manguito', 'capa de mala', 'capa mala'
           ];
           const isFullTitle = TITLE_KEYWORDS.some(kw => rawLower.includes(kw));
           
           if (isFullTitle) {
-            fullTitle = raw; // Guardar título original
+            fullTitle = rawNorm; // Guardar título original
             
             // Extrair SOMENTE a estampa do título completo
             // Padrão Tubeneck: "Bandana Tubeneck Brk {ESTAMPA} com Proteção UV50+"
-            let m = raw.match(/Bandana\s+Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
-            if (!m) m = raw.match(/Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            let m = rawNorm.match(/Bandana\s+Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            if (!m) m = rawNorm.match(/Tubeneck\s+Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
             // Padrão Lenço: "Lenço com Proteção UV50 Brk {ESTAMPA}"
-            if (!m) m = raw.match(/Len[çc]o\s+com\s+Prote[çc][ãa]o\s+UV\d*\s+Brk\s+(.+)$/i);
+            if (!m) m = rawNorm.match(/Len[çc]o\s+com\s+Prote[çc][ãa]o\s+UV\d*\s+Brk\s+(.+)$/i);
             // Padrão Camisa: "Camisa de Pesca Brk {ESTAMPA} com Proteção UV50+"
-            if (!m) m = raw.match(/Camisa\s+(?:de\s+Pesca\s+)?Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
+            if (!m) m = rawNorm.match(/Camisa\s+(?:de\s+Pesca\s+)?Brk\s+(.+?)\s+com\s+Prote[çc][ãa]o/i);
             // Padrão ArmorX: "Camisa ArmorX {ESTAMPA} com Luva"
-            if (!m) m = raw.match(/Camisa\s+ArmorX\s+(.+?)\s+com\s+/i);
+            if (!m) m = rawNorm.match(/Camisa\s+ArmorX\s+(.+?)\s+com\s+/i);
             // Padrão FusionX: "Camisa FusionX {ESTAMPA} com Proteção"
-            if (!m) m = raw.match(/Camisa\s+FusionX\s+(.+?)\s+com\s+/i);
+            if (!m) m = rawNorm.match(/Camisa\s+FusionX\s+(.+?)\s+com\s+/i);
+            // Padrão Hybrid: "Hybrid Capuz com Luva {ESTAMPA}"
+            if (!m) m = rawNorm.match(/Hybrid\s+(?:Capuz\s+com\s+Luva\s+)?(.+?)(?:\s+com\s+|$)/i);
+            // Padrão Camiseta: "Camiseta Brk {ESTAMPA} com FPU/UV"
+            if (!m) m = rawNorm.match(/Camiseta\s+(?:Brk\s+)?(.+?)(?:\s+com\s+(?:Prote|FPU)|\s+UV|$)/i);
+            // Padrão Corta Vento: "Jaqueta Corta Vento Brk {ESTAMPA}"
+            if (!m) m = rawNorm.match(/(?:Jaqueta\s+)?Corta[- ]?Vento\s+(?:Brk\s+)?(.+?)(?:\s+com\s+|\s+Repelente|$)/i);
+            // Padrão Boné: "Boné Brk {ESTAMPA}"
+            if (!m) m = rawNorm.match(/Bon[eé]\s+(?:Brk\s+)?(.+?)(?:\s+com\s+|$)/i);
+            // Padrão Caneca: "Caneca Brk {ESTAMPA}"
+            if (!m) m = rawNorm.match(/Caneca\s+(?:Brk\s+)?(.+?)$/i);
+            // Padrão Manguito: "Manguito {Tipo} {ESTAMPA} Brk"
+            if (!m) m = rawNorm.match(/Manguito\s+(?:\w+\s+){0,2}(.+?)\s+Brk/i);
+            // Padrão Capa Mala: "Capa de Mala {ESTAMPA}"
+            if (!m) m = rawNorm.match(/Capa\s+(?:de\s+)?Mala\s+(.+?)$/i);
             
             if (m) {
               estampa = smartTitleCase(m[1].trim());
             } else {
               // Fallback: usar título inteiro como estampa (buildProductTitle já sabe lidar)
-              estampa = smartTitleCase(raw);
+              estampa = smartTitleCase(rawNorm);
             }
           } else {
             // Nome simples da pasta (ex: "ARMORX_PRETO") → estampa pura
-            estampa = smartTitleCase(raw);
+            estampa = smartTitleCase(rawNorm);
           }
+        }
+
+        // Limpar sufixos de gênero residuais
+        if (estampa) {
+          estampa = estampa.replace(/\s+(MASC|FEM|INF|MASCULIN[OA]|FEMININ[OA]|INFANTIL)$/i, '').trim();
         }
 
         // Buscar imagens com algoritmo cascata
@@ -612,6 +639,15 @@ router.post('/api/network/smart-scan', (req, res) => {
           if (jpegIdx >= 0) {
             images = scanImagesInDir(path.join(folderPath, subDirs[jpegIdx]));
             source = 'JPEG_IMAGENS';
+          }
+        }
+
+        // ── Cascata: pasta GERAL/ (Lenços, Tubenecks, acessórios) ──
+        if (images.length === 0) {
+          const geralIdx = subDirsUpper.findIndex(s => s === 'GERAL' || s === 'FOTOS GERAIS');
+          if (geralIdx >= 0) {
+            images = scanImagesInDir(path.join(folderPath, subDirs[geralIdx]));
+            if (images.length > 0) source = 'GERAL';
           }
         }
 

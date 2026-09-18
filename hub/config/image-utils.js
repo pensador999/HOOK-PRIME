@@ -41,7 +41,7 @@ const GENDER_NAMES = ['MASC', 'FEM', 'INF', 'MASCULINO', 'FEMININO', 'INFANTIL',
 /** Prefixos que identificam produtos únicos (sem grade de tamanho) */
 const UNIQUE_PREFIXES = {
   'T': 'Tubeneck', 'LEN': 'Lenço', 'BPTB': 'Tubeneck', 'BM': 'BlackMask',
-  'BA': 'Bandana', 'BN': 'Boné', 'LC': 'Lenço Cetim', 'CT': 'Copo Térmico',
+  'BA': 'Boné', 'BN': 'Boné', 'LC': 'Lenço Cetim', 'CT': 'Copo Térmico',
   'CA': 'Capa Almofada', 'CN': 'Caneca',
 };
 

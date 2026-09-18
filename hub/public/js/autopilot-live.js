@@ -638,10 +638,26 @@
       return;
     }
 
+    // Mapa de prefixos BRK conhecidos (mais longo primeiro para match correto)
+    const KNOWN_PREFIXES = [
+      'CASUAL','CCPBR','FUSION','RAGLAN','CANECA','CPML','CPCD','CADV',
+      'CLSP','CERRI','OVER','BALA','APC0','CAX','CPT','MTL','MVB',
+      'ADV','HYB','CM0','CPA','LEN','SP','PE','PM','LC','LV','GD',
+      'CI','C0','T0','BM','CV'
+    ];
+    function resolvePrefix(code) {
+      const upper = code.toUpperCase();
+      for (const p of KNOWN_PREFIXES) {
+        if (upper.startsWith(p)) return p;
+      }
+      // Fallback: letras + dígitos opcionais
+      const m = code.match(/^[A-Z]+\d*/i);
+      return m ? m[0].toUpperCase() : '?';
+    }
+
     const prefixes = {};
     for (const code of allCodes) {
-      const m = code.match(/^[A-Z]+/i);
-      const p = m ? m[0].toUpperCase() : '?';
+      const p = resolvePrefix(code);
       if (!prefixes[p]) prefixes[p] = [];
       prefixes[p].push(code);
     }

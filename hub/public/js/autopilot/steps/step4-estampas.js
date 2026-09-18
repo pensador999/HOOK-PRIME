@@ -130,10 +130,23 @@
           return;
         }
 
-        // Determinar categoria baseada na brand
+        // Categoria base pela brand (fallback)
         const brandLower = (State.state.brand || '').toLowerCase();
-        const category = brandLower.includes('agro') ? 'agro'
+        const brandCategory = brandLower.includes('agro') ? 'agro'
           : brandLower.includes('motor') ? 'motors' : 'fishing';
+
+        // Auto-detecção de categoria pelo prefixo do código
+        const PREFIX_CATEGORY = {
+          APC0:'agro', CPT:'agro', LC:'agro', MTL:'agro',
+          ADV:'motors', CADV:'motors',
+        };
+        function inferCategoryFromCode(code) {
+          const upper = (code || '').toUpperCase();
+          for (const [p, cat] of Object.entries(PREFIX_CATEGORY)) {
+            if (upper.startsWith(p)) return cat;
+          }
+          return null;
+        }
 
         // Montar lista de imagens para análise
         const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
@@ -148,6 +161,9 @@
           const group = codeObj?._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
           const productType = codeObj?.productType || group?.productType || '';
 
+          // Categoria per-item: prefixo > brand > fishing
+          const itemCategory = inferCategoryFromCode(base) || brandCategory;
+
           // Buscar imagem via API (lista de imagens copiadas)
           let imagePath = null;
           if (taskId) {
@@ -155,31 +171,38 @@
               const imgRes = await fetch(`/api/autopilot/images/${taskId}/${base}`);
               if (imgRes.ok) {
                 const imgData = await imgRes.json();
-                if (imgData.images && imgData.images.length > 0) {
+                // FIX 1.1: API retorna array direto OU objeto com .images
+                const imgList = Array.isArray(imgData) ? imgData : (imgData.images || []);
+                if (imgList.length > 0) {
                   // Preferir 3D > MASC > GERAL > primeira disponível
-                  const pref = imgData.images.find(i => i.toLowerCase().includes('3d'))
-                    || imgData.images.find(i => i.toLowerCase().includes('masc'))
-                    || imgData.images.find(i => i.toLowerCase().includes('geral'))
-                    || imgData.images[0];
-                  imagePath = `uploads/autopilot/${taskId}/${base}/${pref}`;
+                  const getName = (item) => typeof item === 'string' ? item : (item.name || item.url || '');
+                  const pref = imgList.find(i => getName(i).toLowerCase().includes('3d'))
+                    || imgList.find(i => getName(i).toLowerCase().includes('masc'))
+                    || imgList.find(i => getName(i).toLowerCase().includes('geral'))
+                    || imgList[0];
+                  const prefName = getName(pref);
+                  imagePath = `uploads/autopilot/${taskId}/${base}/${prefName}`;
                 }
               }
             } catch (e) { /* silenciar */ }
           }
 
-          // Fallback: caminho direto com diskFolderPath (vários padrões)
+          // FIX 1.3: Fallback com múltiplos candidatos (backend valida qual existe)
           if (!imagePath && State.state.diskFolderPath) {
-            // Tentar: GERAL/1.jpg, 1.jpg, MASC/1.jpg
-            const tryPaths = [
-              `${State.state.diskFolderPath}/${base}/1.jpg`,
-              `${State.state.diskFolderPath}/${base}/GERAL/1.jpg`,
-              `${State.state.diskFolderPath}/${base}/MASC/01MASC.jpg`,
+            const dp = State.state.diskFolderPath;
+            const candidates = [
+              `${dp}/${base}/1.jpg`,
+              `${dp}/${base}/GERAL/1.jpg`,
+              `${dp}/${base}/3D/1_FRENTE.png`,
+              `${dp}/${base}/MASC/01MASC.jpg`,
+              `${dp}/${base}/3d/${base.toLowerCase()}.png`,
             ];
-            imagePath = tryPaths[0]; // Enviar o primeiro, o backend valida
+            // Enviar o primeiro como imagePath + candidatos extras para o backend
+            imagePath = candidates[0];
           }
 
           if (imagePath) {
-            batchImages.push({ code: base, imagePath, productType, category });
+            batchImages.push({ code: base, imagePath, productType, category: itemCategory });
           }
         }
 

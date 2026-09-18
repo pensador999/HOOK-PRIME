@@ -68,6 +68,45 @@ module.exports = (deps) => {
   } catch (e) { console.warn('⚠️ estampa-patterns.json não encontrado:', e.message); }
 
   // ═══════════════════════════════════════
+  // Auto-detecção de categoria pelo código
+  // ═══════════════════════════════════════
+  function inferCategory(code) {
+    if (!code || !estampaPatterns?.prefixMap) return null;
+    const upper = code.toUpperCase();
+    // Ordenar por comprimento desc para match mais longo primeiro
+    const prefixes = Object.keys(estampaPatterns.prefixMap)
+      .sort((a, b) => b.length - a.length);
+    for (const p of prefixes) {
+      if (upper.startsWith(p)) return estampaPatterns.prefixMap[p].category;
+    }
+    return null;
+  }
+
+  // ═══════════════════════════════════════
+  // Retry com backoff exponencial (429/503)
+  // ═══════════════════════════════════════
+  async function callGeminiWithRetry(parts, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await model.generateContent(parts);
+        return result.response.text();
+      } catch (err) {
+        const msg = err.message || '';
+        const isRetryable = msg.includes('503') || msg.includes('429')
+          || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('high demand')
+          || msg.includes('overloaded');
+        if (isRetryable && attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+          console.warn(`⏳ Gemini retry ${attempt + 1}/${maxRetries} em ${Math.round(delay)}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════
   // Prompts especializados por categoria
   // ═══════════════════════════════════════
   function buildPrompt(category, productType) {
@@ -220,16 +259,18 @@ ${BASE_RULES}`;
         });
       }
 
-      const { imagePath, productType, category } = req.body;
+      const { imagePath, productType, category, code } = req.body;
       if (!imagePath) {
         return res.status(400).json({ error: 'imagePath é obrigatório.' });
       }
 
       const resolvedPath = path.isAbsolute(imagePath) ? path.resolve(imagePath) : path.resolve(path.join(process.cwd(), imagePath));
       
-      // 🔒 Segurança: restringir leitura apenas a uploads/ ou dentro do diretório de trabalho
+      // 🔒 Segurança: restringir leitura a uploads/ ou rede autorizada
       const safeCwd = path.resolve(process.cwd());
-      if (!resolvedPath.startsWith(safeCwd + path.sep) && resolvedPath !== safeCwd) {
+      const isLocal = resolvedPath.startsWith(safeCwd + path.sep) || resolvedPath === safeCwd;
+      const isNetwork = resolvedPath.startsWith('\\\\192.168.100.');
+      if (!isLocal && !isNetwork) {
         return res.status(403).json({ error: '🔒 Acesso negado — caminho fora do diretório permitido.' });
       }
 
@@ -240,14 +281,13 @@ ${BASE_RULES}`;
       const mimeType = getMimeType(resolvedPath);
       const imagePart = fileToGenerativePart(resolvedPath, mimeType);
       
-      // 🧠 Prompt dinâmico baseado em categoria + tipo de produto
-      const cat = category || (productType || 'default').toLowerCase();
+      // 🧠 Prompt dinâmico: categoria auto-detectada pelo código quando não informada
+      const cat = category || inferCategory(code) || (productType || 'default').toLowerCase();
       const prompt = buildPrompt(cat, productType);
 
       console.log(`🤖 Gemini: Analisando ${path.basename(resolvedPath)} (cat=${cat}, type=${productType || 'auto'})...`);
 
-      const result = await model.generateContent([prompt, imagePart]);
-      const text = result.response.text().trim();
+      const text = await callGeminiWithRetry([prompt, imagePart]);
 
       let estampa = text
         .replace(/^["']+|["']+$/g, '')
@@ -299,23 +339,29 @@ ${BASE_RULES}`;
         const { code, imagePath, productType, category } = item;
         try {
           const resolvedPath = path.isAbsolute(imagePath) ? imagePath : path.join(process.cwd(), imagePath);
-          if (!fs.existsSync(resolvedPath)) {
+          
+          // Aceitar caminhos locais e rede autorizada
+          const isNetwork = resolvedPath.startsWith('\\\\192.168.100.');
+          if (!isNetwork && !fs.existsSync(resolvedPath)) {
             results.push({ code, estampa: null, error: 'Imagem não encontrada' });
+            continue;
+          }
+          if (!fs.existsSync(resolvedPath)) {
+            results.push({ code, estampa: null, error: 'Imagem de rede não acessível' });
             continue;
           }
 
           const mimeType = getMimeType(resolvedPath);
           const imagePart = fileToGenerativePart(resolvedPath, mimeType);
           
-          // 🧠 Prompt dinâmico: categoria do item > categoria do batch > auto
-          const cat = category || batchCategory || (productType || 'default').toLowerCase();
+          // 🧠 Prompt: categoria auto-detectada pelo código > batch > auto
+          const cat = category || inferCategory(code) || batchCategory || (productType || 'default').toLowerCase();
           const prompt = buildPrompt(cat, productType);
 
-          const result = await model.generateContent([prompt, imagePart]);
-          const text = result.response.text().trim();
+          const text = await callGeminiWithRetry([prompt, imagePart]);
 
           let estampa = text
-            .replace(/^["']+|["']+$/g, '').replace(/\.+$/, '')
+            .replace(/^[\"']+|[\"']+$/g, '').replace(/\.+$/, '')
             .replace(/^(Nome da estampa:|Estampa:|Nome:)\s*/i, '').trim();
 
           estampa = estampa.split(' ').map(w => {
@@ -336,7 +382,7 @@ ${BASE_RULES}`;
 
           results.push({ code, estampa });
           console.log(`   🤖 ${code}: "${estampa}"`);
-          await new Promise(r => setTimeout(r, 500)); // Rate limit
+          await new Promise(r => setTimeout(r, 300)); // Rate limit
         } catch (err) {
           results.push({ code, estampa: null, error: err.message });
           console.error(`   ❌ ${code}: ${err.message}`);

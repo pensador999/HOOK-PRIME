@@ -125,7 +125,7 @@
       : brand.toLowerCase().includes('motor') ? 'motors' : 'fishing';
     const genderStr = gender === 'fem' ? ' Feminina' : gender === 'inf' ? ' Infantil' : '';
 
-    const NO_UV_TYPES = ['Boné', 'Lenço Cetim', 'Lenço', 'Copo Térmico', 'Capa Almofada', 'Caneca', 'APC'];
+    const NO_UV_TYPES = ['Boné', 'Lenço Cetim', 'Lenço', 'Copo Térmico', 'Capa Almofada', 'Caneca', 'APC', 'Bandana'];
 
     // ✅ Fix: Não duplicar UV50 se a estampa já contém
     const estLower = est.toLowerCase();
@@ -138,39 +138,37 @@
       || estLower.includes('bandana') || estLower.includes('tubeneck')
       || estLower.includes('black mask') || estLower.includes('corta vento')
       || estLower.includes('boné') || estLower.includes('lenço');
+      
+    let finalTitle = '';
+    
     if (estIsFullTitle) {
-      return `${est}${genderStr ? ' ' + genderStr.trim() : ''}${uvSuffix}`.trim();
-    }
-
-    // ArmorX: "Camisa ArmorX{Feminina} ESTAMPA com Luva e Proteção UV50+"
-    if (productType === 'ArmorX') {
+      finalTitle = `${est}${genderStr ? ' ' + genderStr.trim() : ''}${uvSuffix}`;
+    } else if (productType === 'ArmorX') {
       const armorSuffix = estAlreadyHasUV ? '' : ' com Luva e Proteção UV50+';
-      return `Camisa ArmorX${genderStr} ${est}${armorSuffix}`;
-    }
-    // FusionX: "Camisa FusionX{Feminina} ESTAMPA com Proteção UV50+" (sem Brk)
-    if (productType === 'FusionX') {
-      return `Camisa FusionX${genderStr} ${est}${uvSuffix}`;
-    }
-    // Motors: "Camisa BRK Motors{Masculina} ESTAMPA com Proteção UV50+"
-    if (brandKey === 'motors') {
+      finalTitle = `Camisa ArmorX${genderStr} ${est}${armorSuffix}`;
+    } else if (productType === 'FusionX') {
+      finalTitle = `Camisa FusionX${genderStr} ${est}${uvSuffix}`;
+    } else if (brandKey === 'motors') {
       const titleMap = PRODUCT_TITLE_MAP[productType] || PRODUCT_TITLE_MAP['Raglan'];
       const base = titleMap.motors || titleMap.fishing;
-      return `${base}${genderStr} ${est}${uvSuffix}`;
-    }
-    // Agro: "Camisa BRK Agro{Masculina} ESTAMPA com Proteção UV50+"
-    if (brandKey === 'agro') {
+      finalTitle = `${base}${genderStr} ${est}${uvSuffix}`;
+    } else if (brandKey === 'agro') {
       const titleMap = PRODUCT_TITLE_MAP[productType] || PRODUCT_TITLE_MAP['Raglan'];
       const base = titleMap.agro || titleMap.fishing;
-      return `${base}${genderStr} ${est}${uvSuffix}`;
+      finalTitle = `${base}${genderStr} ${est}${uvSuffix}`;
+    } else {
+      // Fishing (default): "Camisa de Pesca Brk{Feminina} ESTAMPA com Proteção UV50+"
+      const titleMap = PRODUCT_TITLE_MAP[productType] || PRODUCT_TITLE_MAP['Raglan'];
+      const base = titleMap.fishing;
+      const parts = base.split('Brk');
+      if (parts.length === 2) {
+        finalTitle = `${parts[0].trim()} Brk${genderStr}${parts[1]} ${est}${uvSuffix}`;
+      } else {
+        finalTitle = `${base}${genderStr} ${est}${uvSuffix}`;
+      }
     }
-    // Fishing (default): "Camisa de Pesca Brk{Feminina} ESTAMPA com Proteção UV50+"
-    const titleMap = PRODUCT_TITLE_MAP[productType] || PRODUCT_TITLE_MAP['Raglan'];
-    const base = titleMap.fishing;
-    const parts = base.split('Brk');
-    if (parts.length === 2) {
-      return `${parts[0].trim()} Brk${genderStr}${parts[1]} ${est}${uvSuffix}`;
-    }
-    return `${base}${genderStr} ${est}${uvSuffix}`;
+    
+    return finalTitle.replace(/\s+/g, ' ').trim();
   }
 
   modules.Registry = {
