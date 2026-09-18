@@ -60,7 +60,7 @@ router.post('/api/autopilot/tasks', (req, res) => {
       }
     });
 
-    const fullText = (title + ' ' + (description || '')).toUpperCase();
+    const fullText = ((title || '') + ' ' + (description || '')).toUpperCase();
     const rangeRegex = /([A-Za-z]+)(\d+)[ \t]*(?:a|até|→|-)[ \t]*(?:[A-Za-z]*)(\d+)/gi;
     let rangeMatch;
     while ((rangeMatch = rangeRegex.exec(fullText)) !== null) {
@@ -103,10 +103,18 @@ router.post('/api/autopilot/tasks', (req, res) => {
       custoTotal: 0
     };
     
-    // Evitar duplicatas pela URL
-    const isDuplicate = autopilotTasks.some(t => t.url === newTask.url);
+    // Evitar duplicatas: por URL real (ignorar '#') OU por título exato
+    const isDuplicate = autopilotTasks.some(t => {
+      if (newTask.url !== '#' && t.url !== '#' && t.url === newTask.url) return true;
+      if (t.title === newTask.title && t.title !== 'Tarefa Desconhecida') return true;
+      return false;
+    });
     if (isDuplicate) {
-      return res.json({ success: true, task: autopilotTasks.find(t => t.url === newTask.url), duplicate: true });
+      const existing = autopilotTasks.find(t => 
+        (newTask.url !== '#' && t.url !== '#' && t.url === newTask.url) ||
+        (t.title === newTask.title && t.title !== 'Tarefa Desconhecida')
+      );
+      return res.json({ success: true, task: existing, duplicate: true });
     }
 
     autopilotTasks.push(newTask);

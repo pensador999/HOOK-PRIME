@@ -4,7 +4,7 @@
  */
 
 module.exports = (deps) => {
-  const { upload, uploadsDir, fs, path, sharp, imageUtils } = deps;
+  const { upload, uploadsDir, fs, path, sharp, imageUtils, networkSafety } = deps;
   const express = require('express');
   const router = express.Router();
 
@@ -122,6 +122,14 @@ module.exports = (deps) => {
         return res.status(400).json({ error: 'folderPath e collectionId são obrigatórios.' });
       }
   
+      // 🔒 CRIT-2: Anti path-traversal — folderPath DEVE estar em rede autorizada ou uploads
+      const resolvedFolder = path.resolve(folderPath);
+      const safeUploads = path.resolve(uploadsDir);
+      if (!resolvedFolder.startsWith(networkSafety.NETWORK_ROOT) && 
+          !resolvedFolder.startsWith(safeUploads + path.sep) && resolvedFolder !== safeUploads) {
+        return res.status(403).json({ error: '🔒 Caminho não autorizado para upload.' });
+      }
+
       if (!fs.existsSync(folderPath)) {
         return res.status(404).json({ error: `Pasta não encontrada: ${folderPath}` });
       }
@@ -273,9 +281,14 @@ module.exports = (deps) => {
       if (!folderPath || !codeBase) {
         return res.status(400).json({ error: 'folderPath e codeBase são obrigatórios.' });
       }
-  
-      // Mapeia gender para subpasta (MASC/FEM/INF)
-      // GENDER_FOLDERS → unified in config/image-utils.js
+
+      // 🔒 CRIT-2: Anti path-traversal — folderPath DEVE estar em rede autorizada ou uploads
+      const resolvedDiskFolder = path.resolve(folderPath);
+      const safeUploadsDir = path.resolve(uploadsDir);
+      if (!resolvedDiskFolder.startsWith(networkSafety.NETWORK_ROOT) && 
+          !resolvedDiskFolder.startsWith(safeUploadsDir + path.sep) && resolvedDiskFolder !== safeUploadsDir) {
+        return res.status(403).json({ error: '🔒 Caminho não autorizado para upload.' });
+      }
   
       // Tenta encontrar a pasta de imagens na ordem:
       //   1. folderPath/codeBase/GENDER/  (estrutura C02858/MASC/)

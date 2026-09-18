@@ -68,6 +68,11 @@
           <button class="btn btn--secondary" id="ap-copy-csv" style="min-width:200px">
             📋 Copiar para Área de Transferência
           </button>
+
+          ${sessionStorage.getItem('autopilot-spreadsheet-url') ? `
+          <button class="btn btn--secondary" id="ap-download-backend-csv" style="min-width:200px;color:#88CC00;border-color:#88CC0040">
+            📥 Baixar CSV Gerado pelo Servidor
+          </button>` : ''}
         </div>
       </div>
 
@@ -363,6 +368,23 @@
         }).catch(() => {
           window.HUB.showToast('Erro ao copiar. Tente baixar o arquivo.', 'error');
         });
+      });
+    }
+
+    // 📥 Backend-generated spreadsheet download (from autopilot-live.js)
+    const backendDlBtn = document.getElementById('ap-download-backend-csv');
+    if (backendDlBtn) {
+      backendDlBtn.addEventListener('click', () => {
+        const url = sessionStorage.getItem('autopilot-spreadsheet-url');
+        if (url) {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = '';
+          a.click();
+          window.HUB.showToast('📥 CSV do servidor baixado!', 'success');
+        } else {
+          window.HUB.showToast('URL do CSV gerado pelo servidor não encontrada', 'warning');
+        }
       });
     }
 

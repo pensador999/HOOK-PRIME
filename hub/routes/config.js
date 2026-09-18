@@ -63,6 +63,10 @@ module.exports = function(deps) {
       await workbook.xlsx.readFile(req.file.path);
 
       const ws = workbook.worksheets[0];
+      if (!ws) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ error: 'O arquivo Excel está vazio (sem planilhas).' });
+      }
       const rows = [];
       ws.eachRow({ includeEmpty: true }, (row) => {
         rows.push(row.values.slice(1)); // row.values is 1-indexed, slice(1) to make 0-indexed

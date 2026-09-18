@@ -300,34 +300,50 @@
         }
 
         // Injetar URLs do CDN no state.imageUrls
-        // ⚠️ autopilot-live salva com chaves: "BP101_MASC_GERAL", "BP101_GERAL"
-        //    step5-sheet lê com chaves: "BP101" (masc), "BP101BL" (fem), "BP101I" (inf)
-        //    Normalizar para o formato do wizard
+        // ⚠️ autopilot-live salva com chaves: "BP101_MASC_GERAL", "APC0541_MASC_PRETA"
+        //    step5-sheet lê com chaves: 
+        //      - Normal: "BP101" (masc), "BP101BL" (fem), "BP101I" (inf)
+        //      - APC:    "APC0541_MASC_Preto", "APC0541_MASC_Branco", etc.
+        //    Normalizar para o formato do wizard, preservando cores APC
         if (networkPayload.cdnUrls && typeof networkPayload.cdnUrls === 'object') {
           if (!state.imageUrls) state.imageUrls = {};
 
           for (const [key, urls] of Object.entries(networkPayload.cdnUrls)) {
-            // Formato autopilot-live: CODE_GENDER_VARIANT ou CODE_VARIANT
             const parts = key.split('_');
-            const baseCode = parts[0]; // BP101
-
-            // Determinar gênero da chave
+            const baseCode = parts[0]; // BP101 ou APC0541
             const keyUpper = key.toUpperCase();
-            let genderSuffix = ''; // masc = sem sufixo
-            if (keyUpper.includes('_FEM')) genderSuffix = 'BL';
-            else if (keyUpper.includes('_INF')) genderSuffix = 'I';
 
-            // Mapear para o código do wizard (code[g])
-            const wizardKey = baseCode + genderSuffix;
+            // Detectar se é APC (tem 3+ partes: CODE_GENDER_COLOR)
+            const hasGender = keyUpper.includes('_MASC') || keyUpper.includes('_FEM') || keyUpper.includes('_INF');
+            const hasColor = keyUpper.includes('_PRETA') || keyUpper.includes('_BRANCA') || keyUpper.includes('_BEGE');
+            const isApcKey = hasGender && hasColor;
 
-            // Se já existe, concatenar com pipe (pode ter MASC + FEM separados)
-            if (state.imageUrls[wizardKey] && state.imageUrls[wizardKey].trim()) {
-              // Não duplicar se já tem o mesmo conteúdo
-              if (!state.imageUrls[wizardKey].includes(urls)) {
-                state.imageUrls[wizardKey] += ' | ' + urls;
-              }
+            if (isApcKey) {
+              // ═══ APC: preservar chave completa com gênero + cor ═══
+              // Converter PRETA→Preto, BRANCA→Branco, BEGE→Bege para bater com step5
+              const genderKey = keyUpper.includes('_MASC') ? 'MASC' : keyUpper.includes('_FEM') ? 'FEM' : 'INF';
+              const colorMap = { 'PRETA': 'Preto', 'PRETO': 'Preto', 'BRANCA': 'Branco', 'BRANCO': 'Branco', 'BEGE': 'Bege' };
+              const colorPart = parts.find(p => colorMap[p.toUpperCase()]);
+              const normalizedColor = colorPart ? (colorMap[colorPart.toUpperCase()] || colorPart) : parts[parts.length - 1];
+              
+              const apcWizardKey = `${baseCode}_${genderKey}_${normalizedColor}`;
+              state.imageUrls[apcWizardKey] = urls;
+              console.log(`  🔗 APC: ${key} → ${apcWizardKey}`);
             } else {
-              state.imageUrls[wizardKey] = urls;
+              // ═══ Normal: mapear para code[g] format ═══
+              let genderSuffix = ''; // masc = sem sufixo
+              if (keyUpper.includes('_FEM')) genderSuffix = 'BL';
+              else if (keyUpper.includes('_INF')) genderSuffix = 'I';
+
+              const wizardKey = baseCode + genderSuffix;
+
+              if (state.imageUrls[wizardKey] && state.imageUrls[wizardKey].trim()) {
+                if (!state.imageUrls[wizardKey].includes(urls)) {
+                  state.imageUrls[wizardKey] += ' | ' + urls;
+                }
+              } else {
+                state.imageUrls[wizardKey] = urls;
+              }
             }
           }
           console.log('✅ CDN URLs normalizadas:', Object.keys(state.imageUrls).length, 'códigos');
@@ -336,6 +352,12 @@
         // Determinar até onde avançar com base nos dados disponíveis
         state.completedSteps.add(1); // Config veio do agent payload
         state.completedSteps.add(2); // Pastas já foram copiadas pelo live
+
+        // ⚡ BUGFIX: Gerar códigos ANTES de verificar estampas (era race condition)
+        // Anteriormente, state.generatedCodes era [] aqui, causando bases=[] e allEstampasFilled=false
+        if (state.productGroups && state.productGroups.length) {
+          state.generatedCodes = CodeGen.generateAllCodes();
+        }
 
         if (networkPayload.cdnUrls && Object.keys(networkPayload.cdnUrls).length > 0) {
           // CDN já foi feito — verificar se estampas estão todas preenchidas

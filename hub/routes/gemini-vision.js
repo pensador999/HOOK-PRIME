@@ -108,7 +108,14 @@ Responda APENAS com o nome da estampa.`,
         return res.status(400).json({ error: 'imagePath é obrigatório.' });
       }
 
-      const resolvedPath = path.isAbsolute(imagePath) ? imagePath : path.join(process.cwd(), imagePath);
+      const resolvedPath = path.isAbsolute(imagePath) ? path.resolve(imagePath) : path.resolve(path.join(process.cwd(), imagePath));
+      
+      // 🔒 Segurança: restringir leitura apenas a uploads/ ou dentro do diretório de trabalho
+      const safeCwd = path.resolve(process.cwd());
+      if (!resolvedPath.startsWith(safeCwd + path.sep) && resolvedPath !== safeCwd) {
+        return res.status(403).json({ error: '🔒 Acesso negado — caminho fora do diretório permitido.' });
+      }
+
       if (!fs.existsSync(resolvedPath)) {
         return res.status(404).json({ error: `Imagem não encontrada: ${resolvedPath}` });
       }

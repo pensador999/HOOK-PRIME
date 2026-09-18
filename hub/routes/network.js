@@ -50,7 +50,7 @@ function countImagesInDir(dirPath) {
  */
 router.get('/api/network/config', (req, res) => {
   try {
-    const configPath = path.join(__dirname, 'config', 'network.json');
+    const configPath = path.join(__dirname, '..', 'config', 'network.json');
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       return res.json({
@@ -738,6 +738,15 @@ router.post('/api/network/copy', (req, res) => {
     return res.status(403).json({ error: '🔒 Operação bloqueada: destino de cópia não pode ser na rede.' });
   }
 
+  // 🔒 CRIT-1: Anti path-traversal — destino DEVE estar dentro do uploadsDir
+  const normalizedNetwork = path.resolve(networkPath);
+  const collName = collectionName || path.basename(normalizedNetwork);
+  const localRoot = path.resolve(path.join(localBasePath, collName));
+  const safeUploads = path.resolve(uploadsDir);
+  if (!localRoot.startsWith(safeUploads + path.sep) && localRoot !== safeUploads) {
+    return res.status(403).json({ error: '🔒 Destino fora do diretório permitido.' });
+  }
+
   // Setup SSE
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -756,10 +765,6 @@ router.post('/api/network/copy', (req, res) => {
   }
 
   try {
-    const normalizedNetwork = path.resolve(networkPath);
-    const collName = collectionName || path.basename(normalizedNetwork);
-    const localRoot = path.join(path.resolve(localBasePath), collName);
-
     // Create local root
     fs.mkdirSync(localRoot, { recursive: true });
     sendEvent('status', { message: `Pasta criada: ${localRoot}`, localRoot });
