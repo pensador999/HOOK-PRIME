@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "updated": "2026-09-18",
+  "taxonomy": {
+    "fishing": {
+      "species": [
+        "Tucunaré", "Dourado", "Robalo", "Pintado", "Traíra", "Tambaqui",
+        "Pirarara", "Cachara", "Matrinxã", "Corvina", "Pirarucu", "Surubim",
+        "Pacu", "Piracanjuba", "Tilápia", "Anchova", "Marlin", "Atum",
+        "Barracuda", "Xaréu", "Salmão", "Garoupa", "Tainha", "Pescada"
+      ],
+      "themes": [
+        "Fundo do Mar", "Rio Solimões", "Floresta Tropical", "Noturna",
+        "Cardume", "Alta Performance", "Mar Azul", "Oceano", "Coral",
+        "Mangue", "Pantanal", "Lago Azul", "Rio Negro", "Amazônia"
+      ],
+      "styles": [
+        "Degradê", "Camuflado", "Digital", "Tribal", "Vintage",
+        "Black Edition", "Premium", "Classic", "Reef", "Deep Sea"
+      ]
+    },
+    "agro": {
+      "breeds": [
+        "Nelore", "Angus", "Brahman", "Charolês", "Tabapuã", "Mangalarga",
+        "Guzerá", "Girolando", "Senepol", "Hereford", "Sindi", "Curraleira"
+      ],
+      "themes": [
+        "Comitiva", "Pantanal", "Rodeio", "Vaquejada", "Boiadeiro",
+        "Sertanejo", "Colheita", "Fazenda", "Curral", "Tropeiro",
+        "Peão", "Lida Bruta", "Pampa", "Estância", "Safra"
+      ],
+      "styles": [
+        "Country", "Western", "Ranch", "Classic", "Sertão",
+        "Terra Firme", "Raízes", "Campeiro"
+      ]
+    },
+    "motors": {
+      "types": [
+        "Motocross", "Enduro", "Big Trail", "Rally", "Superbike",
+        "Café Racer", "Scrambler", "Bobber", "Cruiser", "Dakar"
+      ],
+      "themes": [
+        "Velocidade", "Asfalto", "Adrenalina", "Chrome", "Nitro",
+        "Carbon", "Torque", "Burnout", "Ignition", "Vortex"
+      ],
+      "styles": [
+        "Racing", "Off Road", "Street", "Custom", "Dark Road",
+        "Iron Ride", "Full Speed", "Flat Track"
+      ]
+    }
+  },
+  "colorModifiers": {
+    "solid": [
+      "Preto", "Branco", "Azul", "Verde", "Vermelho", "Rosa",
+      "Laranja", "Amarelo", "Cinza", "Marrom", "Bege", "Vinho",
+      "Oliva", "Navy", "Grafite", "Chumbo", "Gelo", "Terracota"
+    ],
+    "gradients": [
+      "Degradê Vinho", "Degradê Azul", "Degradê Verde", "Degradê Rosa",
+      "Degradê Laranja", "Degradê Cinza", "Degradê Preto"
+    ],
+    "patterns": [
+      "Camuflado", "Camuflado Digital", "Camuflado Neve", "Camuflado Verde",
+      "Listrado", "Floral", "Tropical", "Geométrico", "Tribal", "Pixel"
+    ]
+  },
+  "titleTemplates": {
+    "Raglan":        "Camisa de Pesca Brk {ESTAMPA} com Proteção UV50+",
+    "Camisa UV":     "Camisa de Pesca Brk {ESTAMPA} com Proteção UV50+",
+    "FusionX":       "Camisa FusionX {ESTAMPA} com Proteção UV50+",
+    "ArmorX":        "Camisa ArmorX {ESTAMPA} com Luva e Proteção UV50+",
+    "Hybrid":        "Camisa Hybrid de Pesca Brk {ESTAMPA} com Proteção UV50+",
+    "Capuz":         "Camisa com Capuz de Pesca Brk {ESTAMPA} com Proteção UV50+",
+    "Tubeneck":      "Bandana Tubeneck Brk {ESTAMPA} com Proteção UV50+",
+    "Bandana":       "Bandana de Pesca Brk {ESTAMPA}",
+    "Lenço":         "Lenço com Proteção UV50 Brk {ESTAMPA}",
+    "Lenço Cetim":   "Lenço de Cetim BRK Fishing {ESTAMPA}",
+    "BlackMask":     "Black Mask de Pesca Brk {ESTAMPA}",
+    "Corta-Vento":   "Corta Vento de Pesca Brk {ESTAMPA} com Proteção UV50+",
+    "APC":           "Camiseta Básica de Algodão Brk {ESTAMPA}",
+    "Casual":        "Camiseta Casual Brk {ESTAMPA}",
+    "Motociclismo":  "Camisa de Motociclismo Brk {ESTAMPA} com Proteção UV50+",
+    "Boné":          "Boné BRK Fishing {ESTAMPA}",
+    "Copo Térmico":  "Copo Térmico BRK Fishing {ESTAMPA}",
+    "Capa Almofada": "Capa de Almofada BRK Fishing {ESTAMPA}",
+    "Caneca":        "Caneca BRK Fishing {ESTAMPA}"
+  },
+  "rules": {
+    "maxWords": 4,
+    "minWords": 1,
+    "avoidWords": [
+      "camisa", "camiseta", "pesca", "brk", "fishing", "proteção", "protecao",
+      "uv50", "uv", "masculina", "feminina", "infantil", "com", "de", "agro",
+      "motors", "bandana", "tubeneck", "lenço", "boné"
+    ],
+    "capitalizeFirst": true,
+    "allowEnglish": true,
+    "preferPortuguese": true
+  }
+}

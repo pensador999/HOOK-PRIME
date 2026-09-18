@@ -56,28 +56,143 @@ module.exports = (deps) => {
   }
 
   // ═══════════════════════════════════════
-  // Prompts por tipo de produto
+  // Carregar banco de conhecimento BRK
   // ═══════════════════════════════════════
+  let estampaPatterns = null;
+  try {
+    const patternsPath = path.join(__dirname, '..', 'config', 'estampa-patterns.json');
+    if (fs.existsSync(patternsPath)) {
+      estampaPatterns = JSON.parse(fs.readFileSync(patternsPath, 'utf8'));
+      console.log('📖 Estampa Patterns carregado:', Object.keys(estampaPatterns.taxonomy).length, 'categorias');
+    }
+  } catch (e) { console.warn('⚠️ estampa-patterns.json não encontrado:', e.message); }
+
+  // ═══════════════════════════════════════
+  // Prompts especializados por categoria
+  // ═══════════════════════════════════════
+  function buildPrompt(category, productType) {
+    const tax = estampaPatterns?.taxonomy || {};
+    const rules = estampaPatterns?.rules || {};
+    const avoidStr = (rules.avoidWords || []).join(', ');
+
+    const BASE_RULES = `
+REGRAS OBRIGATÓRIAS:
+- O nome deve ter ${rules.minWords || 1}-${rules.maxWords || 4} palavras, descritivo e comercial
+- NÃO inclua estas palavras: ${avoidStr}
+- NÃO invente nomes abstratos quando há um elemento visual claro na imagem
+- Pode combinar elemento + cor: "Tucunaré Azul", "Nelore Preto"
+- Pode usar inglês quando é termo consagrado: "Black Edition", "Off Road"
+- Responda APENAS com o nome da estampa (sem aspas, sem explicações)`;
+
+    if (category === 'fishing' || category === 'default') {
+      const species = tax.fishing?.species?.join(', ') || 'Tucunaré, Dourado, Robalo, Pintado';
+      const themes = tax.fishing?.themes?.join(', ') || 'Fundo do Mar, Mar Azul';
+      return `Você é um especialista em nomenclatura de produtos da marca BRK Fishing.
+Analise esta imagem de produto e extraia o NOME DA ESTAMPA.
+
+PEIXES COMUNS nas estampas BRK: ${species}
+TEMAS AQUÁTICOS: ${themes}
+
+COMO IDENTIFICAR:
+- Se tem um PEIXE reconhecível → use o nome da espécie ("Tucunaré", "Dourado")
+- Se tem peixe + cor dominante → combine ("Tucunaré Azul", "Robalo Verde")  
+- Se tem paisagem aquática → descreva ("Fundo do Mar", "Rio Solimões", "Mar Azul")
+- Se tem padrão visual sem animal → identifique ("Camuflado Digital", "Degradê Vinho")
+- Se é design geométrico/abstrato → use estilo ("Black Edition", "Tribal", "Digital")
+- Se tem elementos de natureza → nomeie ("Floresta Tropical", "Mangue")
+
+EXEMPLOS REAIS:
+Peixe tucunaré em fundo azul → "Tucunaré Azul"
+Gradiente vinho/roxo → "Degradê Vinho"
+Camuflado pixelado → "Camuflado Digital"
+Dourado com vegetação → "Dourado Floresta"
+Paisagem submarina com corais → "Fundo do Mar"
+Estampa escura toda preta → "Black Edition"
+Peixe pintado em rio → "Pintado Rio"
+${BASE_RULES}`;
+    }
+
+    if (category === 'agro') {
+      const breeds = tax.agro?.breeds?.join(', ') || 'Nelore, Angus, Brahman';
+      const themes = tax.agro?.themes?.join(', ') || 'Comitiva, Rodeio, Vaquejada';
+      return `Você é um especialista em estampas de camisas AGRO/COUNTRY da marca BRK.
+Analise esta imagem e identifique a estampa.
+
+RAÇAS BOVINAS comuns: ${breeds}
+TEMAS RURAIS: ${themes}
+
+COMO IDENTIFICAR:
+- Se tem GADO reconhecível → use a raça ("Nelore", "Angus", "Brahman")
+- Se tem gado + tema → combine ("Nelore Country", "Angus Preto")
+- Se tem cavalo → identifique ("Mangalarga", "Cavalo Crioulo")
+- Se é paisagem rural → descreva ("Pantanal", "Sertão", "Fazenda")
+- Se tem elementos de rodeio → nomeie ("Rodeio", "Vaquejada", "Boiadeiro")
+- Se é padrão country/western → use ("Country Classic", "Western")
+
+EXEMPLOS REAIS:
+Touro nelore em pasto → "Nelore"
+Cena de comitiva com gado → "Comitiva"
+Paisagem pantaneira → "Pantanal"
+Cowboy em rodeio → "Rodeio Country"
+Estampa escura com touro → "Nelore Black"
+${BASE_RULES}`;
+    }
+
+    if (category === 'motors') {
+      const types = tax.motors?.types?.join(', ') || 'Motocross, Enduro, Big Trail';
+      const themes = tax.motors?.themes?.join(', ') || 'Velocidade, Asfalto, Chrome';
+      return `Você é um especialista em estampas de camisas de MOTOCICLISMO da marca BRK.
+Analise esta imagem e identifique a estampa.
+
+MODALIDADES: ${types}
+TEMAS: ${themes}
+
+COMO IDENTIFICAR:
+- Se tem MOTO reconhecível → identifique a modalidade ("Motocross", "Big Trail")
+- Se tem moto + cor → combine ("Enduro Verde", "Rally Laranja")
+- Se tem elementos de velocidade → nomeie ("Racing", "Full Speed", "Nitro")
+- Se é design técnico/carbono → use ("Carbon Tech", "Carbon Black")
+- Se é paisagem de trilha → descreva ("Off Road", "Dust Trail")
+
+EXEMPLOS REAIS:
+Moto de trilha em lama → "Enduro"
+Estampa de corrida com bandeira → "Racing"
+Design carbono/técnico → "Carbon Tech"
+Moto big trail em estrada → "Big Trail"
+Caveira com moto → "Dark Ride"
+${BASE_RULES}`;
+    }
+
+    // Prompts para acessórios
+    if (productType === 'Tubeneck' || productType === 'Bandana') {
+      return `Analise esta imagem de uma Bandana/Tubeneck da marca Brk.
+Extraia o nome da estampa/design do tecido.
+Observe: padrões, cores dominantes, elementos visuais (peixes, animais, camuflado, etc).
+EXEMPLOS: "Tucunaré Azul", "Camuflado Digital", "Degradê Vinho", "Floral Rosa", "Preto Liso"
+${BASE_RULES}`;
+    }
+
+    if (productType === 'Lenço' || productType === 'Lenço Cetim') {
+      return `Analise esta imagem de um Lenço da marca Brk.
+Extraia o nome da estampa/design do tecido.
+EXEMPLOS: "Floral Rosa", "Degradê Vinho", "Vitórias Régias", "Tropical"
+${BASE_RULES}`;
+    }
+
+    // Fallback genérico
+    return `Você é um especialista em nomenclatura de produtos da marca BRK.
+Analise esta imagem e extraia o NOME DA ESTAMPA.
+O nome deve ser curto (1-4 palavras), descritivo e comercial.
+Se identificar um animal, peixe ou tema específico, inclua no nome.
+EXEMPLOS: "Tucunaré Azul", "Degradê Vinho", "Camuflado Digital", "Nelore Country"
+${BASE_RULES}`;
+  }
+
+  // Prompts legados (compatibilidade)
   const PROMPTS = {
-    default: `Analise esta imagem de um produto da marca Brk Fishing.
-Extraia o nome da estampa/design em português do Brasil.
-O nome deve ser curto (2-4 palavras), descritivo e comercial.
-Exemplos válidos: "Degradê Vinho", "Tucunaré Azul", "Floresta Tropical", "São Bento Preto", "ArmorX Verde Oliva", "Camuflado Digital", "Sertanejo Country", "Pesca Dourado".
-Se identificar um peixe, animal ou tema específico, inclua no nome.
-Responda APENAS com o nome da estampa (sem aspas, sem explicações, sem pontuação extra).`,
-
-    'Lenço': `Analise esta imagem de um Lenço/Bandana da marca Brk.
-Extraia o nome da estampa/design do tecido em português do Brasil.
-O nome deve ser curto (2-4 palavras), descritivo e comercial.
-Exemplos: "Degradê Vinho", "Floral Rosa", "Vitórias Régias", "Camuflado Digital".
-Observe o padrão, cores dominantes e elementos da estampa.
-Responda APENAS com o nome da estampa.`,
-
-    'Tubeneck': `Analise esta imagem de uma Bandana Tubeneck da marca Brk.
-Extraia o nome da estampa/design do tecido em português do Brasil.
-O nome deve ser curto (2-4 palavras), descritivo e comercial.
-Exemplos: "ArmorX Verde Oliva", "Tucunaré Azul", "Camuflado Digital", "Preto Liso".
-Responda APENAS com o nome da estampa.`,
+    default: null, // Será gerado dinamicamente por buildPrompt()
+    'Lenço': null,
+    'Tubeneck': null,
   };
 
   // GET /api/gemini/status
@@ -103,7 +218,7 @@ Responda APENAS com o nome da estampa.`,
         });
       }
 
-      const { imagePath, productType } = req.body;
+      const { imagePath, productType, category } = req.body;
       if (!imagePath) {
         return res.status(400).json({ error: 'imagePath é obrigatório.' });
       }
@@ -122,9 +237,12 @@ Responda APENAS com o nome da estampa.`,
 
       const mimeType = getMimeType(resolvedPath);
       const imagePart = fileToGenerativePart(resolvedPath, mimeType);
-      const prompt = PROMPTS[productType] || PROMPTS.default;
+      
+      // 🧠 Prompt dinâmico baseado em categoria + tipo de produto
+      const cat = category || (productType || 'default').toLowerCase();
+      const prompt = buildPrompt(cat, productType);
 
-      console.log(`🤖 Gemini: Analisando ${path.basename(resolvedPath)} (${productType || 'default'})...`);
+      console.log(`🤖 Gemini: Analisando ${path.basename(resolvedPath)} (cat=${cat}, type=${productType || 'auto'})...`);
 
       const result = await model.generateContent([prompt, imagePart]);
       const text = result.response.text().trim();
@@ -139,6 +257,17 @@ Responda APENAS com o nome da estampa.`,
         if (['de', 'do', 'da', 'dos', 'das', 'e', 'com', 'em', 'no', 'na'].includes(w.toLowerCase())) return w.toLowerCase();
         return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
       }).join(' ');
+
+      // 🔒 Validação: remover palavras proibidas
+      const avoidWords = estampaPatterns?.rules?.avoidWords || [];
+      if (avoidWords.length > 0) {
+        const words = estampa.split(' ').filter(w => !avoidWords.includes(w.toLowerCase()));
+        if (words.length > 0) estampa = words.join(' ');
+      }
+      // Limitar a 4 palavras max
+      const maxWords = estampaPatterns?.rules?.maxWords || 4;
+      const estampaWords = estampa.split(' ');
+      if (estampaWords.length > maxWords) estampa = estampaWords.slice(0, maxWords).join(' ');
 
       console.log(`🤖 Gemini: "${estampa}" ← ${path.basename(resolvedPath)}`);
 
@@ -156,16 +285,16 @@ Responda APENAS com o nome da estampa.`,
         return res.status(503).json({ error: 'Gemini não disponível.' });
       }
 
-      const { images } = req.body;
+      const { images, category: batchCategory } = req.body;
       if (!images || !Array.isArray(images) || images.length === 0) {
         return res.status(400).json({ error: 'Array "images" é obrigatório.' });
       }
 
-      console.log(`🤖 Gemini Batch: ${images.length} imagens para analisar...`);
+      console.log(`🤖 Gemini Batch: ${images.length} imagens para analisar (cat=${batchCategory || 'auto'})...`);
 
       const results = [];
       for (const item of images) {
-        const { code, imagePath, productType } = item;
+        const { code, imagePath, productType, category } = item;
         try {
           const resolvedPath = path.isAbsolute(imagePath) ? imagePath : path.join(process.cwd(), imagePath);
           if (!fs.existsSync(resolvedPath)) {
@@ -175,7 +304,10 @@ Responda APENAS com o nome da estampa.`,
 
           const mimeType = getMimeType(resolvedPath);
           const imagePart = fileToGenerativePart(resolvedPath, mimeType);
-          const prompt = PROMPTS[productType] || PROMPTS.default;
+          
+          // 🧠 Prompt dinâmico: categoria do item > categoria do batch > auto
+          const cat = category || batchCategory || (productType || 'default').toLowerCase();
+          const prompt = buildPrompt(cat, productType);
 
           const result = await model.generateContent([prompt, imagePart]);
           const text = result.response.text().trim();
@@ -188,6 +320,17 @@ Responda APENAS com o nome da estampa.`,
             if (['de', 'do', 'da', 'dos', 'das', 'e', 'com', 'em', 'no', 'na'].includes(w.toLowerCase())) return w.toLowerCase();
             return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
           }).join(' ');
+
+          // 🔒 Validação: remover palavras proibidas que o Gemini pode incluir
+          const avoidWords = estampaPatterns?.rules?.avoidWords || [];
+          if (avoidWords.length > 0) {
+            const words = estampa.split(' ').filter(w => !avoidWords.includes(w.toLowerCase()));
+            if (words.length > 0) estampa = words.join(' ');
+          }
+          // Limitar a 4 palavras max
+          const maxWords = estampaPatterns?.rules?.maxWords || 4;
+          const estampaWords = estampa.split(' ');
+          if (estampaWords.length > maxWords) estampa = estampaWords.slice(0, maxWords).join(' ');
 
           results.push({ code, estampa });
           console.log(`   🤖 ${code}: "${estampa}"`);

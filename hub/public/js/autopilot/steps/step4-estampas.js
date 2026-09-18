@@ -112,90 +112,130 @@
 
     // ── 🤖 Gemini IA — Reconhecimento automático de estampas ──
     const geminiBtn = document.getElementById('ap-gemini-estampas');
-    if (geminiBtn) {
-      geminiBtn.addEventListener('click', async () => {
-        geminiBtn.disabled = true;
-        geminiBtn.textContent = '🤖 Verificando IA...';
 
-        try {
-          // Checar status da Gemini API
-          const statusRes = await fetch('/api/gemini/status');
-          const status = await statusRes.json();
+    async function runGeminiAnalysis() {
+      if (!geminiBtn) return;
+      geminiBtn.disabled = true;
+      geminiBtn.textContent = '🤖 Verificando IA...';
 
-          if (!status.ready) {
-            window.HUB?.showToast(status.message, 'error');
-            geminiBtn.disabled = false;
-            geminiBtn.textContent = '🤖 IA Gemini';
-            return;
+      try {
+        // Checar status da Gemini API
+        const statusRes = await fetch('/api/gemini/status');
+        const status = await statusRes.json();
+
+        if (!status.ready) {
+          window.HUB?.showToast(status.message, 'error');
+          geminiBtn.disabled = false;
+          geminiBtn.textContent = '🤖 IA Gemini';
+          return;
+        }
+
+        // Determinar categoria baseada na brand
+        const brandLower = (State.state.brand || '').toLowerCase();
+        const category = brandLower.includes('agro') ? 'agro'
+          : brandLower.includes('motor') ? 'motors' : 'fishing';
+
+        // Montar lista de imagens para análise
+        const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+        const batchImages = [];
+        const taskId = State.state.taskId;
+
+        for (const base of bases) {
+          // Só analisar estampas vazias
+          if (State.state.estampas[base] && State.state.estampas[base].trim()) continue;
+
+          const codeObj = State.state.generatedCodes.find(c => c.base === base);
+          const group = codeObj?._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
+          const productType = codeObj?.productType || group?.productType || '';
+
+          // Buscar imagem via API (lista de imagens copiadas)
+          let imagePath = null;
+          if (taskId) {
+            try {
+              const imgRes = await fetch(`/api/autopilot/images/${taskId}/${base}`);
+              if (imgRes.ok) {
+                const imgData = await imgRes.json();
+                if (imgData.images && imgData.images.length > 0) {
+                  // Preferir 3D > MASC > primeira disponível
+                  const pref = imgData.images.find(i => i.toLowerCase().includes('3d'))
+                    || imgData.images.find(i => i.toLowerCase().includes('masc'))
+                    || imgData.images[0];
+                  imagePath = `uploads/autopilot/${taskId}/${base}/${pref}`;
+                }
+              }
+            } catch (e) { /* silenciar */ }
           }
 
-          // Montar lista de imagens para análise (primeira imagem de cada código)
-          const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
-          const batchImages = [];
-
-          for (const base of bases) {
-            // Tentar encontrar imagem local (pasta copiada pelo autopilot)
-            const diskPath = State.state.diskFolderPath;
-            if (!diskPath) continue;
-
-            const codeObj = State.state.generatedCodes.find(c => c.base === base);
-            const group = codeObj?._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
-            const productType = codeObj?.productType || group?.productType || '';
-
-            // Buscar a primeira imagem (1.jpg diretamente na pasta do código)
-            const imagePath = `${diskPath}/${base}/1.jpg`;
-            batchImages.push({ code: base, imagePath, productType });
+          // Fallback: caminho direto com diskFolderPath
+          if (!imagePath && State.state.diskFolderPath) {
+            imagePath = `${State.state.diskFolderPath}/${base}/1.jpg`;
           }
 
-          if (batchImages.length === 0) {
-            window.HUB?.showToast('⚠️ Nenhuma imagem encontrada para análise', 'warning');
-            geminiBtn.disabled = false;
-            geminiBtn.textContent = '🤖 IA Gemini';
-            return;
+          if (imagePath) {
+            batchImages.push({ code: base, imagePath, productType, category });
           }
+        }
 
-          geminiBtn.textContent = `🤖 Analisando ${batchImages.length} imgs...`;
+        if (batchImages.length === 0) {
+          window.HUB?.showToast('✅ Todas as estampas já estão definidas', 'info');
+          geminiBtn.disabled = false;
+          geminiBtn.textContent = '🤖 IA Gemini';
+          return;
+        }
 
-          const res = await fetch('/api/gemini/batch-describe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ images: batchImages }),
-          });
+        geminiBtn.textContent = `🤖 Analisando ${batchImages.length} imgs...`;
 
-          const data = await res.json();
+        const res = await fetch('/api/gemini/batch-describe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: batchImages, category }),
+        });
 
-          if (data.success && data.results) {
-            let filled = 0;
-            for (const r of data.results) {
-              if (r.estampa && r.code) {
-                const input = document.querySelector(`.ap-estampa-input[data-base="${r.code}"]`);
-                if (input && (!input.value || !input.value.trim())) {
-                  input.value = r.estampa;
-                  State.state.estampas[r.code] = r.estampa;
-                  filled++;
+        const data = await res.json();
 
-                  const previewEl = document.querySelector(`.ap-estampa-preview[data-base="${r.code}"]`);
-                  if (previewEl) {
-                    const type = previewEl.dataset.type;
-                    const preview = Registry.buildProductTitle(type, State.state.brand || 'BRK FISHING', r.estampa, 'masc');
-                    previewEl.textContent = '→ ' + preview;
-                    previewEl.title = preview;
-                  }
+        if (data.success && data.results) {
+          let filled = 0;
+          for (const r of data.results) {
+            if (r.estampa && r.code) {
+              const input = document.querySelector(`.ap-estampa-input[data-base="${r.code}"]`);
+              if (input && (!input.value || !input.value.trim())) {
+                input.value = r.estampa;
+                State.state.estampas[r.code] = r.estampa;
+                filled++;
+
+                const previewEl = document.querySelector(`.ap-estampa-preview[data-base="${r.code}"]`);
+                if (previewEl) {
+                  const type = previewEl.dataset.type;
+                  const preview = Registry.buildProductTitle(type, State.state.brand || 'BRK FISHING', r.estampa, 'masc');
+                  previewEl.textContent = '→ ' + preview;
+                  previewEl.title = preview;
                 }
               }
             }
-            State.saveSession();
-            window.HUB?.showToast(`🤖 Gemini: ${filled} estampas reconhecidas!`, 'success');
-          } else {
-            window.HUB?.showToast(`❌ Erro: ${data.error || 'Falha na análise'}`, 'error');
           }
-        } catch (err) {
-          window.HUB?.showToast(`❌ Erro Gemini: ${err.message}`, 'error');
+          State.saveSession();
+          window.HUB?.showToast(`🤖 Gemini: ${filled} estampas reconhecidas!`, 'success');
+        } else {
+          window.HUB?.showToast(`❌ Erro: ${data.error || 'Falha na análise'}`, 'error');
         }
+      } catch (err) {
+        window.HUB?.showToast(`❌ Erro Gemini: ${err.message}`, 'error');
+      }
 
-        geminiBtn.disabled = false;
-        geminiBtn.textContent = '🤖 IA Gemini';
-      });
+      geminiBtn.disabled = false;
+      geminiBtn.textContent = '🤖 IA Gemini';
+    }
+
+    if (geminiBtn) {
+      geminiBtn.addEventListener('click', runGeminiAnalysis);
+
+      // 🚀 Auto-trigger: se há estampas vazias, rodar automaticamente ao entrar na step
+      const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+      const emptyCount = bases.filter(b => !State.state.estampas[b] || !State.state.estampas[b].trim()).length;
+      if (emptyCount > 0 && emptyCount === bases.length) {
+        // Todas vazias — auto-trigger após um breve delay para a UI renderizar
+        setTimeout(() => runGeminiAnalysis(), 500);
+      }
     }
 
     const prevBtn = document.getElementById('ap-prev-4-est');
