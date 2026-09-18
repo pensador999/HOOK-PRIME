@@ -41,12 +41,13 @@ npm start
 
 | Métrica | Valor |
 |---------|:-----:|
-| Arquivos de código | 48 |
-| Linhas totais | 18.376 |
-| Endpoints REST | 29 |
+| Arquivos de código | 60 |
+| Linhas totais | ~23.000 |
+| Endpoints REST | 35 |
 | Módulos Autopilot | 16 |
+| Módulos de Rotas | 9 |
 | Pastas protegidas | 57 |
-| Dependências npm | 5 |
+| Dependências npm | 7 |
 
 ## Documentação
 
@@ -58,29 +59,41 @@ npm start
 
 ## Stack
 
-- **Backend**: Node.js + Express 4.21 + Sharp + Multer + xlsx
-- **Frontend**: Vanilla JS (ES6) + GSAP 3.12.5 + CSS Custom (2003 linhas)
+- **Backend**: Node.js + Express 4.21 + Sharp + Multer + ExcelJS
+- **Frontend**: Vanilla JS (ES6) + GSAP 3.12.5 + CSS Custom (~2000 linhas)
+- **AI**: Gemini 2.5 Flash (@google/generative-ai) — reconhecimento de estampas
 - **CDN**: Cloudflare R2 via Vercel
 - **ERP**: Bling V2 (CSV 59 colunas)
-- **Rede**: SMB/CIFS (\\\\192.168.100.100)
+- **Rede**: SMB/CIFS (\\\\\\\\192.168.100.100)
 
 ## Arquitetura
 
 ```
 hub/
-├── server.js                    # Orchestrator (193 lines)
+├── server.js                    # Orchestrator (223 lines)
 ├── config/
-│   ├── network-safety.js        # Security Guard (516 lines)
-│   ├── image-utils.js           # Smart Sort + Gender (158 lines)
-│   └── *.json                   # Config files
-├── routes/                      # 7 route modules (29 endpoints)
+│   ├── network-safety.js        # Security Guard (525 lines)
+│   ├── image-utils.js           # Smart Sort + Gender
+│   └── *.json                   # Config files (prefixes, sizes, templates)
+├── routes/                      # 9 route modules (35 endpoints)
+│   ├── health.js                # Health checks (3 endpoints)
+│   ├── config.js                # Config + EAN proxy (5 endpoints)
+│   ├── autopilot-tasks.js       # Task CRUD + SSE (4 endpoints)
+│   ├── autopilot-images.js      # Scan, copy, preview (7 endpoints)
+│   ├── folders.js               # Local folder ops (3 endpoints)
+│   ├── network.js               # Network UNC scan/copy (4 endpoints)
+│   ├── s3-proxy.js              # CDN upload proxy (3 endpoints)
+│   ├── sankhya-bridge.js        # Sankhya ERP bridge (3 endpoints)
+│   └── gemini-vision.js         # AI estampa recognition (3 endpoints)
 ├── public/
 │   ├── index.html               # SPA shell
-│   ├── css/styles.css           # Design System (2003 lines)
+│   ├── css/styles.css           # Design System (~2000 lines)
 │   └── js/
 │       ├── app.js               # SPA Router
 │       ├── core/                # Canvas BG + GSAP + Intro
-│       ├── autopilot.js         # Wizard Orchestrator (262 lines)
+│       ├── autopilot.js         # Wizard Orchestrator
+│       ├── autopilot-live.js    # RTX Live Stream Panel
+│       ├── autopilot-agent.js   # Task Parser + Plan Generator
 │       └── autopilot/           # 16 modular files
 │           ├── core/            # state, helpers, code-gen
 │           ├── uploader/        # s3-uploader, upload-manager
@@ -91,4 +104,4 @@ hub/
 
 ---
 
-*HOOK PRIME v3.3 — Modular Architecture*
+*HOOK PRIME v3.3 — Modular Architecture (Atualizado Set/2026)*

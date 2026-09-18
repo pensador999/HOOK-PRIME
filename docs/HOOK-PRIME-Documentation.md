@@ -6,12 +6,12 @@ HOOK PRIME é um sistema enterprise de automação end-to-end para cadastro de p
 O sistema elimina o gargalo operacional de inserção manual, agrupando processos complexos como busca de imagens, compressão, upload para CDN, vinculação de variações e exportação de dados em um fluxo simplificado e altamente eficiente.
 
 ### Key Metrics
-- **48 arquivos de código** (Front-end e Back-end combinados)
-- **18.376 linhas totais** de código gerenciado
-- **29 endpoints REST** provendo comunicação entre cliente, servidor local e APIs externas
+- **60 arquivos de código** (Front-end e Back-end combinados)
+- **~23.000 linhas totais** de código gerenciado
+- **35 endpoints REST** provendo comunicação entre cliente, servidor local e APIs externas
 - **16 módulos Autopilot** que controlam o fluxo principal
 - **57 pastas de rede protegidas** com sistema antifalha
-- **5 dependências npm** garantindo leveza e poucas vulnerabilidades
+- **7 dependências npm** garantindo leveza e poucas vulnerabilidades
 
 ### O que resolve:
 - **Cadastro massivo**: Cadastrar 50+ códigos × 7 tamanhos × 3 gêneros = 1050+ SKUs resolvido com um Wizard de 6 etapas.
@@ -157,10 +157,12 @@ graph TD
 | **Middleware de Rede** | cors | Versão 2.8.5. Facilita o proxy para recursos externos. |
 | **Uploads Locais** | Multer | Versão 1.4.5-lts.1. Trata multipart/form-data. |
 | **Processamento de Imagem** | Sharp | Versão 0.35.3. Compressão massiva de JPEGs. |
-| **Manipulação de Planilhas** | xlsx | Versão 0.18.5. Motor principal para geração do formato Bling. |
+| **Manipulação de Planilhas** | ExcelJS | Versão 4.4.0. Motor para parsing e geração de planilhas Excel/CSV. |
+| **Variáveis de Ambiente** | dotenv | Versão 17.4.2. Carregamento seguro de configurações do .env. |
+| **Inteligência Artificial** | @google/generative-ai | Versão 0.24.1. SDK do Gemini 2.5 Flash para reconhecimento de estampas. |
 | **Frontend Language** | Vanilla JS ES6 | Arquitetura modular sem frameworks pesados como React/Vue. |
 | **Animações e Física** | GSAP | Versão 3.12.5 + 4 plugins (DrawSVG, ScrollTrigger, etc). |
-| **Estilização** | CSS Custom | 2003 linhas utilizando CSS Variables, sem Tailwind ou Bootstrap. |
+| **Estilização** | CSS Custom | ~2000 linhas utilizando CSS Variables, sem Tailwind ou Bootstrap. |
 | **Armazenamento / CDN** | Cloudflare R2 | Buckets compatíveis com S3 providos pelo link CDN BRK. |
 | **Rede Interna** | SMB/CIFS | Protocolo usado pelo Network Safety Guard no 192.168.100.100. |
 | **ERP** | Bling V2 | Formato de importação legado de CSV mantido para compatibilidade. |
@@ -168,9 +170,9 @@ graph TD
 
 ---
 
-## 4. API Reference — 29 Endpoints
+## 4. API Reference — 35 Endpoints
 
-O HUB expõe 29 rotas de serviço distribuídas em domínios específicos.
+O HUB expõe 35 rotas de serviço distribuídas em domínios específicos.
 
 ### 4.1 Health (3 endpoints)
 Monitoramento do estado da API e dos serviços conectados.
@@ -250,6 +252,26 @@ Motor de persistência para nuvem.
   Versão segura para envio único com política de Retry Backoff Exponencial de 3 tentativas.
 * **POST `/api/s3-proxy/upload-batch`**
   Upload multipart. Envia até 50 promessas simultâneas limitadas por pool.
+
+---
+
+### 4.8 Sankhya Bridge (3 endpoints)
+Ponte de comunicação com o ERP Sankhya via serviço Python/Flask (Hunter HS API).
+* **GET `/api/sankhya/health`**
+  Verifica se o serviço Hunter HS API (Flask :5000) está online e respondendo.
+* **POST `/api/sankhya/formatar`**
+  Recebe dados de produtos e formata para o padrão de importação do ERP Sankhya. Gera arquivos CSV/XLSX prontos para importação.
+* **GET `/api/sankhya/download/:taskId/:format`**
+  Faz download dos arquivos formatados (CSV ou XLSX) gerados pela formatação Sankhya.
+
+### 4.9 Gemini Vision (3 endpoints)
+Reconhecimento de estampas por Inteligência Artificial via Google Gemini.
+* **GET `/api/gemini/status`**
+  Verifica se a API do Gemini está configurada (GEMINI_API_KEY no .env) e se o SDK está instalado.
+* **POST `/api/gemini/describe-estampa`**
+  Envia uma imagem de produto para o Gemini 2.5 Flash e recebe o nome da estampa extraído automaticamente. Suporta prompts específicos por tipo de produto (pesca, agro, moto).
+* **POST `/api/gemini/batch-describe`**
+  Versão batch que processa múltiplas imagens de uma vez, retornando um array de estampas reconhecidas.
 
 ---
 
@@ -544,4 +566,4 @@ O mais utilitário. Permite criar, instantaneamente, centenas de pastas em branc
 
 ---
 **Documentação autogerada para referência interna da equipe de Engenharia (HOOK PRIME).**
-**Atualizado em: Agosto 2026.**
+**Atualizado em: Setembro 2026.**
