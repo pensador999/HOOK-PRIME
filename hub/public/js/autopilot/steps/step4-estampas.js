@@ -156,9 +156,10 @@
               if (imgRes.ok) {
                 const imgData = await imgRes.json();
                 if (imgData.images && imgData.images.length > 0) {
-                  // Preferir 3D > MASC > primeira disponível
+                  // Preferir 3D > MASC > GERAL > primeira disponível
                   const pref = imgData.images.find(i => i.toLowerCase().includes('3d'))
                     || imgData.images.find(i => i.toLowerCase().includes('masc'))
+                    || imgData.images.find(i => i.toLowerCase().includes('geral'))
                     || imgData.images[0];
                   imagePath = `uploads/autopilot/${taskId}/${base}/${pref}`;
                 }
@@ -166,9 +167,15 @@
             } catch (e) { /* silenciar */ }
           }
 
-          // Fallback: caminho direto com diskFolderPath
+          // Fallback: caminho direto com diskFolderPath (vários padrões)
           if (!imagePath && State.state.diskFolderPath) {
-            imagePath = `${State.state.diskFolderPath}/${base}/1.jpg`;
+            // Tentar: GERAL/1.jpg, 1.jpg, MASC/1.jpg
+            const tryPaths = [
+              `${State.state.diskFolderPath}/${base}/1.jpg`,
+              `${State.state.diskFolderPath}/${base}/GERAL/1.jpg`,
+              `${State.state.diskFolderPath}/${base}/MASC/01MASC.jpg`,
+            ];
+            imagePath = tryPaths[0]; // Enviar o primeiro, o backend valida
           }
 
           if (imagePath) {

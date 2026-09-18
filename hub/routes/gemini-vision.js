@@ -76,6 +76,8 @@ module.exports = (deps) => {
     const avoidStr = (rules.avoidWords || []).join(', ');
 
     const BASE_RULES = `
+PRIORIDADE MÁXIMA: Se a imagem contém texto/título escrito no produto (ex: "Pequeno Pescador", "Maori", "River Monster", "Pescador Mirim"), USE esse texto como nome da estampa.
+
 REGRAS OBRIGATÓRIAS:
 - O nome deve ter ${rules.minWords || 1}-${rules.maxWords || 4} palavras, descritivo e comercial
 - NÃO inclua estas palavras: ${avoidStr}
