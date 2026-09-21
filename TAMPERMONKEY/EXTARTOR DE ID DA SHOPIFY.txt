@@ -308,18 +308,17 @@
         box.querySelector('#brk-copy-ids').onclick = async () => {
             const text = document.getElementById('brk-shopify-ids')?.value || '';
             if (!text) { log('Extraia os IDs primeiro!', 'warn'); return; }
+            const idsArray = text.split('\n').filter(l => l.trim());
+            const n = idsArray.length;
             try {
                 await navigator.clipboard.writeText(text);
-                const idsArray = text.split('\n').filter(l => l.trim());
-                const n = idsArray.length;
                 log(`📋 ${n} IDs copiados! Cole no painel "🚀 Magis5 Import".`, 'success');
                 setStatus(`📋 ${n} IDs copiados → cole na Magis5!`);
-                
-                // Enviar para HOOK PRIME
-                sendIdsToHookPrime(idsArray, storeLabel);
             } catch (e) {
                 log('Erro ao copiar: ' + e.message, 'error');
             }
+            // Enviar para HOOK PRIME (independente do clipboard)
+            sendIdsToHookPrime(idsArray, storeLabel);
         };
 
         log(`Loja: ${storeLabel} (${store})`);

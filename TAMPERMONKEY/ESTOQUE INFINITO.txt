@@ -544,6 +544,8 @@
                 updateProgress();
 
                 // Processar cada variante com retry
+                var titleErrors = 0;
+                var titleProcessed = 0;
                 for (var v = 0; v < variants.length; v++) {
                     if (_shouldStop) break;
                     while (_paused) { setStatus('⏸ PAUSADO'); await sleep(500); if (_shouldStop) break; }
@@ -564,16 +566,18 @@
                         success = await processVariant(variant);
                     }
 
-                    if (success) stats.variantsDone++; else stats.errors++;
+                    if (success) { stats.variantsDone++; titleProcessed++; }
+                    else { stats.errors++; titleErrors++; }
                     updateProgress();
 
                     if (v < variants.length - 1) await sleep(cfg().delayBetweenVariants);
                 }
 
                 stats.titlesDone++;
-                log(titleLabel + ' ✅ Produto finalizado', 'success');
+                var titleOk = titleErrors === 0 && !_shouldStop && titleProcessed === variants.length;
+                log(titleLabel + (titleOk ? ' ✅ Produto finalizado' : ' ⚠️ Produto com erros'), titleOk ? 'success' : 'warn');
                 updateProgress();
-                reportEstoqueProgress(title, 'success'); // ── HOOK PRIME INTEGRATION ──
+                reportEstoqueProgress(title, titleOk ? 'success' : 'error'); // ── HOOK PRIME INTEGRATION ──
 
                 if (t < titles.length - 1) await sleep(cfg().delayBetweenTitles);
 
@@ -762,7 +766,7 @@
         loadTitlesFromHookPrime().then(data => {
             if (data && data.titles && data.titles.length > 0) {
                 var input = document.getElementById('brk-stock-titles');
-                if (input) {
+                if (input && !input.value.trim()) {
                     input.value = data.titles.join('\n');
                     log('📡 Auto-carregados ' + data.titles.length + ' títulos do HOOK PRIME', 'success');
                 }

@@ -38,6 +38,7 @@
     history:          { title: 'Histórico de Tarefas',      render: () => window.HUB.renderHistory?.() },
     'ean-viewer':     { title: 'EAN Viewer',              render: () => window.HUB.renderEanViewer?.() },
     magis5:           { title: '📦 Magis5 Bridge',         render: () => window.HUB.renderMagis5?.() },
+    pipeline:         { title: '📋 Pipeline',              render: () => window.HUB.renderPipeline?.() },
   };
 
   // ───────── Navegação SPA ─────────
@@ -98,7 +99,7 @@
     toast.className = `toast toast--${type}`;
     toast.innerHTML = `
       <span class="toast__icon">${icons[type] || 'ℹ️'}</span>
-      <span class="toast__message">${message}</span>
+      <span class="toast__message">${window.HUB.esc(message)}</span>
     `;
 
     container.appendChild(toast);
