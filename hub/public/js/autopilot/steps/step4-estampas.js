@@ -276,19 +276,21 @@
 
     const skipBtn = document.getElementById('ap-skip-estampas');
     if (skipBtn) skipBtn.addEventListener('click', () => {
-      // Skip estampas — fill with group estampaName or placeholder
+      // Skip estampas — fill with group estampaName or folder-based suggestion or placeholder
       const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
       bases.forEach(base => {
         if (!State.state.estampas[base] || !State.state.estampas[base].trim()) {
           const code = State.state.generatedCodes.find(c => c.base === base);
           const codeGroup = code ? State.getGroupById(code._groupId) : null;
-          State.state.estampas[base] = (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim())
-            || State.state.estampaSuggestions[base] || '';
+          const fallback = (codeGroup && codeGroup.estampaName && codeGroup.estampaName.trim())
+            || State.state.estampaSuggestions[base]
+            || base;  // Usa o próprio código como nome se não houver nenhuma sugestão
+          State.state.estampas[base] = fallback;
         }
       });
-      State.state.completedSteps.add(4); // Mark Step 4 as completed for stepper
+      State.state.completedSteps.add(4);
       State.saveSession();
-      goToStep(5); // Skip directly to planilha
+      goToStep(5);
     });
   }
 

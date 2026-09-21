@@ -107,7 +107,7 @@
             ean: '',
             eanEmb: '',
             codigoPai: '',
-            produtoVariacao: 'Variação',
+            produtoVariacao: 'Produto',
             imagens: paiUrls,
             tamanho: '',
             grupoProdutos: '',

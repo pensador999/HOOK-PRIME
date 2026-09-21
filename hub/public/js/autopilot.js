@@ -131,7 +131,23 @@
           const gList = group ? H.activeGenders(group) : ['masc'];
           return acc + gList.filter(g => c[g]).length;
         }, 0);
-        const done = Object.values(state.imageUrls).filter(v => v && v.trim()).length;
+        // Contar apenas URLs de códigos atualmente gerados (ignora URLs órfãs de códigos removidos)
+        const expectedKeys = new Set();
+        state.generatedCodes.forEach(c => {
+          const group = c._groupId ? State.getGroupById(c._groupId) : null;
+          if (c._isAPC) {
+            const colors = group ? H.activeApcColors(group) : ['Preto'];
+            const genders = group ? H.activeGenders(group) : ['masc'];
+            genders.forEach(g => {
+              const gKey = g === 'masc' ? 'MASC' : 'FEM';
+              colors.forEach(cor => expectedKeys.add(`${c.base}_${gKey}_${cor}`));
+            });
+          } else {
+            const gList = group ? H.activeGenders(group) : ['masc'];
+            gList.forEach(g => { if (c[g]) expectedKeys.add(c[g]); });
+          }
+        });
+        const done = [...expectedKeys].filter(k => state.imageUrls[k] && state.imageUrls[k].trim()).length;
         if (done < total) { window.HUB.showToast(`${total - done} código(s) sem links de imagem. Continuando...`, 'warning'); }
         state.completedSteps.add(3);
         goToStep(4);
@@ -327,7 +343,14 @@
               const normalizedColor = colorPart ? (colorMap[colorPart.toUpperCase()] || colorPart) : parts[parts.length - 1];
               
               const apcWizardKey = `${baseCode}_${genderKey}_${normalizedColor}`;
-              state.imageUrls[apcWizardKey] = urls;
+              // Concatenar com | ao invés de sobrescrever (mesmo padrão dos produtos normais)
+              if (state.imageUrls[apcWizardKey] && state.imageUrls[apcWizardKey].trim()) {
+                if (!state.imageUrls[apcWizardKey].includes(urls)) {
+                  state.imageUrls[apcWizardKey] += ' | ' + urls;
+                }
+              } else {
+                state.imageUrls[apcWizardKey] = urls;
+              }
               console.log(`  🔗 APC: ${key} → ${apcWizardKey}`);
             } else {
               // ═══ Normal: mapear para code[g] format ═══

@@ -233,8 +233,10 @@
       cols[56] = '0';                          // Valor ICMS próprio
 
       // ─── Campo específico ───
-      // Descrição: envolver com aspas quando contém ; (delimitador CSV)
-      cols[2]  = row.descricao.includes(';') ? `"${row.descricao}"` : row.descricao;
+      // Descrição: RFC 4180 — envolver com aspas quando contém ; ou ", dobrando aspas internas
+      const desc = row.descricao;
+      cols[2] = (desc.includes(';') || desc.includes('"'))
+        ? `"${desc.replace(/"/g, '""')}"` : desc;
 
       csv += cols.join(sep) + '\n';
     });
