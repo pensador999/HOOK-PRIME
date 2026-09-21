@@ -1,0 +1,1252 @@
+// ==UserScript==
+// @name         BRK Autopilot Unificado - Magis5 + Sankhya API Turbo
+// @namespace    http://tampermonkey.net/
+// @version      7.2
+// @description  Script unificado: Import Autopilot Multi-Canal (Magis5) + Busca Turbo via API Direta (Sankhya) — Troca automática de SKUs blindada, consulta direta via API ou Cross-Tab, 6 workers paralelos e suporte total a jQuery/Metronic.
+// @match        https://app.magis5.com.br/*
+// @match        https://brk.sankhyacloud.com.br/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_setClipboard
+// @grant        GM_xmlhttpRequest
+// @connect      brk.sankhyacloud.com.br
+// @connect      127.0.0.1
+// @connect      localhost
+// @connect      *
+// @run-at       document-start
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const norm = s => (s || '').replace(/\r/g, '').trim();
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    const _brkHost = location.hostname.toLowerCase();
+
+    // Chaves de armazenamento compartilhado
+    const CACHE_KEY = 'brk.sankhya.sku_cache.v7';
+    const TOKEN_KEY = 'brk.sankhya.token.v7';
+    const SESSION_KEY = 'brk.sankhya.session.v7';
+
+    // Parser universal da resposta JSON do Sankhya (usado por ambos os módulos)
+    function parseSankhyaResponse(jsonObj) {
+        try {
+            const rawInner = jsonObj?.responseBody?.json?.['$'];
+            if (!rawInner) return null;
+            const inner = JSON.parse(rawInner);
+            let codigo = null, referencia = null;
+
+            if (Array.isArray(inner.fieldsMetadata)) {
+                const fieldNames = inner.fieldsMetadata.map(f => f.fieldName);
+                const codIdx = fieldNames.indexOf('CODPROD');
+                const refIdx = fieldNames.indexOf('REFERENCIA');
+                const rows = inner.data || inner.rows || inner.values || inner.records;
+                if (Array.isArray(rows) && rows.length > 0) {
+                    const row = rows[0];
+                    if (Array.isArray(row)) {
+                        if (codIdx !== -1 && row[codIdx]) codigo = String(row[codIdx]);
+                        if (refIdx !== -1 && row[refIdx]) referencia = String(row[refIdx]);
+                    } else if (typeof row === 'object') {
+                        if (row.CODPROD) codigo = String(row.CODPROD);
+                        if (row.REFERENCIA) referencia = String(row.REFERENCIA);
+                    }
+                }
+            }
+
+            if (!codigo) {
+                const list = inner.suggestions || inner.records || inner.data || [];
+                if (Array.isArray(list) && list.length > 0) {
+                    const item = list[0];
+                    if (item.CODPROD) codigo = String(item.CODPROD);
+                    if (item.REFERENCIA) referencia = String(item.REFERENCIA);
+                }
+            }
+
+            if (!codigo) {
+                const m = rawInner.match(/"CODPROD"\s*:\s*"?(\d+)"?/i);
+                if (m) codigo = m[1];
+            }
+
+            if (!referencia) {
+                const m = rawInner.match(/"REFERENCIA"\s*:\s*"?([^",}]+)"?/i);
+                if (m && m[1].trim() !== 'null') referencia = m[1].trim();
+            }
+
+            return codigo ? { codigo, referencia } : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  MÓDULO MAGIS5 - Import Autopilot v7.2 (Auto-Troca de SKU Blindada)  ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    if (_brkHost.includes('magis5')) {
+
+    const SPEED_PROFILES = {
+        slow: {
+            name: '🐢 Lento / Inspeção (Para acompanhar com calma)',
+            delayAfterModal: 2000, delayAfterSearch: 6000, delayBetweenItems: 4000,
+            delayAfterImport: 4500, delayStep: 1500, pollInterval: 600, pollTimeout: 25000,
+        },
+        normal: {
+            name: '⚡ Normal (Equilibrado)',
+            delayAfterModal: 1200, delayAfterSearch: 4500, delayBetweenItems: 2500,
+            delayAfterImport: 3500, delayStep: 800, pollInterval: 500, pollTimeout: 20000,
+        },
+        fast: {
+            name: '🚀 Rápido / Produção',
+            delayAfterModal: 600, delayAfterSearch: 3500, delayBetweenItems: 1500,
+            delayAfterImport: 2500, delayStep: 400, pollInterval: 400, pollTimeout: 15000,
+        }
+    };
+
+    let activeSpeed = 'slow';
+    function getCFG() { return SPEED_PROFILES[activeSpeed] || SPEED_PROFILES.normal; }
+
+    let _running = false;
+    let _paused = false;
+    let _shouldStop = false;
+
+    // ── FEEDBACK VISUAL ──
+    function createVisualBar() {
+        let bar = document.getElementById('brk-visual-bar');
+        if (bar) return bar;
+        bar = document.createElement('div');
+        bar.id = 'brk-visual-bar';
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:1000000;background:linear-gradient(90deg,#0f172a,#1e1b4b);border-bottom:2px solid #7F00FF;padding:8px 20px;display:flex;align-items:center;gap:16px;font:13px/1.4 system-ui,sans-serif;color:#e2e8f0;box-shadow:0 4px 20px rgba(127,0,255,0.4);transition:opacity 0.3s;';
+        bar.innerHTML = '<span style="font-weight:800;color:#a78bfa;letter-spacing:0.5px">🚀 HOOK PRIME MAGIS5</span><span id="brk-vb-step" style="color:#10b981;font-weight:700;background:rgba(16,185,129,0.15);padding:2px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.3)">Iniciando...</span><span style="flex:1"></span><span id="brk-vb-speed" style="color:#f59e0b;font-size:12px;font-weight:600"></span><span id="brk-vb-progress" style="color:#e2e8f0;font-weight:700">0/0</span><span id="brk-vb-id" style="color:#94a3b8;font-family:monospace;font-size:12px;background:#020617;padding:2px 8px;border-radius:4px"></span>';
+        document.body.appendChild(bar);
+        return bar;
+    }
+
+    function updateVisualBar(step, progress, id) {
+        const bar = document.getElementById('brk-visual-bar');
+        if (!bar) return;
+        const stepEl = bar.querySelector('#brk-vb-step');
+        const progEl = bar.querySelector('#brk-vb-progress');
+        const idEl = bar.querySelector('#brk-vb-id');
+        const speedEl = bar.querySelector('#brk-vb-speed');
+        if (stepEl) stepEl.textContent = step;
+        if (progEl) progEl.textContent = progress;
+        if (idEl) idEl.textContent = id ? `ID: ${id}` : '';
+        if (speedEl) speedEl.textContent = activeSpeed === 'slow' ? '🐢 MODO INSPEÇÃO' : activeSpeed === 'fast' ? '🚀 TURBO' : '⚡ NORMAL';
+    }
+
+    function removeVisualBar() { document.getElementById('brk-visual-bar')?.remove(); }
+
+    function highlight(el, color = '#7F00FF') {
+        if (!el) return;
+        el.style.outline = `3px solid ${color}`;
+        el.style.outlineOffset = '3px';
+        el.style.boxShadow = `0 0 20px ${color}`;
+        el.style.transition = 'all 0.3s ease';
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_) {}
+    }
+
+    function unhighlight(el) {
+        if (!el) return;
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+        el.style.boxShadow = '';
+    }
+
+    function showAction(text, emoji = '⚡') {
+        let toast = document.getElementById('brk-action-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'brk-action-toast';
+            toast.style.cssText = 'position:fixed;bottom:85px;left:50%;transform:translateX(-50%);z-index:1000001;background:#0f172a;color:#e2e8f0;padding:12px 28px;border-radius:12px;font:15px/1.4 system-ui,sans-serif;border:2px solid #7F00FF;box-shadow:0 10px 40px rgba(127,0,255,0.45);transition:opacity 0.3s,transform 0.3s;font-weight:600;text-align:center;';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<span style="margin-right:8px">${emoji}</span> ${text}`;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    }
+
+    function hideAction() {
+        const toast = document.getElementById('brk-action-toast');
+        if (toast) { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(10px)'; }
+    }
+
+    function log(msg, type = 'info') {
+        const el = document.getElementById('brk-import-log');
+        if (!el) return;
+        const ts = new Date().toLocaleTimeString('pt-BR');
+        const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warn' ? '⚠️' : '📋';
+        el.textContent += (el.textContent ? '\n' : '') + `[${ts}] ${prefix} ${msg}`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function status(text) {
+        const el = document.getElementById('brk-import-status');
+        if (el) el.textContent = text;
+    }
+
+    function updateProgress(current, total) {
+        const bar = document.getElementById('brk-import-progress-bar');
+        const text = document.getElementById('brk-import-progress-text');
+        if (bar) bar.style.width = total > 0 ? `${Math.round((current / total) * 100)}%` : '0%';
+        if (text) text.textContent = `${current}/${total}`;
+    }
+
+    // ── AÇÕES DOM MAGIS5 ──
+    async function visualOpenModal() {
+        const cfg = getCFG();
+        showAction('Abrindo modal "Baixar anúncio específico"...', '📂');
+        const allBtns = document.querySelectorAll('#generatePurchase, .btn-light-primary');
+        let btn = null;
+        for (const b of allBtns) {
+            const texto = b.textContent.trim().toLowerCase();
+            if (texto.includes('anúncio específico') || texto.includes('anuncio especifico')) { btn = b; break; }
+        }
+        if (!btn) throw new Error('Botão "Baixar anúncio específico" não encontrado na página');
+        highlight(btn, '#10b981');
+        await sleep(cfg.delayStep);
+        btn.click();
+        unhighlight(btn);
+        await sleep(cfg.delayAfterModal);
+    }
+
+    function getModal() {
+        return document.querySelector('#m_modal_2.show, #m_modal_2.in, #m_modal_2[style*="display: block"]')
+            || document.querySelector('.modal.show, .modal.in, .modal[style*="display: block"]');
+    }
+
+    async function visualSelectChannel(channelValue, channelName) {
+        const cfg = getCFG();
+        showAction(`Selecionando loja: ${channelName}`, '🏪');
+        const modal = getModal();
+        const select = modal ? modal.querySelector('#channel, select[name="channel"]') : document.getElementById('channel');
+        if (!select) throw new Error('Select de canal não encontrado dentro do modal');
+        highlight(select, '#3b82f6');
+        await sleep(cfg.delayStep);
+        let targetOption = [...select.options].find(o => o.value === channelValue);
+        if (!targetOption) {
+            const cleanName = channelName.toUpperCase().replace('BRK', '').trim();
+            targetOption = [...select.options].find(o => o.textContent.toUpperCase().includes(cleanName));
+        }
+        if (targetOption) {
+            select.value = targetOption.value;
+            targetOption.selected = true;
+            select.dispatchEvent(new Event('input', { bubbles: true }));
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            try { const jq = window.jQuery || window.$; if (jq) jq(select).val(targetOption.value).trigger('change'); } catch(_) {}
+            const searchCtx = modal || document;
+            const select2Container = searchCtx.querySelector('#select2-channel-container, [aria-labelledby*="select2-channel"], .select2-selection__rendered');
+            if (select2Container) { select2Container.textContent = targetOption.textContent; select2Container.title = targetOption.textContent; highlight(select2Container, '#3b82f6'); }
+            log(`Canal selecionado: "${targetOption.textContent.trim()}"`, 'success');
+        } else {
+            log(`⚠️ Opção para "${channelName}" não encontrada.`, 'warn');
+        }
+        await sleep(cfg.delayStep);
+        unhighlight(select);
+    }
+
+    async function visualFillId(shopifyId) {
+        const cfg = getCFG();
+        showAction(`Preenchendo ID: ${shopifyId}`, '🔗');
+        const modal = getModal();
+        const input = modal ? modal.querySelector('#channelId, input[name="channelId"]') : document.getElementById('channelId');
+        if (!input) throw new Error('Input channelId não encontrado');
+        highlight(input, '#f59e0b');
+        await sleep(cfg.delayStep);
+        input.value = '';
+        input.focus();
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(input, shopifyId); else input.value = shopifyId;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        unhighlight(input);
+        await sleep(400);
+    }
+
+    async function visualClickSim() {
+        const cfg = getCFG();
+        showAction('Confirmando busca (Sim)...', '🔍');
+        await sleep(cfg.delayStep);
+        if (typeof window.createFindProductOnChannel === 'function') { window.createFindProductOnChannel(); return; }
+        const modal = getModal();
+        const btns = (modal || document).querySelectorAll('button, .btn');
+        for (const btn of btns) {
+            if (btn.textContent.trim() === 'Sim') { highlight(btn, '#10b981'); await sleep(cfg.delayStep); btn.click(); unhighlight(btn); return; }
+        }
+        throw new Error('Botão "Sim" não encontrado');
+    }
+
+    async function waitForVariants() {
+        const cfg = getCFG();
+        showAction('Aguardando variantes...', '⏳');
+        const start = Date.now();
+        while (Date.now() - start < cfg.pollTimeout) {
+            const inputs = getSkuInputs();
+            if (inputs.length > 0) {
+                showAction(`✅ ${inputs.length} variantes prontas.`, '📦');
+                if (inputs[0]) highlight(inputs[0], '#10b981');
+                if (inputs.length > 1) highlight(inputs[inputs.length - 1], '#10b981');
+                await sleep(cfg.delayStep);
+                inputs.forEach(unhighlight);
+                return inputs;
+            }
+            await sleep(cfg.pollInterval);
+        }
+        throw new Error(`Timeout (${cfg.pollTimeout / 1000}s) aguardando variantes`);
+    }
+
+    /**
+     * Localização flexível e blindada de inputs de SKU na Magis5
+     * Aceita: sku0, sku[0], variant_sku, sku-input, etc.
+     */
+    function getSkuInputs() {
+        return [...document.querySelectorAll('input')].filter(el => {
+            if (el.type === 'hidden' || el.type === 'checkbox' || el.type === 'radio') return false;
+            const prop = (el.id || el.name || el.className || '').toLowerCase();
+            return (prop.includes('sku') || prop.includes('variant')) && norm(el.value) !== '';
+        });
+    }
+
+    function getRegistroContainer(input) {
+        let el = input;
+        while (el && el !== document.body) {
+            if (el.innerText && el.innerText.includes('Vendido de forma diversa')) return el;
+            el = el.parentElement;
+        }
+        return input.closest('tr, .row, .card, .panel, div') || input.parentElement;
+    }
+
+    function setVendidoDiversa(registroEl, valor = 'sim') {
+        if (!registroEl) return false;
+        let select = registroEl.querySelector('select[name="isProductOnChannelLocked"]');
+        if (!select) { const selects = registroEl.querySelectorAll('select'); if (selects.length > 0) select = selects[selects.length - 1]; }
+        if (!select) return false;
+        const target = valor.toLowerCase().replace('ã', 'a');
+        const opt = [...select.options].find(o => norm(o.textContent).toLowerCase().replace('ã', 'a') === target);
+        if (!opt) return false;
+        select.value = opt.value; opt.selected = true;
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        try { const jq = window.jQuery || window.$; if (jq) jq(select).val(opt.value).trigger('change'); } catch(_) {}
+        highlight(select, target === 'sim' ? '#10b981' : '#f59e0b');
+        return true;
+    }
+
+    function setDeposito(skuInput, tipo = 'fabricacao') {
+        const idMatch = (skuInput.id || skuInput.name || '').match(/(\d+)/);
+        if (!idMatch) return false;
+        const numId = idMatch[1];
+        let whSelect = document.getElementById('wareHouseSelect' + numId);
+        if (!whSelect) { const container = getRegistroContainer(skuInput); if (container) whSelect = container.querySelector('select[id^="wareHouseSelect"]'); }
+        if (!whSelect) return false;
+        const config = { fabricacao: { value: '1040000', texto: 'FABRICACAO' }, revenda: { value: '1010000', texto: 'ESTOQUE REVENDA' } };
+        const cfg = config[tipo] || config.fabricacao;
+        let opt = [...whSelect.options].find(o => o.value === cfg.value);
+        if (!opt) opt = [...whSelect.options].find(o => o.textContent.toUpperCase().includes(cfg.texto));
+        if (!opt) return false;
+        whSelect.value = opt.value; opt.selected = true;
+        whSelect.dispatchEvent(new Event('input', { bubbles: true }));
+        whSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        try { const jq = window.jQuery || window.$; if (jq) jq(whSelect).val(opt.value).trigger('change'); } catch(_) {}
+        if (typeof window.updateExtraFields === 'function') { try { window.updateExtraFields(parseInt(numId)); } catch (_) {} }
+        highlight(whSelect, tipo === 'fabricacao' ? '#10b981' : '#f59e0b');
+        return true;
+    }
+
+    /**
+     * Aplicação blindada de valores em inputs da Magis5
+     * Suporta eventos nativos + protótipo + jQuery + updateExtraFields
+     */
+    function setInputValue(input, valor) {
+        if (!input) return;
+        input.focus();
+        input.select?.();
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(input, valor); else input.value = valor;
+        input.value = valor;
+
+        // Disparo de eventos nativos
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('focusout', { bubbles: true }));
+        input.blur();
+
+        // Suporte obrigatório ao jQuery da Magis5 (Metronic)
+        try {
+            const jq = window.jQuery || window.$;
+            if (jq) {
+                jq(input).val(valor).trigger('input').trigger('change').trigger('blur');
+            }
+        } catch (_) {}
+
+        // Atualiza campos vinculados da Magis5
+        const idMatch = (input.id || input.name || '').match(/(\d+)/);
+        if (idMatch && typeof window.updateExtraFields === 'function') {
+            try { window.updateExtraFields(parseInt(idMatch[1])); } catch (_) {}
+        }
+        highlight(input, '#10b981');
+    }
+
+    async function visualSelectAll() {
+        const cfg = getCFG();
+        showAction('Marcando "Selecionar Todos"...', '☑️');
+        let selectAllCb = document.getElementById('selectAll');
+        if (!selectAllCb) {
+            for (const el of [...document.querySelectorAll('label, span, div')]) {
+                if (el.textContent.trim().startsWith('Selecionar Todos')) {
+                    selectAllCb = el.querySelector('input[type="checkbox"]') || el.closest('label')?.querySelector('input[type="checkbox"]') || el.previousElementSibling;
+                    if (selectAllCb && selectAllCb.tagName === 'INPUT') break;
+                    selectAllCb = null;
+                }
+            }
+        }
+        if (selectAllCb) {
+            highlight(selectAllCb, '#7F00FF');
+            await sleep(cfg.delayStep);
+            const parentLabel = selectAllCb.closest('label');
+            if (parentLabel) { parentLabel.click(); }
+            else { const span = selectAllCb.nextElementSibling; if (span && span.tagName === 'SPAN') span.click(); else selectAllCb.click(); }
+            if (!selectAllCb.checked) { selectAllCb.checked = true; selectAllCb.dispatchEvent(new Event('change', { bubbles: true })); }
+            unhighlight(selectAllCb);
+        } else {
+            for (const sku of getSkuInputs()) {
+                const container = getRegistroContainer(sku);
+                if (!container) continue;
+                const cb = container.querySelector('input[type="checkbox"]');
+                if (cb && !cb.checked) { const lbl = cb.closest('label'); if (lbl) lbl.click(); else { const span = cb.nextElementSibling; if (span && span.tagName === 'SPAN') span.click(); else cb.click(); } }
+            }
+        }
+        await sleep(600);
+    }
+
+    async function visualClickImport() {
+        const cfg = getCFG();
+        showAction('Abrindo menu de ações...', '⋯');
+        let dropdownOpened = false;
+        const actionBar = [...document.querySelectorAll('div, nav, header')].find(el => {
+            const text = el.textContent || '';
+            return (text.includes('Selecionar Todos') || text.includes('Baixar anúncio')) && el.querySelector('[data-toggle="dropdown"], .dropdown-toggle');
+        });
+        if (actionBar) {
+            const toggle = actionBar.querySelector('[data-toggle="dropdown"], .dropdown-toggle, .btn-icon.dropdown-toggle');
+            if (toggle) { highlight(toggle, '#f59e0b'); await sleep(cfg.delayStep); toggle.click(); unhighlight(toggle); dropdownOpened = true; await sleep(600); }
+        }
+        if (!dropdownOpened) {
+            const selectAllEl = document.getElementById('selectAll');
+            if (selectAllEl) {
+                let parent = selectAllEl.parentElement;
+                for (let i = 0; i < 8 && parent; i++) {
+                    const toggle = parent.querySelector('[data-toggle="dropdown"], .dropdown-toggle');
+                    if (toggle && toggle !== selectAllEl) { highlight(toggle, '#f59e0b'); await sleep(cfg.delayStep); toggle.click(); unhighlight(toggle); dropdownOpened = true; await sleep(600); break; }
+                    parent = parent.parentElement;
+                }
+            }
+        }
+        if (!dropdownOpened) {
+            const allToggles = [...document.querySelectorAll('[data-toggle="dropdown"]')].filter(el => { const rect = el.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; });
+            const toggle = allToggles[allToggles.length - 1];
+            if (toggle) { highlight(toggle, '#f59e0b'); await sleep(cfg.delayStep); toggle.click(); unhighlight(toggle); dropdownOpened = true; await sleep(600); }
+        }
+        showAction('Clicando em "Importar"...', '📥');
+        let importClicked = false;
+        for (const el of document.querySelectorAll('.navi-text, .navi-link, .dropdown-item, .dropdown-menu a, .dropdown-menu span')) {
+            if (el.textContent.trim() === 'Importar') {
+                const clickTarget = el.closest('a, button, .navi-item, .navi-link') || el;
+                highlight(clickTarget, '#ef4444'); await sleep(cfg.delayStep); clickTarget.click(); unhighlight(clickTarget); importClicked = true; break;
+            }
+        }
+        if (!importClicked) { const importBtn = document.getElementById('import'); if (importBtn) { highlight(importBtn, '#ef4444'); await sleep(cfg.delayStep); importBtn.click(); unhighlight(importBtn); importClicked = true; } }
+        await sleep(1200);
+        showAction('Confirmando importação...', '✅');
+        if (typeof window.doImport === 'function') { window.doImport(); log('Importação confirmada via doImport().', 'success'); return; }
+        const modal = document.getElementById('alertModal');
+        if (modal) { for (const btn of modal.querySelectorAll('button')) { const text = btn.textContent.trim().toLowerCase(); if (text === 'sim' || text === 'confirmar' || text === 'ok') { highlight(btn, '#10b981'); await sleep(cfg.delayStep); btn.click(); unhighlight(btn); log('Importação confirmada.', 'success'); return; } } }
+        const doImportBtn = document.querySelector('button[onclick*="doImport"]');
+        if (doImportBtn) { highlight(doImportBtn, '#10b981'); await sleep(cfg.delayStep); doImportBtn.click(); unhighlight(doImportBtn); }
+    }
+
+    function closeModals() { document.querySelectorAll('.modal.show .close, .modal.in .close, button[data-dismiss="modal"]').forEach(btn => { try { btn.click(); } catch (_) {} }); }
+
+    function readSkusFromScreen() {
+        const entries = [];
+        for (const inp of getSkuInputs()) {
+            const sku = norm(inp.value); if (!sku) continue;
+            const container = getRegistroContainer(inp);
+            let temEan = false;
+            for (const ei of (container ? container.querySelectorAll('input') : [])) {
+                const id = (ei.id || ei.name || '').toLowerCase();
+                if ((id.includes('ean') || id.includes('gtin')) && norm(ei.value)) { temEan = true; break; }
+            }
+            entries.push({ sku, precisaEan: !temEan });
+        }
+        return entries;
+    }
+
+    // ── CONSULTA DIRETA VIA API SANKHYA A PARTIR DA MAGIS5 ──
+    function consultarSankhyaApiViaGm(sku) {
+        return new Promise((resolve) => {
+            const sktk = GM_getValue(TOKEN_KEY, '');
+            const mgeSession = GM_getValue(SESSION_KEY, '');
+            if (!sktk) { resolve(null); return; }
+
+            let url = 'https://brk.sankhyacloud.com.br/mge/service.sbr?serviceName=PesquisaSP.getSuggestion&application=ProdutoServico&outputType=json&preventTransform=false&resourceID=br.com.sankhya.core.cad.produtos&allowConcurrentCalls=true&vss=2';
+            if (mgeSession) url += `&mgeSession=${mgeSession}`;
+
+            const body = {
+                serviceName: 'PesquisaSP.getSuggestion',
+                requestBody: {
+                    criteria: {
+                        entityName: 'Produto',
+                        compacted: false,
+                        ignoreEntityCriteria: false,
+                        limit: '5',
+                        query: { '$': sku },
+                        orderByDesc: false,
+                        options: { showInactives: true },
+                        externalCriteria: {
+                            query: { '$': "((this.USOPROD <> 'S' AND this.USOPROD <> '3' ))" },
+                            params: { param: [] }
+                        }
+                    },
+                    clientEventList: {
+                        clientEvent: [
+                            { '$': 'br.com.sankhya.mge.info.metro.cubico' },
+                            { '$': 'br.com.sankhya.actionbutton.clientconfirm' }
+                        ]
+                    }
+                }
+            };
+
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: url,
+                headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'sktk': sktk
+                },
+                data: JSON.stringify(body),
+                timeout: 10000,
+                onload: (res) => {
+                    try {
+                        if (res.status === 200) {
+                            resolve(parseSankhyaResponse(JSON.parse(res.responseText)));
+                        } else {
+                            resolve(null);
+                        }
+                    } catch (_) { resolve(null); }
+                },
+                ontimeout: () => resolve(null),
+                onerror: () => resolve(null)
+            });
+        });
+    }
+
+    // Comunicação cross-tab (fallback)
+    function sendSkusToSankhya(skuEntries) {
+        GM_setValue('brk_skus_pendentes', JSON.stringify({ timestamp: Date.now(), skus: skuEntries, status: 'pendente' }));
+        log(`📡 ${skuEntries.length} SKUs enviados via canal Cross-Tab`, 'info');
+    }
+
+    function waitForSankhyaResults(timeoutMs = 60000) {
+        return new Promise((resolve) => {
+            const startTime = Date.now();
+            const listenerId = GM_addValueChangeListener('brk_skus_resultado', (name, oldVal, newVal, remote) => {
+                try {
+                    const result = JSON.parse(newVal);
+                    if (result && result.status === 'completo' && result.pares) {
+                        GM_removeValueChangeListener(listenerId);
+                        clearInterval(timeoutCheck);
+                        log(`📡 Resultado recebido do Sankhya: ${result.pares.length} pares`, 'success');
+                        resolve(result.pares);
+                    } else if (result && result.status === 'erro') {
+                        GM_removeValueChangeListener(listenerId);
+                        clearInterval(timeoutCheck);
+                        log(`❌ Sankhya erro: ${result.mensagem || '?'}`, 'warn');
+                        resolve(null);
+                    }
+                } catch (e) {}
+            });
+            const timeoutCheck = setInterval(() => {
+                if (Date.now() - startTime > timeoutMs) {
+                    GM_removeValueChangeListener(listenerId);
+                    clearInterval(timeoutCheck);
+                    log(`⏰ Timeout aguardando resposta (${timeoutMs / 1000}s).`, 'warn');
+                    resolve(null);
+                }
+            }, 3000);
+            try {
+                const existing = GM_getValue('brk_skus_resultado', '');
+                if (existing) {
+                    const result = JSON.parse(existing);
+                    if (result && result.status === 'completo' && result.timestamp > startTime - 3000) {
+                        GM_removeValueChangeListener(listenerId);
+                        clearInterval(timeoutCheck);
+                        resolve(result.pares);
+                    }
+                }
+            } catch (_) {}
+        });
+    }
+
+    /**
+     * Motor Híbrido: Tenta API Direta na própria Magis5 (instantâneo!)
+     * Se não tiver token, usa o canal Cross-Tab automaticamente.
+     */
+    async function obterCodigosSankhyaParaVariantes(skuEntries) {
+        const sktk = GM_getValue(TOKEN_KEY, '');
+
+        // 1. API DIRETA DA MAGIS5 (sem depender de outra aba aberta)
+        if (sktk) {
+            log(`⚡ Sessão Sankhya ativa! Consultando API direta na Magis5...`, 'info');
+            showAction(`Consultando API Sankhya (${skuEntries.length} SKUs)...`, '⚡');
+
+            const cache = (await GM_getValue(CACHE_KEY, null)) || {};
+            const uniqueSkus = [...new Set(skuEntries.map(e => e.sku))];
+            const resultMap = new Map();
+            let index = 0;
+            const CONCORRENCIA = 6;
+
+            async function worker() {
+                while (index < uniqueSkus.length) {
+                    const i = index++;
+                    const sku = uniqueSkus[i];
+                    if (cache[sku]?.codigo) {
+                        resultMap.set(sku, { codigo: cache[sku].codigo, referencia: cache[sku].referencia || '' });
+                        log(`⚡ [Cache] ${sku} ➔ ${cache[sku].codigo}`);
+                    } else {
+                        try {
+                            const res = await consultarSankhyaApiViaGm(sku);
+                            if (res?.codigo) {
+                                resultMap.set(sku, { codigo: res.codigo, referencia: res.referencia || '' });
+                                cache[sku] = { codigo: res.codigo, referencia: res.referencia || '', t: Date.now() };
+                                log(`✅ [API] ${sku} ➔ ${res.codigo}${res.referencia ? ' (Ref: ' + res.referencia + ')' : ''}`, 'success');
+                            } else {
+                                log(`⚠️ [API] ${sku}: não encontrado no Sankhya`, 'warn');
+                            }
+                        } catch (err) {
+                            console.warn('[BRK Magis5] Erro API:', err);
+                        }
+                    }
+                    await sleep(15);
+                }
+            }
+
+            await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, uniqueSkus.length) }, () => worker()));
+            try { await GM_setValue(CACHE_KEY, cache); } catch(_) {}
+
+            const pares = [];
+            for (const entry of skuEntries) {
+                const info = resultMap.get(entry.sku);
+                if (info) {
+                    pares.push({
+                        sku: entry.sku,
+                        codigo: info.codigo,
+                        ean: (entry.precisaEan && info.referencia) ? info.referencia : ''
+                    });
+                }
+            }
+
+            if (pares.length > 0) {
+                log(`✅ API Sankhya: ${pares.length}/${skuEntries.length} códigos obtidos com sucesso!`, 'success');
+                return pares;
+            }
+            log(`⚠️ Nenhum código obtido via API direta. Tentando canal Cross-Tab...`, 'warn');
+        } else {
+            log(`ℹ️ Token da sessão Sankhya ainda não capturado. Abra o Sankhya em outra aba.`, 'warn');
+        }
+
+        // 2. FALLBACK CROSS-TAB (para aba do Sankhya aberta)
+        showAction(`Aguardando Sankhya via Cross-Tab...`, '📡');
+        GM_setValue('brk_skus_resultado', '');
+        await sleep(300);
+        sendSkusToSankhya(skuEntries);
+        return await waitForSankhyaResults(60000);
+    }
+
+    function applySankhyaResults(pares) {
+        if (!pares || pares.length === 0) return 0;
+        const skuInputs = getSkuInputs();
+        const inputMap = new Map();
+        skuInputs.forEach(inp => inputMap.set(norm(inp.value).toUpperCase(), inp));
+
+        let applied = 0;
+        for (const par of pares) {
+            const input = inputMap.get(par.sku.toUpperCase());
+            if (!input) continue;
+
+            // Troca o SKU da variante pelo Código Sankhya
+            setInputValue(input, par.codigo);
+            applied++;
+
+            // Aplica EAN se disponível e campo estiver vazio
+            if (par.ean) {
+                const container = getRegistroContainer(input);
+                if (container) {
+                    for (const ei of container.querySelectorAll('input')) {
+                        const id = (ei.id || ei.name || '').toLowerCase();
+                        if ((id.includes('ean') || id.includes('gtin')) && !norm(ei.value)) {
+                            setInputValue(ei, par.ean);
+                            log(`  EAN aplicado: ${par.ean}`, 'info');
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return applied;
+    }
+
+    try { GM_setValue('brk_skus_pendentes', ''); GM_setValue('brk_skus_resultado', ''); } catch(_) {}
+
+    function parseInput(text) {
+        const items = [];
+        for (const line of text.split('\n').map(norm).filter(Boolean)) {
+            const parts = line.split(/\t+/);
+            const shopifyId = norm(parts[0]); if (!shopifyId) continue;
+            const skuPairs = [];
+            for (let i = 1; i < parts.length; i += 2) { const skuAtual = norm(parts[i]); const novoSku = norm(parts[i + 1] || ''); if (skuAtual && novoSku) skuPairs.push({ skuAtual, novoSku }); }
+            items.push({ shopifyId, skuPairs });
+        }
+        return items;
+    }
+
+    function detectarTipoProduto(skuInputs) {
+        for (const inp of skuInputs) { const sku = norm(inp.value).toUpperCase(); if (!sku) continue; if (sku.startsWith('ALL') || sku.startsWith('KIT')) return 'pular'; if (sku.includes('_FULL')) return 'revenda'; }
+        return 'producao';
+    }
+
+    /**
+     * Verifica se os SKUs já são códigos Sankhya válidos (numéricos curtos de 2 a 7 dígitos).
+     * Evita falso positivo em EANs (8 a 14 dígitos) ou IDs longos de anúncio.
+     */
+    function skusJaTemCodigoSankhya(skuInputs) {
+        let count = 0;
+        for (const inp of skuInputs) {
+            const sku = norm(inp.value);
+            if (!sku) continue;
+            if (/^\d{2,7}$/.test(sku)) count++;
+            else return false;
+        }
+        return count > 0 && count === skuInputs.length;
+    }
+
+    async function processImportQueue(onlySingle = false) {
+        if (_running) { log('Já está em execução!', 'warn'); return; }
+        _running = true; _shouldStop = false; _paused = false;
+        const inputText = document.getElementById('brk-import-list')?.value || '';
+        let items = parseInput(inputText);
+        if (items.length === 0) { log('Nenhum ID encontrado na lista.', 'warn'); _running = false; return; }
+        if (onlySingle) { items = [items[0]]; log(`🧪 Modo Teste: 1º anúncio (${items[0].shopifyId})`, 'warn'); }
+        const channelSelect = document.getElementById('brk-import-channel');
+        const channelValue = channelSelect?.value;
+        const channelName = channelSelect?.options[channelSelect?.selectedIndex]?.text || '';
+        if (!channelValue) { log('Selecione um canal!', 'warn'); _running = false; return; }
+        const tipoOverride = document.getElementById('brk-import-tipo')?.value || 'auto';
+        const cfg = getCFG();
+        createVisualBar();
+        log(`━━━ IMPORTAÇÃO INICIADA (${onlySingle ? 'TESTE' : items.length + ' ITENS'}) ━━━`);
+        log(`Velocidade: ${cfg.name} | Canal: ${channelName}`);
+        let sucesso = 0, falhas = 0;
+        updateBtnState(true);
+
+        for (let i = 0; i < items.length; i++) {
+            if (_shouldStop) { log('⏹ Interrompido.'); break; }
+            while (_paused) { updateVisualBar('⏸ PAUSADO', `${i}/${items.length}`, items[i].shopifyId); await sleep(500); if (_shouldStop) break; }
+            const item = items[i];
+            const label = `[${i + 1}/${items.length}]`;
+            updateProgress(i, items.length);
+            updateVisualBar(`Processando ${label}`, `${i + 1}/${items.length}`, item.shopifyId);
+            status(`${label} ID: ${item.shopifyId}`);
+            try {
+                closeModals(); await sleep(600);
+                await visualOpenModal();
+                await visualSelectChannel(channelValue, channelName);
+                await visualFillId(item.shopifyId);
+                await visualClickSim();
+                log(`${label} Aguardando variantes...`);
+                await sleep(cfg.delayAfterSearch);
+                const skuInputs = await waitForVariants();
+                log(`${label} ${skuInputs.length} variantes carregadas.`);
+                const tipoDetectado = detectarTipoProduto(skuInputs);
+                const tipoFinal = tipoOverride === 'auto' ? tipoDetectado : tipoOverride;
+                log(`${label} Tipo: ${tipoDetectado.toUpperCase()}${tipoOverride !== 'auto' ? ' → Override: ' + tipoFinal.toUpperCase() : ''}`);
+                if (tipoFinal === 'pular') { log(`${label} ⏭ PULANDO (ALL/KIT)`, 'warn'); closeModals(); await sleep(1000); continue; }
+
+                // ── ETAPA CRUCIAL: TROCA DOS SKUS ──
+                if (item.skuPairs.length > 0) {
+                    // Manual: pares colados
+                    showAction('Aplicando SKUs manuais...', '🔄');
+                    const inputMap = new Map(); skuInputs.forEach(inp => inputMap.set(norm(inp.value).toUpperCase(), inp));
+                    let applied = 0;
+                    for (const pair of item.skuPairs) {
+                        const input = inputMap.get(pair.skuAtual.toUpperCase());
+                        if (input) { setInputValue(input, pair.novoSku); applied++; await sleep(250); }
+                    }
+                    log(`${label} ${applied}/${item.skuPairs.length} SKUs aplicados (manual).`);
+                } else if (skusJaTemCodigoSankhya(skuInputs)) {
+                    log(`${label} ✅ SKUs já são códigos numéricos curtos do Sankhya.`, 'success');
+                } else {
+                    // Automático: consulta direta via API ou Cross-Tab
+                    const skuEntries = readSkusFromScreen();
+                    log(`${label} ${skuEntries.length} SKUs lidos da tela.`);
+                    if (skuEntries.length > 0) {
+                        showAction(`Buscando códigos Sankhya para ${skuEntries.length} SKUs...`, '🔍');
+                        const pares = await obterCodigosSankhyaParaVariantes(skuEntries);
+                        if (pares && pares.length > 0) {
+                            const applied = applySankhyaResults(pares);
+                            await sleep(cfg.delayStep);
+                            log(`${label} ✅ ${applied}/${pares.length} códigos Sankhya aplicados automaticamente!`, 'success');
+                        } else {
+                            log(`${label} ⚠️ Sankhya não retornou códigos para estas variantes.`, 'warn');
+                        }
+                    }
+                }
+
+                if (tipoFinal === 'producao') {
+                    let count = 0; for (const inp of skuInputs) { if (setVendidoDiversa(getRegistroContainer(inp), 'sim')) count++; } await sleep(cfg.delayStep);
+                    let countD = 0; for (const inp of skuInputs) { if (setDeposito(inp, 'fabricacao')) countD++; } await sleep(cfg.delayStep);
+                    log(`${label} ✅ Produção: Diversa=Sim(${count}) + FABRICAÇÃO(${countD})`);
+                } else {
+                    let count = 0; for (const inp of skuInputs) { if (setVendidoDiversa(getRegistroContainer(inp), 'nao')) count++; } await sleep(cfg.delayStep);
+                    let countD = 0; for (const inp of skuInputs) { if (setDeposito(inp, 'revenda')) countD++; } await sleep(cfg.delayStep);
+                    log(`${label} ✅ Revenda: Diversa=Não(${count}) + REVENDA(${countD})`);
+                }
+                await visualSelectAll();
+                await visualClickImport();
+                sucesso++;
+                showAction(`✅ ${item.shopifyId} importado!`, '🎉');
+                log(`${label} ✅ Importado com sucesso!`, 'success');
+                reportImportProgress(item.shopifyId, 'success', tipoFinal);
+                if (i < items.length - 1) await sleep(cfg.delayAfterImport);
+            } catch (err) {
+                falhas++;
+                showAction(`Erro: ${err.message}`, '❌');
+                log(`${label} Falha: ${err.message}`, 'error');
+                reportImportProgress(item.shopifyId, 'error', '');
+                closeModals(); await sleep(2000);
+            }
+        }
+        updateProgress(items.length, items.length); hideAction(); removeVisualBar();
+        status('Finalizado!');
+        log(`━━━ FIM ━━━ ✅ ${sucesso} | ❌ ${falhas} | Total: ${items.length}`);
+        _running = false; updateBtnState(false);
+    }
+
+    function updateBtnState(isRunning) {
+        const startBtn = document.getElementById('brk-import-start');
+        const singleBtn = document.getElementById('brk-import-single');
+        const pauseBtn = document.getElementById('brk-import-pause');
+        const stopBtn = document.getElementById('brk-import-stop');
+        if (startBtn) { startBtn.disabled = isRunning; startBtn.style.opacity = isRunning ? '0.5' : '1'; }
+        if (singleBtn) { singleBtn.disabled = isRunning; singleBtn.style.opacity = isRunning ? '0.5' : '1'; }
+        if (pauseBtn) { pauseBtn.disabled = !isRunning; pauseBtn.style.opacity = !isRunning ? '0.5' : '1'; }
+        if (stopBtn) { stopBtn.disabled = !isRunning; stopBtn.style.opacity = !isRunning ? '0.5' : '1'; }
+    }
+
+    // ── MODO PÁGINA ──
+    function scanPageSkus() {
+        const skuInputs = getSkuInputs();
+        const entries = [];
+        for (const inp of skuInputs) {
+            const sku = norm(inp.value); if (!sku) continue;
+            const skuUpper = sku.toUpperCase();
+            const container = getRegistroContainer(inp);
+            let temEan = false;
+            for (const ei of (container ? container.querySelectorAll('input') : [])) {
+                const id = (ei.id || ei.name || '').toLowerCase();
+                if ((id.includes('ean') || id.includes('gtin')) && norm(ei.value)) { temEan = true; break; }
+            }
+            let categoria;
+            if (skuUpper.startsWith('ALL') || skuUpper.startsWith('KIT')) categoria = 'descartar';
+            else if (skuUpper.includes('_FULL')) categoria = 'revenda';
+            else if (/^\d{2,7}$/.test(sku)) categoria = 'ja_sankhya';
+            else categoria = 'consultar';
+            entries.push({ sku, input: inp, container, temEan, categoria });
+        }
+        return { total: entries.length, jaTemSankhya: entries.filter(e => e.categoria === 'ja_sankhya'), paraConsultar: entries.filter(e => e.categoria === 'consultar'), revenda: entries.filter(e => e.categoria === 'revenda'), descartar: entries.filter(e => e.categoria === 'descartar'), semEan: entries.filter(e => !e.temEan && e.categoria !== 'descartar'), all: entries };
+    }
+
+    async function processPageUpdate(onlyFirst = false) {
+        if (_running) { log('Já está em execução!', 'warn'); return; }
+        _running = true; _shouldStop = false;
+        const tipoOverride = document.getElementById('brk-import-tipo')?.value || 'auto';
+        const cfg = getCFG();
+        log(`━━━ MODO PÁGINA — ${onlyFirst ? 'TESTE' : 'PROCESSAMENTO'} ━━━`);
+        const scan = scanPageSkus();
+        const itemsParaProcessar = onlyFirst ? [scan.all[0]] : scan.all;
+        const paraConsultar = onlyFirst ? itemsParaProcessar.filter(e => e.categoria === 'consultar' || e.categoria === 'revenda') : [...scan.paraConsultar, ...scan.revenda];
+        log(`📊 Total: ${scan.total} | Sankhya: ${scan.jaTemSankhya.length} | Consultar: ${scan.paraConsultar.length} | Revenda: ${scan.revenda.length} | Descartar: ${scan.descartar.length}`);
+        if (scan.total === 0) { log('❌ Nenhum SKU encontrado.', 'warn'); _running = false; return; }
+        const skuEntriesParaSankhya = paraConsultar.map(e => ({ sku: e.sku, precisaEan: !e.temEan }));
+        let sucesso = 0;
+        if (skuEntriesParaSankhya.length > 0) {
+            log(`📡 Buscando ${skuEntriesParaSankhya.length} SKUs no Sankhya...`);
+            status('Consultando Sankhya...');
+            const pares = await obterCodigosSankhyaParaVariantes(skuEntriesParaSankhya);
+            if (pares && pares.length > 0) {
+                sucesso += applySankhyaResults(pares);
+                log(`✅ ${sucesso}/${pares.length} códigos aplicados automaticamente.`, 'success');
+                await sleep(cfg.delayStep || 500);
+            } else {
+                log('⚠️ Sankhya sem resultados.', 'warn');
+            }
+        }
+        status('Configurando Diversa + Depósito...');
+        let countProd = 0, countRev = 0, countSkipped = 0;
+        for (const entry of itemsParaProcessar) {
+            if (entry.categoria === 'descartar') { countSkipped++; continue; }
+            const container = entry.container || getRegistroContainer(entry.input);
+            let tipo; if (tipoOverride !== 'auto') tipo = tipoOverride; else if (entry.categoria === 'revenda') tipo = 'revenda'; else tipo = 'producao';
+            if (tipo === 'producao') { setVendidoDiversa(container, 'sim'); setDeposito(entry.input, 'fabricacao'); countProd++; }
+            else { setVendidoDiversa(container, 'nao'); setDeposito(entry.input, 'revenda'); countRev++; }
+        }
+        log(`🏭 Produção: ${countProd} | 📦 Revenda: ${countRev} | 🚫 Descartados: ${countSkipped}`);
+        if (!onlyFirst) { for (const cb of document.querySelectorAll('input[type="checkbox"]')) { const parent = cb.closest('tr, .row, .card, .panel'); if (parent && parent.querySelector('input[id*="sku"], input[name*="sku"]') && !cb.checked) cb.click(); } }
+        log(`━━━ MODO PÁGINA CONCLUÍDO ━━━`);
+        status(onlyFirst ? '🧪 Teste concluído' : '✅ Concluído — Clique "Atualizar" para salvar!');
+        _running = false; updateBtnState(false);
+    }
+
+    // ── UI PAINEL MAGIS5 ──
+    function buildLauncher() {
+        if (document.getElementById('brk-import-launcher')) return;
+        const btn = document.createElement('button');
+        btn.id = 'brk-import-launcher';
+        btn.innerText = '🚀 Magis5 Import';
+        btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999998;background:linear-gradient(135deg,#7F00FF,#5B21B6);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 4px 15px rgba(127,0,255,0.4);transition:transform 0.2s,box-shadow 0.2s;';
+        btn.onmouseenter = () => { btn.style.transform = 'scale(1.05)'; };
+        btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; };
+        btn.onclick = () => { const existing = document.getElementById('brk-import-panel'); if (existing) { existing.remove(); return; } buildPanel(); };
+        document.body.appendChild(btn);
+    }
+
+    function buildPanel() {
+        const box = document.createElement('div');
+        box.id = 'brk-import-panel';
+        box.style.cssText = 'position:fixed;top:16px;right:16px;z-index:999999;background:#0f172a;color:#e2e8f0;width:500px;max-height:90vh;overflow:auto;border-radius:16px;border:1px solid #7F00FF50;box-shadow:0 10px 40px rgba(127,0,255,0.3);font:13px/1.5 "Inter",system-ui,sans-serif;';
+        const channelOptions = '<optgroup label="🛒 Amazon"><option value="amazon-550c5247c30e4eb9a5710d5853f2bb43">Amazon USEBRK</option></optgroup><optgroup label="🟡 Mercado Livre"><option value="ml-594c421a091a4546b9dda6762771322e">ML — BRK COMERCIO</option><option value="ml-738289f2b87f4f0892558d591454f31d">ML — BRK FILIAL (Oficial)</option><option value="ml-47da6d90fc2f489c9f7d0acc61ca458c">ML — BRK MATRIZ</option></optgroup><optgroup label="🟠 Shopee"><option value="shopee-d19e97cdeba849399f2a3bf04cf7cf2b">Shopee — BRK AGRO</option><option value="shopee-1b953452d1e74475bd27492dba97f98a">Shopee — BRK FILIAL</option></optgroup><optgroup label="🟢 Shopify"><option value="shopify-21b47dd8ee4b4a44b8b8d891bb3e2265">Shopify — BRK AGRO</option><option value="shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f" selected>Shopify — BRK FISHING</option><option value="shopify-7495282216c04726834a39582e5369dd">Shopify — BRK MOTORS</option></optgroup><optgroup label="🎵 TikTok"><option value="tiktok-5b3145553c2b4984ac9a98e2d4ccc3a1">TikTok — BRK FILIAL</option></optgroup>';
+        box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#0f172a,#1e1b4b);border-radius:16px 16px 0 0"><div><div style="font-weight:800;font-size:15px;color:#a78bfa">🚀 BRK Autopilot v7.2</div><div style="font-size:11px;color:#64748b">Auto-Troca de SKUs Blindada ⚡</div></div><button id="brk-import-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold;font-size:12px">✕</button></div><div style="padding:14px 16px;display:grid;gap:12px"><div id="brk-import-status" style="color:#10b981;font-weight:600;font-size:13px">Pronto para iniciar</div><div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden"><div id="brk-import-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#7F00FF,#a855f7);transition:width .3s"></div></div><span id="brk-import-progress-text" style="font-size:12px;color:#94a3b8;min-width:40px">0/0</span></div><div style="background:#1e1b4b;border-radius:10px;padding:10px 12px;border:1px solid #7F00FF40"><label style="display:block;font-size:11px;color:#a78bfa;margin-bottom:6px;font-weight:700;text-transform:uppercase">⏱️ Velocidade</label><select id="brk-speed-select" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;font-weight:600"><option value="slow" selected>🐢 Lento / Inspeção</option><option value="normal">⚡ Normal</option><option value="fast">🚀 Turbo</option></select></div><div><label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">🏪 Canal de Venda</label><select id="brk-import-channel" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px">' + channelOptions + '</select></div><div style="background:#1e1b4b;border-radius:10px;padding:10px 12px;border:1px solid #7F00FF30"><label style="display:block;font-size:11px;color:#a78bfa;margin-bottom:6px;font-weight:700;text-transform:uppercase">🔍 Tipo de Produto</label><select id="brk-import-tipo" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;font-weight:600"><option value="auto" selected>🤖 Auto-Detectar</option><option value="producao">🏭 Forçar PRODUÇÃO</option><option value="revenda">📦 Forçar REVENDA</option></select><div id="brk-import-modo-info" style="font-size:11px;margin-top:6px;padding:6px 8px;border-radius:6px;background:#0f172a;color:#10b981;border:1px solid #10b98130">🤖 <strong>AUTO</strong>: _FULL → Revenda · ALL/KIT → Pular · Outros → Produção</div></div><div><label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">IDs dos Anúncios</label><textarea id="brk-import-list" rows="5" placeholder="Cole os IDs (um por linha)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button id="brk-import-single" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">🧪 Testar 1º</button><button id="brk-import-start" style="background:linear-gradient(135deg,#7F00FF,#5B21B6);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">▶ Importar Todos</button></div><div style="display:flex;gap:8px"><button id="brk-import-pause" disabled style="background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏸ Pausar</button><button id="brk-import-stop" disabled style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏹ Parar</button></div><div style="border-top:2px solid #334155;margin:4px 0;position:relative"><span style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#0f172a;padding:0 10px;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px">ou</span></div><div style="background:linear-gradient(135deg,#0f2922,#1e1b4b);border-radius:10px;padding:10px 12px;border:1px solid #10b98140"><label style="display:block;font-size:11px;color:#10b981;margin-bottom:6px;font-weight:700;text-transform:uppercase">📋 Modo Página</label><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Produtos já importados → Sankhya + Diversa + Depósito</div><div id="brk-page-resumo" style="font-size:11px;padding:6px 8px;border-radius:6px;background:#0b1220;color:#94a3b8;border:1px solid #1e293b;margin-bottom:8px;display:none;white-space:pre-line"></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="brk-page-scan" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:font-size:11px">🔍 Escanear</button><button id="brk-page-test" style="background:#f59e0b;color:#000;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:11px">🧪 Testar 1º</button><button id="brk-page-process" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:11px">▶ Processar</button></div></div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase">Terminal</label><button id="brk-import-clear-log" style="background:transparent;border:1px solid #334155;color:#64748b;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px">Limpar</button></div><div id="brk-import-log" style="background:#020617;border-radius:10px;padding:10px;max-height:18vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#94a3b8;border:1px solid #1e293b"></div></div><div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">BRK Autopilot v7.2 · Auto-Troca de SKU Blindada ⚡</div></div>';
+        document.body.appendChild(box);
+        box.querySelector('#brk-import-close').onclick = () => box.remove();
+        box.querySelector('#brk-import-start').onclick = () => processImportQueue(false);
+        box.querySelector('#brk-import-single').onclick = () => processImportQueue(true);
+        box.querySelector('#brk-speed-select').onchange = (e) => { activeSpeed = e.target.value; log(`Velocidade: ${SPEED_PROFILES[activeSpeed].name}`, 'info'); };
+        box.querySelector('#brk-import-tipo').onchange = (e) => {
+            const info = document.getElementById('brk-import-modo-info'); const val = e.target.value;
+            if (val === 'auto') { info.innerHTML = '🤖 <strong>AUTO</strong>: _FULL → Revenda · ALL/KIT → Pular · Outros → Produção'; info.style.color = '#10b981'; }
+            else if (val === 'producao') { info.innerHTML = '🏭 <strong>PRODUÇÃO</strong>: Diversa=Sim · FABRICAÇÃO'; info.style.color = '#a78bfa'; }
+            else { info.innerHTML = '📦 <strong>REVENDA</strong>: Diversa=Não · ESTOQUE REVENDA'; info.style.color = '#f59e0b'; }
+        };
+        box.querySelector('#brk-import-pause').onclick = () => { _paused = !_paused; const btn = box.querySelector('#brk-import-pause'); btn.textContent = _paused ? '▶ Continuar' : '⏸ Pausar'; btn.style.background = _paused ? '#059669' : '#334155'; };
+        box.querySelector('#brk-import-stop').onclick = () => { _shouldStop = true; log('⏹ Parando...', 'warn'); };
+        box.querySelector('#brk-import-clear-log').onclick = () => { document.getElementById('brk-import-log').textContent = ''; };
+        box.querySelector('#brk-page-scan').onclick = () => {
+            const scan = scanPageSkus();
+            const resumoEl = document.getElementById('brk-page-resumo'); resumoEl.style.display = 'block';
+            resumoEl.innerHTML = `<strong style="color:#10b981">📊 ${scan.total} variantes</strong>\n✅ Sankhya: ${scan.jaTemSankhya.length}\n🔍 Consultar: ${scan.paraConsultar.length}\n📦 Revenda: ${scan.revenda.length}\n🚫 Descartar: ${scan.descartar.length}\n🔴 Sem EAN: ${scan.semEan.length}`;
+        };
+        box.querySelector('#brk-page-test').onclick = () => processPageUpdate(true);
+        box.querySelector('#brk-page-process').onclick = () => processPageUpdate(false);
+        log('Painel v7.2 pronto! Troca automática de SKU ativa ⚡', 'info');
+        // ── HOOK PRIME INTEGRATION: auto-load pending IDs ──
+        checkPendingFromHookPrime();
+    }
+
+    // ── HOOK PRIME INTEGRATION ──
+    let _hookPrimeSessionId = '';
+
+    async function checkPendingFromHookPrime() {
+        try {
+            const data = await new Promise((resolve) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: 'http://localhost:3000/api/pipeline/pending-ids',
+                    timeout: 5000,
+                    onload: (res) => {
+                        try { resolve(JSON.parse(res.responseText)); }
+                        catch (e) { resolve(null); }
+                    },
+                    onerror: () => resolve(null),
+                    ontimeout: () => resolve(null),
+                });
+            });
+            if (!data || !data.success || !data.ids || data.ids.length === 0) return;
+            _hookPrimeSessionId = data.sessionId || '';
+            const textarea = document.getElementById('brk-import-list');
+            if (textarea && !textarea.value.trim()) {
+                textarea.value = data.ids.join('\n');
+                log(`📡 HOOK PRIME: ${data.ids.length} IDs carregados automaticamente (${data.store || 'unknown'})`, 'success');
+            }
+            // Auto-selecionar canal pela loja
+            if (data.channel) {
+                const channelSelect = document.getElementById('brk-import-channel');
+                if (channelSelect) {
+                    const opt = [...channelSelect.options].find(o => o.value === data.channel);
+                    if (opt) {
+                        channelSelect.value = data.channel;
+                        opt.selected = true;
+                        channelSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        log(`🏪 Canal auto-selecionado: ${opt.textContent.trim()}`, 'success');
+                    }
+                }
+            }
+        } catch (e) {
+            // HOOK PRIME offline — fluxo manual continua normalmente
+        }
+    }
+
+    function reportImportProgress(shopifyId, progressStatus, tipo) {
+        try {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: 'http://localhost:3000/api/pipeline/import-progress',
+                headers: { 'Content-Type': 'application/json' },
+                data: JSON.stringify({
+                    sessionId: _hookPrimeSessionId,
+                    shopifyId: shopifyId,
+                    status: progressStatus,
+                    tipo: tipo || 'producao',
+                }),
+                timeout: 5000,
+            });
+        } catch (e) { /* silent */ }
+    }
+
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => setTimeout(buildLauncher, 2000)); }
+    else { setTimeout(buildLauncher, 2000); }
+
+    } // fim Magis5
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  MÓDULO SANKHYA — API TURBO v7.2                                    ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    if (_brkHost.includes('sankhya')) {
+
+    const API_SYNC_ENDPOINT = 'http://127.0.0.1:5000/api/sankhya-session';
+    const CONCORRENCIA = 6;
+
+    function unique(values) { return [...new Set(values)]; }
+
+    let lastCapturedSktk = '';
+    let lastCapturedMgeSession = '';
+    let lastSyncTime = 0;
+
+    function syncSessionWithApi(sktk, mgeSession) {
+        if (!sktk) return;
+        const now = Date.now();
+        if (now - lastSyncTime < 10000) return;
+        lastSyncTime = now;
+        try {
+            GM_xmlhttpRequest({
+                method: 'POST', url: API_SYNC_ENDPOINT,
+                headers: { 'Content-Type': 'application/json' },
+                data: JSON.stringify({ sktk, mgeSession: mgeSession || getActiveMgeSession() || '', timestamp: now }),
+                onload: () => {},
+                onerror: () => {}
+            });
+        } catch (_) {}
+    }
+
+    const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.setRequestHeader = function (header, value) {
+        if (header && header.toLowerCase() === 'sktk' && value) {
+            lastCapturedSktk = value;
+            GM_setValue(TOKEN_KEY, value);
+            window.dispatchEvent(new CustomEvent('snk-token-detected'));
+            syncSessionWithApi(value, lastCapturedMgeSession);
+        }
+        return origSetHeader.apply(this, arguments);
+    };
+
+    const origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        if (typeof url === 'string') {
+            const match = url.match(/mgeSession=([^&]+)/);
+            if (match) {
+                lastCapturedMgeSession = match[1];
+                GM_setValue(SESSION_KEY, match[1]);
+                window.dispatchEvent(new CustomEvent('snk-token-detected'));
+                syncSessionWithApi(lastCapturedSktk, match[1]);
+            }
+        }
+        return origOpen.apply(this, arguments);
+    };
+
+    function getActiveSktk() {
+        if (lastCapturedSktk) return lastCapturedSktk;
+        const saved = GM_getValue(TOKEN_KEY, ''); if (saved) return saved;
+        try { if (window.sessionStorage.getItem('sktk')) return window.sessionStorage.getItem('sktk'); if (window.localStorage.getItem('sktk')) return window.localStorage.getItem('sktk'); if (window.parent?.sessionStorage?.getItem('sktk')) return window.parent.sessionStorage.getItem('sktk'); } catch (_) {}
+        return '';
+    }
+
+    function getActiveMgeSession() {
+        if (lastCapturedMgeSession) return lastCapturedMgeSession;
+        const saved = GM_getValue(SESSION_KEY, ''); if (saved) return saved;
+        try { const p = new URLSearchParams(window.location.search); if (p.get('mgeSession')) return p.get('mgeSession'); } catch (_) {}
+        return '';
+    }
+
+    async function fetchSkuDiretoApi(sku) {
+        const sktk = getActiveSktk(); const mgeSession = getActiveMgeSession();
+        let url = 'https://brk.sankhyacloud.com.br/mge/service.sbr?serviceName=PesquisaSP.getSuggestion&application=ProdutoServico&outputType=json&preventTransform=false&resourceID=br.com.sankhya.core.cad.produtos&allowConcurrentCalls=true&vss=2';
+        if (mgeSession) url += `&mgeSession=${mgeSession}`;
+        const headers = { 'accept': 'application/json, text/plain, */*', 'content-type': 'application/json; charset=UTF-8' };
+        if (sktk) headers['sktk'] = sktk;
+        const body = { serviceName: 'PesquisaSP.getSuggestion', requestBody: { criteria: { entityName: 'Produto', compacted: false, ignoreEntityCriteria: false, limit: '5', query: { '$': sku }, orderByDesc: false, options: { showInactives: true }, externalCriteria: { query: { '$': "((this.USOPROD <> 'S' AND this.USOPROD <> '3' ))" }, params: { param: [] } } }, clientEventList: { clientEvent: [{ '$': 'br.com.sankhya.mge.info.metro.cubico' }, { '$': 'br.com.sankhya.actionbutton.clientconfirm' }] } } };
+        const response = await fetch(url, { method: 'POST', headers, credentials: 'include', body: JSON.stringify(body) });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return parseSankhyaResponse(await response.json());
+    }
+
+    async function getSkuCache() { return (await GM_getValue(CACHE_KEY, null)) || {}; }
+    async function setSkuCache(sku, codigo, referencia) { const cache = await getSkuCache(); cache[sku] = { codigo, referencia, t: Date.now() }; await GM_setValue(CACHE_KEY, cache); }
+
+    function playBeep() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(587.33, ctx.currentTime); gain.gain.setValueAtTime(0.08, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.3); } catch (_) {} }
+
+    function initSankhyaPanel() {
+        if (window.self !== window.top) return;
+        if (document.querySelector('#snk-turbo-panel')) return;
+        const state = { running: false, stopRequested: false, minimized: false, resultsList: [] };
+
+        const style = document.createElement('style');
+        style.textContent = '#snk-turbo-panel{position:fixed;top:25px;right:25px;width:780px;max-width:95vw;background:#0f172a;color:#f8fafc;border-radius:12px;border:1px solid #334155;box-shadow:0 16px 40px rgba(0,0,0,.6);z-index:9999999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:12px;overflow:hidden;display:flex;flex-direction:column;resize:both}#snk-turbo-header{background:#1e293b;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:move;border-bottom:1px solid #334155;user-select:none}#snk-turbo-title{font-weight:bold;font-size:13px;color:#38bdf8;display:flex;align-items:center;gap:8px}.snk-turbo-head-btn{background:#334155;color:#fff;border:none;border-radius:5px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;margin-left:5px;transition:0.2s}.snk-turbo-head-btn:hover{background:#475569}#snk-turbo-body{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:calc(85vh - 50px);overflow-y:auto}.snk-turbo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.snk-turbo-col{display:flex;flex-direction:column;gap:5px}.snk-turbo-col label{font-size:11px;font-weight:bold;color:#94a3b8}.snk-turbo-col textarea{background:#020617;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:8px;font-family:monospace;font-size:11px;min-height:150px;resize:vertical;box-sizing:border-box}.snk-turbo-col textarea:focus{outline:none;border-color:#38bdf8}.snk-turbo-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1e293b;border-radius:8px;border:1px solid #334155}.snk-turbo-token-status{font-size:11px;font-weight:bold;display:flex;align-items:center;gap:6px}.snk-token-ok{color:#4ade80}.snk-token-wait{color:#facc15}.snk-turbo-actions{display:flex;gap:8px;flex-wrap:wrap}.snk-btn{border:none;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:bold;cursor:pointer;transition:0.15s;display:inline-flex;align-items:center;gap:5px}.snk-btn:hover{filter:brightness(1.1)}.snk-btn-primary{background:#0284c7;color:#fff}.snk-btn-success{background:#16a34a;color:#fff}.snk-btn-danger{background:#dc2626;color:#fff}.snk-btn-dark{background:#334155;color:#f1f5f9}.snk-turbo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}.snk-stat-box{background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px}.snk-stat-box span{display:block;font-size:10px;color:#94a3b8}.snk-stat-box strong{font-size:13px;color:#f8fafc}#snk-turbo-log{background:#020617;border:1px solid #1e293b;border-radius:8px;padding:8px;max-height:110px;overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.4}.snk-log-info{color:#93c5fd}.snk-log-success{color:#4ade80}.snk-log-warn{color:#fde047}.snk-log-error{color:#f87171}#snk-floating-trigger{position:fixed;bottom:20px;right:20px;z-index:9999998;background:#0284c7;color:#fff;font-weight:bold;padding:9px 14px;border-radius:30px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);font-family:sans-serif;font-size:12px;display:none;align-items:center;gap:6px;border:1px solid #38bdf8}#snk-floating-trigger:hover{background:#0369a1}';
+        document.head.appendChild(style);
+
+        const panel = document.createElement('div'); panel.id = 'snk-turbo-panel';
+        panel.innerHTML = '<div id="snk-turbo-header"><div id="snk-turbo-title">⚡ Sankhya — Busca Turbo API v7.2 (BRK Autopilot)</div><div><button id="snk-btn-minimize" class="snk-turbo-head-btn" title="Minimizar">—</button><button id="snk-btn-close" class="snk-turbo-head-btn" title="Fechar">✕</button></div></div><div id="snk-turbo-body"><div class="snk-turbo-bar"><div id="snk-token-status" class="snk-turbo-token-status">Verificando sessão...</div><div style="display:flex;align-items:center;gap:8px;"><label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd5e1;cursor:pointer;"><input type="checkbox" id="snk-use-cache" checked> Usar Cache (0ms)</label><button id="snk-clear-cache" class="snk-btn snk-btn-dark" style="padding:4px 8px;font-size:10px;">Limpar Cache</button></div></div><div class="snk-turbo-grid"><div class="snk-turbo-col"><label>1. Cole os SKUs aqui:</label><textarea id="snk-input-skus" placeholder="SKU-EXEMPLO-1&#10;SKU-EXEMPLO-2"></textarea></div><div class="snk-turbo-col"><label>2. Código Sankhya (CODPROD):</label><textarea id="snk-output-codprod" readonly placeholder="Aguardando busca..."></textarea></div><div class="snk-turbo-col"><label>3. Referência / EAN:</label><textarea id="snk-output-ref" readonly placeholder="Aguardando busca..."></textarea></div></div><div class="snk-turbo-actions"><button id="snk-btn-start" class="snk-btn snk-btn-primary">🚀 Iniciar Busca</button><button id="snk-btn-stop" class="snk-btn snk-btn-danger" style="display:none;">⏹ Parar</button><button id="snk-btn-copy-table" class="snk-btn snk-btn-success">📋 Copiar Tabela (Excel)</button><button id="snk-btn-copy-codprod" class="snk-btn snk-btn-dark">📋 Copiar CODPROD</button><button id="snk-btn-copy-refs" class="snk-btn snk-btn-dark">📋 Copiar Referências</button><button id="snk-btn-copy-notfound" class="snk-btn snk-btn-dark">⚠️ Copiar Não Achados</button><button id="snk-btn-clear" class="snk-btn snk-btn-dark">🧹 Limpar</button></div><div class="snk-turbo-stats"><div class="snk-stat-box"><span>Status</span><strong id="snk-stat-status">Pronto</strong></div><div class="snk-stat-box"><span>Total</span><strong id="snk-stat-total">0</strong></div><div class="snk-stat-box"><span>Encontrados</span><strong id="snk-stat-ok" style="color:#4ade80;">0</strong></div><div class="snk-stat-box"><span>Não Achados</span><strong id="snk-stat-fail" style="color:#f87171;">0</strong></div></div><div id="snk-turbo-log"></div></div>';
+
+        const trigger = document.createElement('div'); trigger.id = 'snk-floating-trigger'; trigger.innerHTML = '⚡ <span>Busca Sankhya</span>';
+        document.body.appendChild(panel); document.body.appendChild(trigger);
+
+        const logBox = panel.querySelector('#snk-turbo-log');
+        const tokenStatusEl = panel.querySelector('#snk-token-status');
+        const inputSkus = panel.querySelector('#snk-input-skus');
+        const outputCod = panel.querySelector('#snk-output-codprod');
+        const outputRef = panel.querySelector('#snk-output-ref');
+        const statStatus = panel.querySelector('#snk-stat-status');
+        const statTotal = panel.querySelector('#snk-stat-total');
+        const statOk = panel.querySelector('#snk-stat-ok');
+        const statFail = panel.querySelector('#snk-stat-fail');
+        const btnStart = panel.querySelector('#snk-btn-start');
+        const btnStop = panel.querySelector('#snk-btn-stop');
+
+        function snkLog(msg, type = 'info') { const item = document.createElement('div'); item.className = `snk-log-${type}`; item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`; logBox.prepend(item); }
+        function updateTokenStatus() { const sktk = getActiveSktk(); if (sktk) { tokenStatusEl.innerHTML = '<span class="snk-token-ok">●</span> Sessão Conectada'; syncSessionWithApi(sktk, getActiveMgeSession()); } else { tokenStatusEl.innerHTML = '<span class="snk-token-wait">●</span> Aguardando token...'; } }
+
+        (function(el, handle) { let d=false,ox=0,oy=0; handle.addEventListener('mousedown',e=>{if(e.target.tagName==='BUTTON')return;d=true;ox=e.clientX-el.offsetLeft;oy=e.clientY-el.offsetTop;document.body.style.userSelect='none';}); document.addEventListener('mousemove',e=>{if(!d)return;el.style.left=`${Math.max(10,e.clientX-ox)}px`;el.style.top=`${Math.max(10,e.clientY-oy)}px`;el.style.right='auto';}); document.addEventListener('mouseup',()=>{d=false;document.body.style.userSelect='';}); })(panel, panel.querySelector('#snk-turbo-header'));
+
+        panel.querySelector('#snk-btn-minimize').onclick = () => { state.minimized = !state.minimized; panel.querySelector('#snk-turbo-body').style.display = state.minimized ? 'none' : 'flex'; panel.querySelector('#snk-btn-minimize').textContent = state.minimized ? '+' : '—'; };
+        panel.querySelector('#snk-btn-close').onclick = () => { panel.style.display = 'none'; trigger.style.display = 'flex'; };
+        trigger.onclick = () => { panel.style.display = 'flex'; trigger.style.display = 'none'; };
+
+        async function runSearch() {
+            const rawLines = inputSkus.value.split('\n').map(norm); const skus = rawLines.filter(Boolean);
+            if (!skus.length) { snkLog('Cole ao menos um código.', 'warn'); return; }
+            const sktk = getActiveSktk();
+            if (!sktk) { snkLog('⚠️ Token não capturado. Clique em um menu do Sankhya.', 'error'); return; }
+            state.running = true; state.stopRequested = false;
+            btnStart.style.display = 'none'; btnStop.style.display = 'inline-flex';
+            statTotal.textContent = String(skus.length); statOk.textContent = '0'; statFail.textContent = '0'; statStatus.textContent = 'Buscando...';
+            outputCod.value = 'Consultando...'; outputRef.value = 'Consultando...';
+            const useCache = panel.querySelector('#snk-use-cache').checked;
+            const cache = useCache ? await getSkuCache() : {};
+            const uniqueSkus = unique(skus); const resultMap = new Map(); let concluidos = 0; const startTime = Date.now();
+            snkLog(`🚀 Buscando ${skus.length} linhas (${uniqueSkus.length} únicos) — ${CONCORRENCIA} workers`, 'info');
+            let index = 0;
+            async function worker() {
+                while (index < uniqueSkus.length) {
+                    if (state.stopRequested) break;
+                    const i = index++; const sku = uniqueSkus[i];
+                    if (useCache && cache[sku]?.codigo) { resultMap.set(sku, { codigo: cache[sku].codigo, referencia: cache[sku].referencia || '', found: true }); snkLog(`⚡ [Cache] ${sku} ➔ ${cache[sku].codigo}`); }
+                    else { try { const res = await fetchSkuDiretoApi(sku); if (res?.codigo) { resultMap.set(sku, { codigo: res.codigo, referencia: res.referencia || '', found: true }); if (useCache) await setSkuCache(sku, res.codigo, res.referencia); snkLog(`✅ ${sku} ➔ ${res.codigo}${res.referencia ? ` (Ref: ${res.referencia})` : ''}`, 'success'); } else { resultMap.set(sku, { codigo: '', referencia: '', found: false, motivo: 'Não encontrado' }); snkLog(`⚠️ ${sku}: Não encontrado`, 'warn'); } } catch (err) { resultMap.set(sku, { codigo: '', referencia: '', found: false, motivo: err.message }); snkLog(`⛔ ${sku}: ${err.message}`, 'error'); } }
+                    concluidos++; statStatus.textContent = `${concluidos}/${uniqueSkus.length}`; await sleep(15);
+                }
+            }
+            await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, uniqueSkus.length) }, () => worker()));
+            const codOut = [], refOut = []; let okCount = 0, failCount = 0; const fullResults = [];
+            rawLines.forEach(sku => { if (!sku) { codOut.push(''); refOut.push(''); return; } const info = resultMap.get(sku); if (info?.found) { codOut.push(info.codigo); refOut.push(info.referencia); okCount++; fullResults.push({ sku, codigo: info.codigo, referencia: info.referencia, status: 'OK' }); } else { codOut.push(''); refOut.push(''); failCount++; fullResults.push({ sku, codigo: '', referencia: '', status: info?.motivo || 'Não encontrado' }); } });
+            outputCod.value = codOut.join('\n'); outputRef.value = refOut.join('\n'); state.resultsList = fullResults;
+            statOk.textContent = String(okCount); statFail.textContent = String(failCount);
+            statStatus.textContent = state.stopRequested ? 'Interrompido' : 'Concluído';
+            snkLog(`🏁 ${((Date.now() - startTime) / 1000).toFixed(1)}s! ✅ ${okCount} | ⚠ ${failCount}`, 'success');
+            playBeep(); state.running = false; btnStart.style.display = 'inline-flex'; btnStop.style.display = 'none';
+        }
+
+        btnStart.onclick = runSearch;
+        btnStop.onclick = () => { state.stopRequested = true; snkLog('Parada solicitada.', 'warn'); };
+        panel.querySelector('#snk-btn-copy-table').onclick = () => { if (!state.resultsList.length) return; const h = ['SKU', 'CODPROD', 'REFERENCIA', 'STATUS'].join('\t'); const rows = state.resultsList.map(r => [r.sku, r.codigo, r.referencia, r.status].join('\t')); GM_setClipboard([h, ...rows].join('\n')); snkLog('📋 Tabela copiada!', 'success'); };
+        panel.querySelector('#snk-btn-copy-codprod').onclick = () => { if (outputCod.value) { GM_setClipboard(outputCod.value); snkLog('📋 CODPROD copiados!', 'info'); } };
+        panel.querySelector('#snk-btn-copy-refs').onclick = () => { if (outputRef.value) { GM_setClipboard(outputRef.value); snkLog('📋 Referências copiadas!', 'info'); } };
+        panel.querySelector('#snk-btn-copy-notfound').onclick = () => { const nf = state.resultsList.filter(r => r.status !== 'OK').map(r => r.sku); if (!nf.length) return; GM_setClipboard(nf.join('\n')); snkLog(`⚠️ ${nf.length} não achados copiados!`, 'warn'); };
+        panel.querySelector('#snk-btn-clear').onclick = () => { inputSkus.value = ''; outputCod.value = ''; outputRef.value = ''; state.resultsList = []; statTotal.textContent = '0'; statOk.textContent = '0'; statFail.textContent = '0'; statStatus.textContent = 'Pronto'; snkLog('Limpo.', 'info'); };
+        panel.querySelector('#snk-clear-cache').onclick = async () => { await GM_deleteValue(CACHE_KEY); snkLog('🧹 Cache limpo.', 'info'); };
+
+        updateTokenStatus();
+        window.addEventListener('snk-token-detected', updateTokenStatus);
+        setInterval(updateTokenStatus, 5000);
+        snkLog('⚡ Painel API Turbo v7.2 pronto!', 'success');
+    }
+
+    // ── MODO AUTOMÁTICO (FALLBACK VIA LISTENER CROSS-TAB) ──
+    async function processarListaAutomatica(skuEntries) {
+        const sktk = getActiveSktk();
+        if (!sktk) {
+            GM_setValue('brk_skus_resultado', JSON.stringify({ timestamp: Date.now(), status: 'erro', mensagem: 'Token não capturado no Sankhya' }));
+            return;
+        }
+        const cache = await getSkuCache();
+        const pares = [];
+        const uniqueSkus = unique(skuEntries.map(e => e.sku));
+        const resultMap = new Map();
+        let index = 0;
+
+        async function worker() {
+            while (index < uniqueSkus.length) {
+                const i = index++;
+                const sku = uniqueSkus[i];
+                if (cache[sku]?.codigo) {
+                    resultMap.set(sku, { codigo: cache[sku].codigo, referencia: cache[sku].referencia || '' });
+                } else {
+                    try {
+                        const res = await fetchSkuDiretoApi(sku);
+                        if (res?.codigo) {
+                            resultMap.set(sku, { codigo: res.codigo, referencia: res.referencia || '' });
+                            await setSkuCache(sku, res.codigo, res.referencia);
+                        }
+                    } catch (err) {}
+                }
+                await sleep(15);
+            }
+        }
+        await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, uniqueSkus.length) }, () => worker()));
+
+        for (const entry of skuEntries) {
+            const info = resultMap.get(entry.sku);
+            if (info) pares.push({ sku: entry.sku, codigo: info.codigo, ean: (entry.precisaEan && info.referencia) ? info.referencia : '' });
+        }
+
+        GM_setValue('brk_skus_resultado', JSON.stringify({ timestamp: Date.now(), status: 'completo', pares, total: skuEntries.length, encontrados: pares.length }));
+    }
+
+    GM_addValueChangeListener('brk_skus_pendentes', (name, oldVal, newVal, remote) => {
+        if (!newVal) return;
+        try {
+            const p = JSON.parse(newVal);
+            if (p?.status === 'pendente' && p.skus?.length > 0) {
+                processarListaAutomatica(p.skus);
+            }
+        } catch (_) {}
+    });
+
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => setTimeout(initSankhyaPanel, 600)); }
+    else { setTimeout(initSankhyaPanel, 600); }
+    setTimeout(initSankhyaPanel, 1500);
+
+    } // fim Sankhya
+
+})();

@@ -1,0 +1,779 @@
+// ==UserScript==
+// @name         BRK Estoque Infinito Autopilot - Magis5
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Adiciona Estoque Infinito (1000) em todas as variantes de produtos na Magis5 automaticamente
+// @match        https://app.magis5.com.br/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @connect      localhost
+// @run-at       document-idle
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const norm  = s => (s || '').replace(/\r/g, '').trim();
+
+    // ── HOOK PRIME INTEGRATION ──
+    let _hookPrimeSessionId = '';
+
+    async function loadTitlesFromHookPrime() {
+      try {
+        return await new Promise((resolve, reject) => {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: 'http://localhost:3000/api/pipeline/pending-titles',
+            timeout: 5000,
+            onload: (res) => {
+              try {
+                const data = JSON.parse(res.responseText);
+                if (data.success && data.titles && data.titles.length > 0) {
+                  _hookPrimeSessionId = data.sessionId || '';
+                  resolve(data);
+                } else { resolve(null); }
+              } catch (e) { resolve(null); }
+            },
+            onerror: () => resolve(null),
+            ontimeout: () => resolve(null),
+          });
+        });
+      } catch (e) { return null; }
+    }
+
+    function reportEstoqueProgress(title, status) {
+      try {
+        GM_xmlhttpRequest({
+          method: 'POST',
+          url: 'http://localhost:3000/api/pipeline/estoque-progress',
+          headers: { 'Content-Type': 'application/json' },
+          data: JSON.stringify({
+            sessionId: _hookPrimeSessionId,
+            title: title,
+            status: status,
+          }),
+          timeout: 5000,
+        });
+      } catch (e) { /* silent */ }
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  CONSTANTES                                                         ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    const STOCK_VALUE = 1000;
+
+    const SPEED_PROFILES = {
+        slow: {
+            name: '🐢 Lento / Inspeção',
+            delayAfterSearch: 4000,
+            delayBeforeOpen: 1000,
+            delayAfterFill: 800,
+            delayAfterSave: 3000,
+            delayBetweenVariants: 1500,
+            delayBetweenTitles: 2000,
+            pollInterval: 500,
+            pollTimeout: 20000,
+        },
+        normal: {
+            name: '⚡ Normal',
+            delayAfterSearch: 3000,
+            delayBeforeOpen: 500,
+            delayAfterFill: 500,
+            delayAfterSave: 2500,
+            delayBetweenVariants: 800,
+            delayBetweenTitles: 1500,
+            pollInterval: 400,
+            pollTimeout: 15000,
+        },
+        fast: {
+            name: '🚀 Turbo',
+            delayAfterSearch: 2000,
+            delayBeforeOpen: 300,
+            delayAfterFill: 300,
+            delayAfterSave: 2000,
+            delayBetweenVariants: 500,
+            delayBetweenTitles: 1000,
+            pollInterval: 300,
+            pollTimeout: 12000,
+        },
+    };
+
+    let activeSpeed = 'normal';
+    function cfg() { return SPEED_PROFILES[activeSpeed] || SPEED_PROFILES.normal; }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  DETECÇÃO DE CONTEXTO                                               ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    const currentURL = location.href;
+    const isEditPage = currentURL.includes('/products/edit.php');
+    const isListPage = currentURL.includes('/product/consult/products.php')
+                    || currentURL.includes('/product/consult/')
+                    || (currentURL.includes('products.php') && !isEditPage);
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  MÓDULO EXECUTOR — Página de Edição (edit.php)                      ║
+    // ║                                                                      ║
+    // ║  Detecta tarefa pendente, preenche stockFixed=1000,                ║
+    // ║  clica Atualizar, reporta resultado, fecha aba.                    ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    if (isEditPage) {
+
+        const urlParams = new URLSearchParams(location.search);
+        const pageProductId = urlParams.get('id');
+
+        async function executarTarefa() {
+            let taskRaw = '';
+            try { taskRaw = GM_getValue('brk_stock_task', ''); } catch(_) {}
+            if (!taskRaw) return;
+
+            let task;
+            try { task = JSON.parse(taskRaw); } catch(_) { return; }
+            if (!task || task.status !== 'pendente') return;
+            if (String(task.id) !== String(pageProductId)) return;
+
+            console.log('[BRK-STOCK] 📦 Executor: Tarefa detectada para ID ' + task.id);
+
+            await sleep(1500);
+
+            // ── 1. Localizar campo Estoque Infinito ──
+            let stockInput = document.getElementById('stockFixed');
+            if (!stockInput) stockInput = document.querySelector('input[name="stockFixed"]');
+
+            if (!stockInput) {
+                const labels = document.querySelectorAll('label, span, div');
+                for (const lbl of labels) {
+                    const t = (lbl.textContent || '').toLowerCase();
+                    if (t.includes('estoque infinito') || t.includes('estoque fixo')) {
+                        const input = lbl.closest('.form-group, .col, div');
+                        if (input) { stockInput = input.querySelector('input[type="number"]'); if (stockInput) break; }
+                    }
+                }
+            }
+
+            if (!stockInput) {
+                console.error('[BRK-STOCK] ❌ Campo stockFixed não encontrado!');
+                reportResult(task.id, 'error', 'Campo Estoque Infinito não encontrado');
+                return;
+            }
+
+            // ── 2. Preencher valor ──
+            const valor = String(task.value || STOCK_VALUE);
+            console.log('[BRK-STOCK] 📝 Preenchendo stockFixed = ' + valor);
+
+            stockInput.style.outline = '3px solid #10b981';
+            stockInput.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.5)';
+            try { stockInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_) {}
+            await sleep(400);
+
+            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+            if (setter && setter.set) setter.set.call(stockInput, valor);
+            else stockInput.value = valor;
+
+            stockInput.dispatchEvent(new Event('input', { bubbles: true }));
+            stockInput.dispatchEvent(new Event('change', { bubbles: true }));
+            stockInput.dispatchEvent(new Event('focusout', { bubbles: true }));
+
+            try { if (window.jQuery || window.$) { (window.jQuery || window.$)(stockInput).val(valor).trigger('change'); } } catch(_) {}
+
+            await sleep(cfg().delayAfterFill);
+
+            // ── 3. Clicar Atualizar ──
+            let submitBtn = document.getElementById('submit');
+            if (!submitBtn) submitBtn = document.querySelector('button[id="submit"]');
+
+            if (!submitBtn) {
+                const btns = document.querySelectorAll('button, .btn');
+                for (const b of btns) {
+                    const t = b.textContent.trim().toLowerCase();
+                    if (t === 'atualizar' || t === 'salvar') { submitBtn = b; break; }
+                }
+            }
+
+            if (!submitBtn) {
+                console.error('[BRK-STOCK] ❌ Botão Atualizar não encontrado!');
+                reportResult(task.id, 'error', 'Botão Atualizar não encontrado');
+                return;
+            }
+
+            console.log('[BRK-STOCK] 🖱️ Clicando Atualizar...');
+            submitBtn.style.outline = '3px solid #f59e0b';
+            submitBtn.style.boxShadow = '0 0 15px rgba(245, 158, 11, 0.5)';
+            await sleep(300);
+            submitBtn.click();
+
+            // ── 4. Aguardar confirmação ──
+            await sleep(cfg().delayAfterSave);
+
+            const hasError = checkForErrors();
+            if (hasError) {
+                console.error('[BRK-STOCK] ❌ Erro: ' + hasError);
+                reportResult(task.id, 'error', hasError);
+                return;
+            }
+
+            // ── 5. Reportar sucesso ──
+            console.log('[BRK-STOCK] ✅ ID ' + task.id + ' atualizado!');
+            reportResult(task.id, 'ok', 'Estoque ' + valor + ' aplicado');
+
+            // Não fechar — a janela será reutilizada para a próxima variante
+            // O orquestrador navega automaticamente para o próximo edit.php
+            document.title = '✅ ' + task.id + ' — Estoque ' + valor;
+        }
+
+        function checkForErrors() {
+            const swalError = document.querySelector('.swal2-popup.swal2-icon-error, .swal2-popup .swal2-title');
+            if (swalError) { const t = swalError.textContent || ''; if (t.toLowerCase().includes('erro')) return t; }
+            const toastrError = document.querySelector('.toast-error, .toastr-error');
+            if (toastrError) return toastrError.textContent || 'Erro desconhecido';
+            const alertError = document.querySelector('.alert-danger:not([style*="display: none"])');
+            if (alertError) return alertError.textContent || 'Erro desconhecido';
+            return null;
+        }
+
+        function reportResult(id, status, message) {
+            try {
+                GM_setValue('brk_stock_result', JSON.stringify({
+                    id: String(id), status: status, message: message || '', timestamp: Date.now()
+                }));
+            } catch(e) { console.error('[BRK-STOCK] Erro ao reportar:', e); }
+        }
+
+        setTimeout(executarTarefa, 1500);
+        return;
+    }
+
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  MÓDULO ORQUESTRADOR — Página de Lista (products.php)               ║
+    // ║                                                                      ║
+    // ║  Busca por título, coleta IDs das variantes, abre abas              ║
+    // ║  sequencialmente, aguarda resultado, próximo título.                ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    if (!isListPage) return;
+
+    let _running = false, _paused = false, _shouldStop = false;
+    let _editorWindow = null;
+    let stats = { totalTitles: 0, titlesDone: 0, totalVariants: 0, variantsDone: 0, errors: 0 };
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  LOGGING & UI HELPERS                                               ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function log(msg, type) {
+        type = type || 'info';
+        var el = document.getElementById('brk-stock-log');
+        if (!el) return;
+        var ts = new Date().toLocaleTimeString('pt-BR');
+        var prefix = { error: '❌', success: '✅', warn: '⚠️', info: '📋' }[type] || '📋';
+        el.textContent += (el.textContent ? '\n' : '') + '[' + ts + '] ' + prefix + ' ' + msg;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(text) {
+        var el = document.getElementById('brk-stock-status');
+        if (el) el.textContent = text;
+    }
+
+    function updateProgress() {
+        var bar = document.getElementById('brk-stock-progress-bar');
+        var text = document.getElementById('brk-stock-progress-text');
+        var total = stats.totalVariants || 1;
+        var pct = Math.round((stats.variantsDone / total) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (text) text.textContent = stats.variantsDone + '/' + stats.totalVariants + ' variantes (' + stats.titlesDone + '/' + stats.totalTitles + ' títulos)';
+    }
+
+    function highlight(el, color) {
+        if (!el) return;
+        el.style.outline = '3px solid ' + (color || '#10b981');
+        el.style.outlineOffset = '3px';
+        el.style.boxShadow = '0 0 20px ' + (color || '#10b981');
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_) {}
+    }
+
+    function unhighlight(el) {
+        if (!el) return;
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+        el.style.boxShadow = '';
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  AÇÕES DOM — Buscar Produtos                                        ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    async function searchByTitle(title) {
+        var descInput = document.getElementById('description');
+        if (!descInput) descInput = document.querySelector('input[name="description"]');
+        if (!descInput) throw new Error('Campo #description não encontrado');
+
+        descInput.value = '';
+        descInput.focus();
+        var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        if (setter && setter.set) setter.set.call(descInput, title);
+        else descInput.value = title;
+        descInput.dispatchEvent(new Event('input', { bubbles: true }));
+        descInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        highlight(descInput, '#3b82f6');
+        log('🔍 Buscando: "' + title.substring(0, 60) + '..."');
+        await sleep(300);
+        unhighlight(descInput);
+
+        // Buscar botão "Buscar"
+        var searchBtn = null;
+        var allBtns = document.querySelectorAll('button, .btn, input[type="submit"]');
+        for (var i = 0; i < allBtns.length; i++) {
+            var t = allBtns[i].textContent.trim().toLowerCase();
+            if (t.includes('buscar') || t.includes('pesquisar')) { searchBtn = allBtns[i]; break; }
+        }
+
+        if (!searchBtn) {
+            var filterSection = descInput.closest('.card, .card-body, form, .filter');
+            if (filterSection) searchBtn = filterSection.querySelector('button[type="submit"], button.btn-primary');
+        }
+
+        if (searchBtn) {
+            highlight(searchBtn, '#10b981');
+            await sleep(300);
+            searchBtn.click();
+            unhighlight(searchBtn);
+        } else {
+            log('⚠️ Botão Buscar não encontrado — simulando Enter', 'warn');
+            descInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+            descInput.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', keyCode: 13, bubbles: true }));
+            descInput.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
+        }
+
+        await sleep(cfg().delayAfterSearch);
+    }
+
+    function collectEditLinks() {
+        var links = [];
+        var seen = {};
+        var editBtns = document.querySelectorAll('a[href*="edit.php?id="], a[id="editar"]');
+
+        for (var i = 0; i < editBtns.length; i++) {
+            var btn = editBtns[i];
+            var href = btn.getAttribute('href') || '';
+            var match = href.match(/id=(\d+)/);
+            if (!match) continue;
+            var id = match[1];
+            if (seen[id]) continue;
+            seen[id] = true;
+
+            var variantTitle = '';
+            var card = btn.closest('.card, tr, .row, [class*="product"]');
+            if (card) {
+                var titleEl = card.querySelector('h5, h4, h3, [class*="title"]');
+                if (titleEl) variantTitle = titleEl.textContent.trim();
+            }
+
+            links.push({
+                id: id,
+                title: variantTitle || ('Produto #' + id),
+                href: href.startsWith('/') ? location.origin + href : href,
+            });
+        }
+        return links;
+    }
+
+    async function waitForResults(timeoutMs) {
+        var timeout = timeoutMs || cfg().pollTimeout;
+        var start = Date.now();
+        while (Date.now() - start < timeout) {
+            var links = collectEditLinks();
+            if (links.length > 0) return links;
+            await sleep(cfg().pollInterval);
+        }
+        return [];
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  PROCESSAMENTO — Abrir aba, aguardar resultado                      ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function processVariant(variant) {
+        return new Promise(function(resolve) {
+            var id = variant.id;
+            var href = variant.href;
+
+            // 1. Enviar tarefa via GM
+            GM_setValue('brk_stock_result', '');
+            GM_setValue('brk_stock_task', JSON.stringify({
+                id: String(id), value: STOCK_VALUE, status: 'pendente', timestamp: Date.now()
+            }));
+
+            // 2. Navegar a janela pré-aberta (sem popup blocker)
+            log('  📂 Navegando para edit.php?id=' + id + '...');
+
+            if (!_editorWindow || _editorWindow.closed) {
+                // Tentar reabrir (pode falhar fora de gesto do usuario)
+                try { _editorWindow = window.open(href, 'brk-stock-editor'); } catch(e) {}
+                if (!_editorWindow || _editorWindow.closed) {
+                    log('  ❌ Janela do editor foi fechada! Reabra clicando em Processar novamente.', 'error');
+                    resolve(false); return;
+                }
+            } else {
+                // Navegar a mesma janela — SEM popup blocker
+                try { _editorWindow.location.href = href; } catch(e) {
+                    // Fallback: se perdeu acesso cross-origin
+                    try { _editorWindow = window.open(href, 'brk-stock-editor'); } catch(e2) {}
+                    if (!_editorWindow || _editorWindow.closed) {
+                        log('  ❌ Falha ao navegar janela do editor', 'error');
+                        resolve(false); return;
+                    }
+                }
+            }
+
+            // 3. Aguardar resultado do executor (via GM_addValueChangeListener)
+            var resolved = false;
+            var timeout = cfg().pollTimeout + cfg().delayAfterSave + 8000;
+
+            var listenerId = GM_addValueChangeListener('brk_stock_result', function(name, oldVal, newVal, remote) {
+                if (resolved || !remote || !newVal) return;
+                try {
+                    var result = JSON.parse(newVal);
+                    if (result.id === String(id)) {
+                        resolved = true;
+                        GM_removeValueChangeListener(listenerId);
+                        clearTimeout(timeoutId);
+                        if (result.status === 'ok') {
+                            log('  ✅ ID ' + id + ' — Estoque ' + STOCK_VALUE + ' aplicado', 'success');
+                            resolve(true);
+                        } else {
+                            log('  ❌ ID ' + id + ' — ' + (result.message || 'Erro'), 'error');
+                            resolve(false);
+                        }
+                    }
+                } catch(_) {}
+            });
+
+            // Timeout de segurança
+            var timeoutId = setTimeout(function() {
+                if (resolved) return;
+                resolved = true;
+                GM_removeValueChangeListener(listenerId);
+                // Verificar resultado uma ultima vez
+                try {
+                    var lastResult = GM_getValue('brk_stock_result', '');
+                    if (lastResult) {
+                        var r = JSON.parse(lastResult);
+                        if (r.id === String(id) && r.status === 'ok') {
+                            log('  ✅ ID ' + id + ' — Estoque ' + STOCK_VALUE + ' aplicado (tardio)', 'success');
+                            resolve(true); return;
+                        }
+                    }
+                } catch(_) {}
+                log('  ⏰ ID ' + id + ' — Timeout, tentando novamente...', 'warn');
+                resolve(false);
+            }, timeout);
+        });
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  LOOP PRINCIPAL                                                     ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    async function processQueue(testOnly) {
+        if (_running) { log('⚠️ Já está em execução!', 'warn'); return; }
+        _running = true; _paused = false; _shouldStop = false;
+
+        var input = document.getElementById('brk-stock-titles');
+        var titlesRaw = (input ? input.value : '').split('\n').map(norm).filter(Boolean);
+
+        if (titlesRaw.length === 0) {
+            log('⚠️ Cole pelo menos um título na lista!', 'warn');
+            _running = false; return;
+        }
+
+        var titles = testOnly ? [titlesRaw[0]] : titlesRaw;
+        stats = { totalTitles: titles.length, titlesDone: 0, totalVariants: 0, variantsDone: 0, errors: 0 };
+
+        // ── PRÉ-ABRIR JANELA DO EDITOR (no contexto do clique = sem bloqueio) ──
+        log('🔓 Abrindo janela do editor...');
+        try {
+            _editorWindow = window.open('about:blank', 'brk-stock-editor');
+        } catch(e) {}
+
+        if (!_editorWindow || _editorWindow.closed) {
+            log('❌ POPUP BLOQUEADO! Permita popups para app.magis5.com.br nas configurações do navegador e clique novamente.', 'error');
+            log('💡 Dica: Clique no ícone 🔒 na barra de endereço → Permitir popups', 'info');
+            _running = false;
+            updateBtnState(false);
+            return;
+        }
+
+        log('✅ Janela do editor aberta! Todas as variantes serão processadas nela.');
+        log('━━━ ESTOQUE INFINITO — INICIADO ' + (testOnly ? '(TESTE)' : '(' + titles.length + ' TÍTULOS)') + ' ━━━');
+        log('Valor: ' + STOCK_VALUE + ' | Velocidade: ' + cfg().name);
+        updateBtnState(true);
+
+        for (var t = 0; t < titles.length; t++) {
+            if (_shouldStop) { log('⏹ Interrompido.', 'warn'); break; }
+            while (_paused) { setStatus('⏸ PAUSADO'); await sleep(500); if (_shouldStop) break; }
+            if (_shouldStop) break;
+
+            var title = titles[t];
+            var titleLabel = '[' + (t + 1) + '/' + titles.length + ']';
+            setStatus(titleLabel + ' Buscando: "' + title.substring(0, 50) + '..."');
+
+            try {
+                await searchByTitle(title);
+
+                log(titleLabel + ' Aguardando resultados...');
+                var variants = await waitForResults(cfg().pollTimeout);
+
+                if (variants.length === 0) {
+                    log(titleLabel + ' ⚠️ Nenhuma variante encontrada', 'warn');
+                    stats.errors++; stats.titlesDone++; updateProgress(); 
+                    reportEstoqueProgress(title, 'error'); // ── HOOK PRIME INTEGRATION ──
+                    continue;
+                }
+
+                log(titleLabel + ' 📦 ' + variants.length + ' variante(s) encontrada(s)');
+                stats.totalVariants += variants.length;
+                updateProgress();
+
+                // Processar cada variante com retry
+                for (var v = 0; v < variants.length; v++) {
+                    if (_shouldStop) break;
+                    while (_paused) { setStatus('⏸ PAUSADO'); await sleep(500); if (_shouldStop) break; }
+                    if (_shouldStop) break;
+
+                    var variant = variants[v];
+                    var varLabel = titleLabel + ' [' + (v + 1) + '/' + variants.length + ']';
+                    setStatus(varLabel + ' ID ' + variant.id);
+                    log(varLabel + ' Processando ID ' + variant.id + '...');
+
+                    await sleep(cfg().delayBeforeOpen);
+
+                    // Tentar até 2x (1 tentativa + 1 retry)
+                    var success = await processVariant(variant);
+                    if (!success) {
+                        log(varLabel + ' 🔄 Retry ID ' + variant.id + '...', 'warn');
+                        await sleep(2000);
+                        success = await processVariant(variant);
+                    }
+
+                    if (success) stats.variantsDone++; else stats.errors++;
+                    updateProgress();
+
+                    if (v < variants.length - 1) await sleep(cfg().delayBetweenVariants);
+                }
+
+                stats.titlesDone++;
+                log(titleLabel + ' ✅ Produto finalizado', 'success');
+                updateProgress();
+                reportEstoqueProgress(title, 'success'); // ── HOOK PRIME INTEGRATION ──
+
+                if (t < titles.length - 1) await sleep(cfg().delayBetweenTitles);
+
+            } catch (err) {
+                log(titleLabel + ' ❌ Erro: ' + err.message, 'error');
+                stats.errors++; stats.titlesDone++; updateProgress();
+                reportEstoqueProgress(title, 'error'); // ── HOOK PRIME INTEGRATION ──
+            }
+        }
+
+        // ── FECHAR JANELA DO EDITOR ──
+        try { if (_editorWindow && !_editorWindow.closed) _editorWindow.close(); } catch(_) {}
+        _editorWindow = null;
+
+        setStatus('✅ Finalizado!');
+        log('━━━ FIM ━━━');
+        log('✅ Títulos: ' + stats.titlesDone + '/' + stats.totalTitles);
+        log('✅ Variantes: ' + stats.variantsDone + '/' + stats.totalVariants);
+        if (stats.errors > 0) log('❌ Erros: ' + stats.errors);
+        else log('🎉 ZERO erros! Todos processados com sucesso!');
+        _running = false;
+        updateBtnState(false);
+        try { GM_setValue('brk_stock_task', ''); GM_setValue('brk_stock_result', ''); } catch(_) {}
+    }
+
+    function updateBtnState(isRunning) {
+        var ids = ['brk-stock-start', 'brk-stock-single', 'brk-stock-pause', 'brk-stock-stop'];
+        ids.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var isControl = id.includes('pause') || id.includes('stop');
+            el.disabled = isControl ? !isRunning : isRunning;
+            el.style.opacity = el.disabled ? '0.5' : '1';
+        });
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  UI — PAINEL DE CONTROLE                                            ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function injectHoloStyles() {
+        if (document.getElementById('brk-holo-styles')) return;
+        var style = document.createElement('style');
+        style.id = 'brk-holo-styles';
+        style.textContent = ''
+            + '@keyframes brk-holo-gradient {'
+            + '  0%   { background-position: 0% 50%; }'
+            + '  50%  { background-position: 100% 50%; }'
+            + '  100% { background-position: 0% 50%; }'
+            + '}'
+            + '@keyframes brk-holo-shimmer {'
+            + '  0%   { left: -100%; }'
+            + '  100% { left: 200%; }'
+            + '}'
+            + '@keyframes brk-holo-glow {'
+            + '  0%, 100% { box-shadow: 0 4px 15px rgba(168,85,247,0.4), 0 0 30px rgba(59,130,246,0.2); }'
+            + '  25%  { box-shadow: 0 4px 15px rgba(59,130,246,0.5), 0 0 30px rgba(16,185,129,0.3); }'
+            + '  50%  { box-shadow: 0 4px 15px rgba(16,185,129,0.5), 0 0 30px rgba(245,158,11,0.3); }'
+            + '  75%  { box-shadow: 0 4px 15px rgba(236,72,153,0.5), 0 0 30px rgba(168,85,247,0.3); }'
+            + '}'
+            + '#brk-stock-launcher {'
+            + '  position: fixed; bottom: 20px; left: 20px; z-index: 999998;'
+            + '  background: linear-gradient(135deg, #a855f7, #3b82f6, #10b981, #f59e0b, #ec4899, #a855f7);'
+            + '  background-size: 300% 300%;'
+            + '  animation: brk-holo-gradient 4s ease infinite, brk-holo-glow 4s ease infinite;'
+            + '  color: #fff; border: none; padding: 14px 22px; border-radius: 14px;'
+            + '  font-weight: 800; cursor: pointer; font-size: 14px; letter-spacing: 0.3px;'
+            + '  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), filter 0.25s;'
+            + '  overflow: hidden; text-shadow: 0 1px 3px rgba(0,0,0,0.3);'
+            + '}'
+            + '#brk-stock-launcher::before {'
+            + '  content: ""; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;'
+            + '  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);'
+            + '  animation: brk-holo-shimmer 3s ease-in-out infinite;'
+            + '  pointer-events: none;'
+            + '}'
+            + '#brk-stock-launcher:hover {'
+            + '  transform: scale(1.08) translateY(-2px);'
+            + '  filter: brightness(1.15) saturate(1.2);'
+            + '}'
+            + '#brk-stock-launcher:active { transform: scale(0.97); }';
+        document.head.appendChild(style);
+    }
+
+    function buildLauncher() {
+        if (document.getElementById('brk-stock-launcher')) return;
+        injectHoloStyles();
+        var btn = document.createElement('button');
+        btn.id = 'brk-stock-launcher';
+        btn.innerHTML = '📦 Estoque Infinito';
+        btn.onclick = function() {
+            var existing = document.getElementById('brk-stock-panel');
+            if (existing) { existing.remove(); return; }
+            buildPanel();
+        };
+        document.body.appendChild(btn);
+    }
+
+    function buildPanel() {
+        var box = document.createElement('div');
+        box.id = 'brk-stock-panel';
+        box.style.cssText = 'position:fixed;top:16px;right:16px;z-index:999999;background:#0f172a;color:#e2e8f0;width:520px;max-height:92vh;overflow:auto;border-radius:16px;border:1px solid rgba(16,185,129,0.3);box-shadow:0 10px 40px rgba(16,185,129,0.2);font:13px/1.5 system-ui,sans-serif';
+
+        box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#0f172a,#064e3b);border-radius:16px 16px 0 0">'
+            + '<div>'
+            + '<div style="font-weight:800;font-size:15px;color:#34d399">📦 Estoque Infinito Autopilot v1.0</div>'
+            + '<div style="font-size:11px;color:#64748b">Adiciona estoque ' + STOCK_VALUE + ' em todas as variantes</div>'
+            + '</div>'
+            + '<button id="brk-stock-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold;font-size:12px">✕</button>'
+            + '</div>'
+            + '<div style="padding:14px 16px;display:grid;gap:12px">'
+
+            // Status
+            + '<div id="brk-stock-status" style="color:#10b981;font-weight:600;font-size:13px">Pronto para iniciar</div>'
+
+            // Progresso
+            + '<div style="display:flex;align-items:center;gap:10px">'
+            + '<div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden">'
+            + '<div id="brk-stock-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#059669,#10b981);transition:width .3s"></div>'
+            + '</div>'
+            + '<span id="brk-stock-progress-text" style="font-size:11px;color:#94a3b8;min-width:100px">0/0 variantes</span>'
+            + '</div>'
+
+            // Velocidade
+            + '<div style="background:#064e3b;border-radius:10px;padding:10px 12px;border:1px solid rgba(16,185,129,0.2)">'
+            + '<label style="display:block;font-size:11px;color:#34d399;margin-bottom:6px;font-weight:700;text-transform:uppercase">⏱️ Velocidade</label>'
+            + '<select id="brk-stock-speed" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;font-weight:600">'
+            + '<option value="slow">🐢 Lento / Inspeção</option>'
+            + '<option value="normal" selected>⚡ Normal</option>'
+            + '<option value="fast">🚀 Turbo</option>'
+            + '</select></div>'
+
+            // Títulos
+            + '<div>'
+            + '<label style="display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase">📝 Títulos dos Produtos (um por linha)</label>'
+            + '<textarea id="brk-stock-titles" rows="6" placeholder="Cole aqui os títulos (um por linha)...' + '\n' + 'Ex: Camisa de Pesca Brk com Capuz Hybrid Camuflada Verde Militar com Protecao UV50" style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-family:monospace;font-size:12px;resize:vertical"></textarea>'
+            + '</div>'
+
+            // Botões
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+            + '<button id="brk-stock-single" style="background:#0d9488;color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">🧪 Testar 1º Título</button>'
+            + '<button id="brk-stock-start" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:0;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:12px">▶ Processar Todos</button>'
+            + '</div>'
+            + '<div style="display:flex;gap:8px">'
+            + '<button id="brk-stock-pause" disabled style="background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏸ Pausar</button>'
+            + '<button id="brk-stock-stop" disabled style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:12px;flex:1">⏹ Parar</button>'
+            + '</div>'
+
+            // Log
+            + '<div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+            + '<label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase">Terminal em Tempo Real</label>'
+            + '<button id="brk-stock-clear-log" style="background:transparent;border:1px solid #334155;color:#64748b;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px">Limpar</button>'
+            + '</div>'
+            + '<div id="brk-stock-log" style="background:#020617;border-radius:10px;padding:10px;max-height:25vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#94a3b8;border:1px solid #1e293b"></div>'
+            + '</div>'
+
+            + '<div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">Hook Prime v4.2 · Estoque Infinito v1.0 · Valor fixo: ' + STOCK_VALUE + '</div>'
+            + '</div>';
+
+        document.body.appendChild(box);
+
+        box.querySelector('#brk-stock-close').onclick = function() { box.remove(); };
+        box.querySelector('#brk-stock-start').onclick = function() { processQueue(false); };
+        box.querySelector('#brk-stock-single').onclick = function() { processQueue(true); };
+        box.querySelector('#brk-stock-clear-log').onclick = function() { document.getElementById('brk-stock-log').textContent = ''; };
+        box.querySelector('#brk-stock-speed').onchange = function(e) { activeSpeed = e.target.value; log('Velocidade: ' + cfg().name); };
+
+        box.querySelector('#brk-stock-pause').onclick = function() {
+            _paused = !_paused;
+            var btn = box.querySelector('#brk-stock-pause');
+            btn.textContent = _paused ? '▶ Continuar' : '⏸ Pausar';
+            btn.style.background = _paused ? '#059669' : '#334155';
+            log(_paused ? '⏸ Pausado' : '▶ Retomando...', 'warn');
+        };
+
+        box.querySelector('#brk-stock-stop').onclick = function() {
+            _shouldStop = true;
+            log('⏹ Parando após o item atual...', 'warn');
+        };
+
+        log('📦 Painel pronto! Cole os títulos e clique em "Testar 1º Título".');
+        log('ℹ️ Estoque fixo: ' + STOCK_VALUE + ' | Permita popups para esta página!');
+
+        // ── HOOK PRIME INTEGRATION ──
+        loadTitlesFromHookPrime().then(data => {
+            if (data && data.titles && data.titles.length > 0) {
+                var input = document.getElementById('brk-stock-titles');
+                if (input) {
+                    input.value = data.titles.join('\n');
+                    log('📡 Auto-carregados ' + data.titles.length + ' títulos do HOOK PRIME', 'success');
+                }
+            }
+        });
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  INICIALIZAÇÃO                                                      ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    setTimeout(buildLauncher, 2000);
+
+})();

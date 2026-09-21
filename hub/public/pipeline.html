@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline — HOOK PRIME</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .pipeline-header { padding: 24px 32px; background: linear-gradient(180deg, #0f172a, #1e1b4b); border-bottom: 1px solid rgba(127,0,255,0.3); display: flex; justify-content: space-between; align-items: center; }
+    .pipeline-header h1 { margin: 0; font-size: 22px; color: #a78bfa; }
+    .pipeline-header .subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .pipeline-body { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+    
+    .session-card { background: #1e293b; border-radius: 16px; border: 1px solid #334155; margin-bottom: 24px; overflow: hidden; }
+    .session-header { padding: 16px 20px; background: linear-gradient(135deg, #1e1b4b, #0f172a); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    .session-header .brand { font-weight: 800; color: #AAFF00; font-size: 15px; }
+    .session-header .meta { font-size: 12px; color: #64748b; }
+    .session-header .status { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-in_progress { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .status-completed { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+    
+    .progress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px 20px; }
+    .progress-item { background: #0f172a; border-radius: 10px; padding: 12px; border: 1px solid #1e293b; }
+    .progress-item .label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+    .progress-item .bar { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+    .progress-item .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .progress-item .count { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+    .bar-green { background: linear-gradient(90deg, #10b981, #059669); }
+    .bar-purple { background: linear-gradient(90deg, #7F00FF, #a855f7); }
+    .bar-yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    
+    .codes-table { width: 100%; border-collapse: collapse; }
+    .codes-table th { text-align: left; padding: 10px 12px; font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #334155; background: #0f172a; position: sticky; top: 0; }
+    .codes-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #1e293b; }
+    .codes-table tr:hover { background: rgba(127,0,255,0.05); }
+    .codes-table .code { font-family: monospace; font-weight: 700; color: #AAFF00; }
+    .codes-table .estampa { color: #a78bfa; }
+    .codes-table .tipo-prod { color: #10b981; font-weight: 600; }
+    .codes-table .tipo-rev { color: #f59e0b; font-weight: 600; }
+    .icon-done { color: #10b981; }
+    .icon-pending { color: #475569; }
+    .icon-error { color: #ef4444; }
+    .icon-skip { color: #6b7280; }
+    
+    .actions-bar { padding: 16px 20px; background: #0f172a; display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px solid #334155; }
+    .btn-action { padding: 8px 16px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-action:hover { background: #334155; border-color: #7F00FF; }
+    .btn-action.primary { background: linear-gradient(135deg, #7F00FF, #5B21B6); border-color: transparent; color: #fff; }
+    
+    .empty-state { text-align: center; padding: 60px 20px; color: #475569; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state .title { font-size: 18px; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+    .empty-state .desc { font-size: 14px; }
+    
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: #64748b; text-decoration: none; font-size: 13px; font-weight: 600; transition: color 0.2s; }
+    .back-link:hover { color: #AAFF00; }
+    
+    .refresh-btn { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+    .refresh-btn:hover { border-color: #7F00FF; color: #e2e8f0; }
+    
+    .table-wrap { max-height: 50vh; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="pipeline-header">
+    <div>
+      <a href="/" class="back-link">← Voltar ao Hub</a>
+      <h1>📋 Pipeline — Memória dos Códigos</h1>
+      <div class="subtitle">Acompanhe todos os códigos sendo trabalhados em tempo real</div>
+    </div>
+    <button class="refresh-btn" onclick="loadSessions()">🔄 Atualizar</button>
+  </div>
+  <div class="pipeline-body" id="pipeline-body">
+    <div class="empty-state">
+      <div class="icon">⏳</div>
+      <div class="title">Carregando...</div>
+    </div>
+  </div>
+
+  <script>
+    const STEP_LABELS = {
+      hookPrime: '② HOOK PRIME',
+      ean: '③ EAN',
+      sankhya: '④ Sankhya',
+      bling: '⑤ Bling',
+      shopify: '⑦ Shopify IDs',
+      magis5Import: '⑨ Magis5 Import',
+      magis5Estoque: '⑪ Estoque 1000',
+    };
+    
+    const STEP_COLORS = {
+      hookPrime: 'bar-green',
+      ean: 'bar-yellow',
+      sankhya: 'bar-yellow',
+      bling: 'bar-yellow',
+      shopify: 'bar-purple',
+      magis5Import: 'bar-purple',
+      magis5Estoque: 'bar-green',
+    };
+
+    function statusIcon(s) {
+      if (s === 'done') return '<span class="icon-done">✅</span>';
+      if (s === 'error') return '<span class="icon-error">🔴</span>';
+      if (s === 'pending') return '<span class="icon-pending">⏳</span>';
+      return '<span class="icon-pending">—</span>';
+    }
+
+    async function loadSessions() {
+      try {
+        const res = await fetch('/api/pipeline/sessions');
+        const data = await res.json();
+        if (!data.success || !data.sessions || data.sessions.length === 0) {
+          document.getElementById('pipeline-body').innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📋</div>
+              <div class="title">Nenhuma session encontrada</div>
+              <div class="desc">Exporte um CSV no Autopilot para criar a primeira pipeline session.</div>
+            </div>`;
+          return;
+        }
+        // Load full details for first session (active or most recent)
+        const activeId = data.sessions[0].id;
+        const detailRes = await fetch(`/api/pipeline/sessions/${activeId}`);
+        const detailData = await detailRes.json();
+        renderDashboard(detailData.session, data.sessions);
+      } catch (err) {
+        document.getElementById('pipeline-body').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">❌</div>
+            <div class="title">Erro ao carregar</div>
+            <div class="desc">${err.message}</div>
+          </div>`;
+      }
+    }
+
+    function renderDashboard(active, allSessions) {
+      const body = document.getElementById('pipeline-body');
+      if (!active) { body.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="title">Nenhuma session ativa</div></div>'; return; }
+
+      // Calculate step progress
+      const steps = {};
+      Object.keys(STEP_LABELS).forEach(key => {
+        const done = active.codes.filter(c => c.pipeline[key]?.status === 'done').length;
+        const total = key === 'magis5Estoque' 
+          ? active.codes.filter(c => c.tipo === 'producao').length  // Estoque só conta Produção
+          : active.codes.length;
+        steps[key] = { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
+      });
+
+      let html = `
+        <div class="session-card">
+          <div class="session-header">
+            <div>
+              <span class="brand">${active.brand || 'BRK'}</span>
+              <span class="meta" style="margin-left:12px">${active.codes.length} códigos · ${active.store || ''}</span>
+              <span class="meta" style="margin-left:12px">Criado: ${new Date(active.createdAt).toLocaleString('pt-BR')}</span>
+            </div>
+            <span class="status status-${active.status}">${active.status === 'in_progress' ? '🔄 Em Progresso' : '✅ Completo'}</span>
+          </div>
+
+          <div class="progress-grid">
+            ${Object.entries(STEP_LABELS).map(([key, label]) => {
+              const s = steps[key];
+              return `
+                <div class="progress-item">
+                  <div class="label">${label}</div>
+                  <div class="bar"><div class="bar-fill ${STEP_COLORS[key]}" style="width:${s.pct}%"></div></div>
+                  <div class="count">${s.done}/${s.total} ${s.pct === 100 ? '✅' : s.done > 0 ? '🔄' : '⏳'}</div>
+                </div>`;
+            }).join('')}
+          </div>
+
+          <div class="actions-bar">
+            <button class="btn-action" onclick="markStep('ean')">✅ Marcar EAN Concluído</button>
+            <button class="btn-action" onclick="markStep('sankhya')">✅ Marcar Sankhya Concluído</button>
+            <button class="btn-action" onclick="markStep('bling')">✅ Marcar Bling Concluído</button>
+          </div>
+
+          <div class="table-wrap">
+            <table class="codes-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Estampa</th>
+                  <th>Tipo</th>
+                  <th>HOOK</th>
+                  <th>EAN</th>
+                  <th>Sankhya</th>
+                  <th>Bling</th>
+                  <th>Shopify</th>
+                  <th>Import</th>
+                  <th>Estoque</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${active.codes.map(c => `
+                  <tr>
+                    <td class="code">${c.base}</td>
+                    <td class="estampa">${c.estampa || '—'}</td>
+                    <td class="${c.tipo === 'producao' ? 'tipo-prod' : 'tipo-rev'}">${c.tipo === 'producao' ? '🏭 PROD' : '📦 REV'}</td>
+                    <td>${statusIcon(c.pipeline.hookPrime?.status)}</td>
+                    <td>${statusIcon(c.pipeline.ean?.status)}</td>
+                    <td>${statusIcon(c.pipeline.sankhya?.status)}</td>
+                    <td>${statusIcon(c.pipeline.bling?.status)}</td>
+                    <td>${statusIcon(c.pipeline.shopify?.status)}</td>
+                    <td>${statusIcon(c.pipeline.magis5Import?.status)}</td>
+                    <td>${c.tipo === 'producao' ? statusIcon(c.pipeline.magis5Estoque?.status) : '<span class="icon-skip">—</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        ${allSessions.length > 1 ? `
+          <h3 style="color:#64748b;font-size:14px;margin:24px 0 12px">Sessões Anteriores</h3>
+          ${allSessions.slice(1, 10).map(s => `
+            <div style="background:#1e293b;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid #334155;cursor:pointer" onclick="location.reload()">
+              <div>
+                <span style="font-weight:700;color:#94a3b8">${s.brand || 'BRK'}</span>
+                <span style="color:#475569;margin-left:8px;font-size:12px">${s.totalCodes} códigos</span>
+              </div>
+              <span style="color:#475569;font-size:12px">${new Date(s.createdAt).toLocaleString('pt-BR')}</span>
+            </div>
+          `).join('')}
+        ` : ''}
+      `;
+
+      body.innerHTML = html;
+    }
+
+    async function markStep(step) {
+      if (!confirm(`Marcar "${step.toUpperCase()}" como concluído para TODOS os códigos?`)) return;
+      try {
+        const res = await fetch('/api/pipeline/mark-step', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ step }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ ${step.toUpperCase()} marcado como concluído para ${data.codesUpdated} códigos`);
+          loadSessions();
+        }
+      } catch (err) {
+        alert('Erro: ' + err.message);
+      }
+    }
+
+    // Auto-refresh every 10 seconds
+    loadSessions();
+    setInterval(loadSessions, 10000);
+  </script>
+</body>
+</html>

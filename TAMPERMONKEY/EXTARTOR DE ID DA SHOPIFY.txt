@@ -1,0 +1,341 @@
+// ==UserScript==
+// @name         Shopify ID Extractor — BRK
+// @namespace    http://tampermonkey.net/
+// @version      3.2
+// @description  Extrai IDs dos produtos selecionados (checkbox) da Shopify para importar na Magis5
+// @match        https://admin.shopify.com/store/*/products*
+// @grant        GM_xmlhttpRequest
+// @connect      localhost
+// @run-at       document-idle
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const ACCENT = '#7F00FF';
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  EXTRAÇÃO — APENAS SELECIONADOS (checkbox/aria-selected)           ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function extractSelectedProducts() {
+        const products = [];
+        const seen = new Set();
+
+        // ── Estratégia A: aria-selected (Polaris IndexTable — mais confiável) ──
+        document.querySelectorAll('[aria-selected="true"]').forEach(row => {
+            const link = row.querySelector('a[href*="/products/"]');
+            if (!link) return;
+            const match = (link.getAttribute('href') || '').match(/\/products\/(\d{8,})/);
+            if (!match || seen.has(match[1])) return;
+            seen.add(match[1]);
+            const title = (link.textContent || '').trim();
+            let status = '';
+            row.querySelectorAll('span, [class*="badge"], [class*="Badge"]').forEach(s => {
+                const t = s.textContent.trim().toLowerCase();
+                if (['rascunho', 'draft', 'ativo', 'active'].includes(t)) status = t;
+            });
+            products.push({ id: match[1], title: title || match[1], status });
+        });
+
+        // ── Estratégia B: input[type="checkbox"]:checked (fallback) ──
+        if (products.length === 0) {
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                // Pula o "selecionar todos"
+                const label = (cb.getAttribute('aria-label') || cb.id || cb.name || '').toLowerCase();
+                if (label.includes('select all') || label.includes('selecionar tudo') || cb.closest('thead')) return;
+
+                const row = cb.closest('tr, [role="row"], [class*="IndexTable"], [class*="ResourceItem"]');
+                if (!row) return;
+
+                const link = row.querySelector('a[href*="/products/"]');
+                if (!link) return;
+                const match = (link.getAttribute('href') || '').match(/\/products\/(\d{8,})/);
+                if (!match || seen.has(match[1])) return;
+                seen.add(match[1]);
+                const title = (link.textContent || '').trim();
+                products.push({ id: match[1], title: title || match[1], status: '' });
+            });
+        }
+
+        return products;
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  EXTRAÇÃO — TODOS VISÍVEIS NA TELA                                 ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function extractAllProducts() {
+        const products = [];
+        const seen = new Set();
+
+        // Links de produto em qualquer estrutura
+        document.querySelectorAll('a[href*="/products/"]').forEach(link => {
+            const match = (link.getAttribute('href') || '').match(/\/products\/(\d{8,})/);
+            if (!match || seen.has(match[1])) return;
+            seen.add(match[1]);
+            const title = (link.textContent || '').trim();
+            if (title && title.length > 2) {
+                products.push({ id: match[1], title, status: '' });
+            }
+        });
+
+        return products;
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  LOJA                                                               ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function getStoreName() {
+        const m = location.href.match(/\/store\/([^/]+)/);
+        return m ? m[1] : 'desconhecida';
+    }
+
+    function getStoreLabel() {
+        const s = getStoreName().toLowerCase();
+        if (s.includes('fishing')) return 'BRK FISHING';
+        if (s.includes('agro')) return 'BRK AGRO';
+        if (s.includes('motor')) return 'BRK MOTORS';
+        return s.toUpperCase();
+    }
+
+    function isFilteredByDraft() {
+        const u = location.href.toLowerCase();
+        return u.includes('status%5B%5D=draft') || u.includes('status=draft');
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  LOG                                                                ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function log(msg, type = 'info') {
+        const el = document.getElementById('brk-shopify-log');
+        if (!el) return;
+        const ts = new Date().toLocaleTimeString('pt-BR');
+        const p = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warn' ? '⚠️' : '📋';
+        el.textContent += (el.textContent ? '\n' : '') + `[${ts}] ${p} ${msg}`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(text) {
+        const el = document.getElementById('brk-shopify-status');
+        if (el) el.textContent = text;
+    }
+
+    function showResults(products, label) {
+        const idsEl = document.getElementById('brk-shopify-ids');
+        const countEl = document.getElementById('brk-shopify-count');
+
+        if (products.length === 0) {
+            log(`Nenhum produto ${label}. Marque os checkboxes na tabela primeiro!`, 'warn');
+            setStatus('⚠️ Nenhum produto encontrado');
+            return;
+        }
+
+        const ids = products.map(p => p.id).join('\n');
+        if (idsEl) idsEl.value = ids;
+        if (countEl) countEl.textContent = `${products.length} produto(s)`;
+
+        setStatus(`✅ ${products.length} produto(s) — ${label}`);
+        log(`${products.length} produtos (${label}):`, 'success');
+        products.forEach((p, i) => {
+            log(`  ${i + 1}. ${p.id} — ${p.title.substring(0, 50)}${p.status ? ' [' + p.status + ']' : ''}`);
+        });
+    }
+
+    // ── HOOK PRIME INTEGRATION ──
+    async function sendIdsToHookPrime(ids, store) {
+        try {
+            const storeMap = { 'fishing': 'fishing', 'agro': 'agro', 'motors': 'motors' };
+            const storeKey = store ? store.toLowerCase().replace('brk ', '').trim() : 'fishing';
+            await new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: 'http://localhost:3000/api/pipeline/shopify-ids',
+                    headers: { 'Content-Type': 'application/json' },
+                    data: JSON.stringify({ store: storeMap[storeKey] || 'fishing', ids }),
+                    timeout: 5000,
+                    onload: (res) => {
+                        try {
+                            const data = JSON.parse(res.responseText);
+                            if (data.success) {
+                                console.log(`[BRK Shopify] ✅ ${ids.length} IDs enviados ao HOOK PRIME (${data.matched} associados)`);
+                            }
+                            resolve(data);
+                        } catch (e) { resolve(null); }
+                    },
+                    onerror: () => resolve(null),
+                    ontimeout: () => resolve(null),
+                });
+            });
+        } catch (e) {
+            console.warn('[BRK Shopify] HOOK PRIME não disponível:', e.message);
+        }
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  UI — LAUNCHER (resistente ao React)                               ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function ensureLauncher() {
+        // Se o botão já existe no DOM, não recria
+        if (document.getElementById('brk-shopify-launcher')) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'brk-shopify-launcher';
+        btn.textContent = '🔗 Extrair IDs';
+        btn.style.cssText = `
+            position: fixed; bottom: 20px; right: 20px; z-index: 999998;
+            background: linear-gradient(135deg, ${ACCENT}, #5B21B6);
+            color: #fff; border: none; padding: 12px 18px; border-radius: 10px;
+            font-weight: bold; cursor: pointer; font-size: 14px;
+            box-shadow: 0 4px 15px rgba(127,0,255,0.4);
+            transition: transform 0.2s;
+        `;
+        btn.onmouseenter = () => { btn.style.transform = 'scale(1.05)'; };
+        btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; };
+        btn.onclick = () => {
+            const p = document.getElementById('brk-shopify-panel');
+            if (p) { p.remove(); return; }
+            buildPanel();
+        };
+        document.body.appendChild(btn);
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  UI — PAINEL                                                        ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    function buildPanel() {
+        if (document.getElementById('brk-shopify-panel')) return;
+
+        const store = getStoreName();
+        const storeLabel = getStoreLabel();
+        const isDraft = isFilteredByDraft();
+
+        const box = document.createElement('div');
+        box.id = 'brk-shopify-panel';
+        box.style.cssText = `
+            position: fixed; top: 16px; right: 16px; z-index: 999999;
+            background: #0f172a; color: #e2e8f0;
+            width: 460px; max-height: 85vh; overflow: auto;
+            border-radius: 16px; border: 1px solid ${ACCENT}40;
+            box-shadow: 0 10px 40px rgba(127,0,255,0.25);
+            font: 13px/1.5 system-ui, sans-serif;
+        `;
+
+        box.innerHTML = `
+            <div style="padding:14px 16px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,#0f172a,#1e1b4b);border-radius:16px 16px 0 0">
+                <div>
+                    <div style="font-weight:700;font-size:15px;color:#a78bfa">🔗 Shopify ID Extractor v3.1</div>
+                    <div style="font-size:11px;color:#64748b">Loja: <strong style="color:#a78bfa">${storeLabel}</strong> <span style="color:#475569">(${store})</span></div>
+                </div>
+                <button id="brk-shopify-close" style="background:#ef4444;color:#fff;border:0;border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:bold;font-size:12px">✕</button>
+            </div>
+            <div style="padding:14px 16px;display:grid;gap:12px">
+
+                <div id="brk-shopify-status" style="color:#10b981;font-weight:600;font-size:13px">
+                    ${isDraft ? '✅ Mostrando só RASCUNHOS' : '📋 Pronto'}
+                </div>
+
+                <!-- AÇÃO PRINCIPAL -->
+                <div style="background:#1e1b4b;border-radius:10px;padding:12px;border:1px solid ${ACCENT}50">
+                    <div style="font-size:12px;color:#a78bfa;font-weight:700;margin-bottom:6px">🎯 EXTRAIR SELECIONADOS</div>
+                    <div style="font-size:11px;color:#94a3b8;line-height:1.6;margin-bottom:10px">
+                        Na tabela da Shopify, marque os checkboxes (☑️) dos produtos que deseja trabalhar, depois clique abaixo.
+                    </div>
+                    <button id="brk-extract-selected" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:0;border-radius:8px;padding:12px 14px;font-weight:700;cursor:pointer;font-size:14px;box-shadow:0 4px 12px rgba(16,185,129,0.3)">
+                        🎯 Extrair APENAS os Marcados
+                    </button>
+                </div>
+
+                <!-- ALTERNATIVAS -->
+                <div style="display:flex;gap:8px">
+                    <button id="brk-extract-all" style="background:#334155;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12px;flex:1">🔍 Extrair Todos da Tela</button>
+                    <button id="brk-filter-draft" style="background:#334155;color:#f59e0b;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12px">
+                        ${isDraft ? '✓ Em Rascunho' : '📝 Filtrar Rascunho'}
+                    </button>
+                </div>
+
+                <!-- RESULTADO -->
+                <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IDs para a Magis5</label>
+                        <span id="brk-shopify-count" style="font-size:12px;color:#10b981;font-weight:700">0 produto(s)</span>
+                    </div>
+                    <textarea id="brk-shopify-ids" rows="6" readonly style="width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#020617;color:#10b981;font-family:monospace;font-size:12px;resize:vertical" placeholder="IDs vão aparecer aqui..."></textarea>
+                </div>
+
+                <!-- COPIAR -->
+                <button id="brk-copy-ids" style="background:linear-gradient(135deg,${ACCENT},#5B21B6);color:#fff;border:0;border-radius:8px;padding:11px 14px;font-weight:700;cursor:pointer;font-size:13px">
+                    📋 Copiar IDs → Magis5
+                </button>
+
+                <!-- LOG -->
+                <div>
+                    <label style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Log</label>
+                    <div id="brk-shopify-log" style="background:#020617;border-radius:10px;padding:10px;max-height:14vh;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:11px;color:#64748b;border:1px solid #1e293b"></div>
+                </div>
+
+                <div style="font-size:10px;color:#475569;text-align:center;padding-top:4px;border-top:1px solid #1e293b">
+                    Hook Prime v4.0 · Shopify Extractor v3.1 · Funciona em todas as lojas BRK
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(box);
+
+        // ── Bindings ──
+        box.querySelector('#brk-shopify-close').onclick = () => box.remove();
+
+        box.querySelector('#brk-extract-selected').onclick = () => {
+            const selected = extractSelectedProducts();
+            showResults(selected, 'selecionados via checkbox');
+        };
+
+        box.querySelector('#brk-extract-all').onclick = () => {
+            const all = extractAllProducts();
+            showResults(all, 'todos visíveis');
+        };
+
+        box.querySelector('#brk-filter-draft').onclick = () => {
+            if (isDraft) { log('Já filtrado por Rascunho!', 'success'); return; }
+            log('Navegando para Rascunho...');
+            location.href = `https://admin.shopify.com/store/${store}/products?status%5B%5D=draft&limit=250`;
+        };
+
+        box.querySelector('#brk-copy-ids').onclick = async () => {
+            const text = document.getElementById('brk-shopify-ids')?.value || '';
+            if (!text) { log('Extraia os IDs primeiro!', 'warn'); return; }
+            try {
+                await navigator.clipboard.writeText(text);
+                const idsArray = text.split('\n').filter(l => l.trim());
+                const n = idsArray.length;
+                log(`📋 ${n} IDs copiados! Cole no painel "🚀 Magis5 Import".`, 'success');
+                setStatus(`📋 ${n} IDs copiados → cole na Magis5!`);
+                
+                // Enviar para HOOK PRIME
+                sendIdsToHookPrime(idsArray, storeLabel);
+            } catch (e) {
+                log('Erro ao copiar: ' + e.message, 'error');
+            }
+        };
+
+        log(`Loja: ${storeLabel} (${store})`);
+        log('Marque os checkboxes na tabela e clique no botão verde!');
+    }
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  INICIALIZAÇÃO — RESISTENTE AO REACT SPA                           ║
+    // ║  O Shopify Admin destrói e recria o DOM durante navegação SPA.     ║
+    // ║  Usamos setInterval a cada 2s para garantir que o botão exista.    ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    // Espera inicial (3s para o Shopify carregar)
+    setTimeout(ensureLauncher, 3000);
+
+    // Re-verifica a cada 2s — se o React destruiu o botão, recria
+    setInterval(ensureLauncher, 2000);
+
+})();

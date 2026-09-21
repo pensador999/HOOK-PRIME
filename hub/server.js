@@ -102,7 +102,18 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + ext);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 🔒 MED-1: Limite de 20MB por arquivo
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|webp|gif|bmp|tiff|csv|xlsx)$/i;
+    if (allowed.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo não permitido'), false);
+    }
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TEMPLATES E CONFIGURAÇÃO
@@ -191,6 +202,9 @@ app.use(require('./routes/sankhya-bridge.js')({ express, fs, path, uploadsDir })
 // Gemini Vision — Reconhecimento de Estampas por IA
 app.use(require('./routes/gemini-vision.js')({ fs, path }));
 
+// Pipeline — Memória dos Códigos + Bridge Tampermonkey
+app.use(require('./routes/pipeline.js')({ fs, path }));
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  STATIC & ERROR HANDLING
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -246,7 +260,7 @@ if (!process.env.VERCEL) {
     console.log(`  🔒 Rede nova: ${networkSafety.NETWORK_ROOT} (PROTEGIDA)`);
     console.log(`  🔒 Rede legado: ${networkSafety.NETWORK_ROOT_LEGACY} (PROTEGIDA)`);
     console.log(`  📂 ${prefixCount} prefixos mapeados`);
-    console.log(`  📦 7 módulos de rotas carregados`);
+    console.log(`  📦 8 módulos de rotas carregados`);
     console.log(`════════════════════════════════════════════════════\n`);
   });
 }

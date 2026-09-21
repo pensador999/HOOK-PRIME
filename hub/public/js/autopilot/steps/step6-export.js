@@ -357,7 +357,73 @@
             }
           }).catch(err => console.warn('Erro ao finalizar tarefa:', err));
         }
+
+        // ── PIPELINE SESSION — Memória dos Códigos ──
+        createPipelineSession().catch(err => console.warn('Pipeline session error:', err));
       });
+    }
+
+    // ── HOOK PRIME INTEGRATION: Pipeline Session ──
+    async function createPipelineSession() {
+      try {
+        const Registry = window.AutopilotModules.Registry;
+        const bases = [...new Set(State.state.generatedCodes.map(c => c.base))];
+        
+        const codes = bases.map(base => {
+          const codeObj = State.state.generatedCodes.find(c => c.base === base);
+          const group = codeObj && codeObj._groupId ? State.getGroupById(codeObj._groupId) : State.getFirstGroup();
+          const productType = (codeObj && codeObj.productType) || (group && group.productType) || 'Raglan';
+          const genders = group ? H.activeGenders(group) : ['masc'];
+          const estampa = State.state.estampas[base] || (group && group.estampaName) || base;
+          const titleMasc = Registry.buildProductTitle(productType, State.state.brand || 'BRK FISHING', estampa, 'masc');
+
+          const codesGenerated = {};
+          genders.forEach(g => {
+            if (codeObj && codeObj[g]) codesGenerated[g] = codeObj[g];
+          });
+
+          // Gerar códigos de variação (código + tamanhos)
+          const variations = [];
+          genders.forEach(g => {
+            const code = codesGenerated[g];
+            if (code) {
+              const sizes = H.sizesFor(g, productType);
+              sizes.forEach(s => variations.push(code + s));
+            }
+          });
+
+          return {
+            base,
+            productType,
+            estampa,
+            titleMasc,
+            genders,
+            codesGenerated,
+            variations,
+            tipo: 'producao',
+          };
+        });
+
+        const storeStr = (State.state.brand || '').toLowerCase();
+        const store = storeStr.includes('agro') ? 'agro' 
+          : storeStr.includes('motor') ? 'motors' : 'fishing';
+
+        const res = await fetch('/api/pipeline/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brand: State.state.brand, store, codes }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          sessionStorage.setItem('pipeline-session-id', data.sessionId);
+          window.HUB?.showToast(`📋 Pipeline: ${codes.length} códigos registrados na memória`, 'success');
+          console.log(`📋 Pipeline session criada: ${data.sessionId} (${codes.length} códigos)`);
+        }
+      } catch (err) {
+        // Pipeline offline — fluxo continua normalmente
+        console.warn('Pipeline session creation failed (non-blocking):', err.message);
+      }
     }
 
     const copyBtn = document.getElementById('ap-copy-csv');
