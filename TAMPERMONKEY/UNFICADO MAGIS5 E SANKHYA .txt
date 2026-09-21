@@ -776,6 +776,14 @@
                 log(`${label} Tipo: ${tipoDetectado.toUpperCase()}${tipoOverride !== 'auto' ? ' → Override: ' + tipoFinal.toUpperCase() : ''}`);
                 if (tipoFinal === 'pular') { log(`${label} ⏭ PULANDO (ALL/KIT)`, 'warn'); closeModals(); await sleep(1000); continue; }
 
+                // Extrair SKU base do primeiro input (ANTES da troca Sankhya)
+                let _skuBase = '';
+                if (skuInputs.length > 0) {
+                    const firstSku = norm(skuInputs[0].value);
+                    // Remover sufixos de tamanho (_P, _M, _G, _GG, _G1, _G2, _G3, _EG, _EGG, _4, _6, _8, _10, _12)
+                    _skuBase = firstSku.replace(/[_-](P|PP|M|G|GG|G1|G2|G3|EG|EGG|XG|XGG|4|6|8|10|12)$/i, '');
+                }
+
                 // ── ETAPA CRUCIAL: TROCA DOS SKUS ──
                 if (item.skuPairs.length > 0) {
                     // Manual: pares colados
@@ -820,13 +828,13 @@
                 sucesso++;
                 showAction(`✅ ${item.shopifyId} importado!`, '🎉');
                 log(`${label} ✅ Importado com sucesso!`, 'success');
-                reportImportProgress(item.shopifyId, 'success', tipoFinal);
+                reportImportProgress(item.shopifyId, 'success', tipoFinal, _skuBase);
                 if (i < items.length - 1) await sleep(cfg.delayAfterImport);
             } catch (err) {
                 falhas++;
                 showAction(`Erro: ${err.message}`, '❌');
                 log(`${label} Falha: ${err.message}`, 'error');
-                reportImportProgress(item.shopifyId, 'error', '');
+                reportImportProgress(item.shopifyId, 'error', '', typeof _skuBase !== 'undefined' ? _skuBase : '');
                 closeModals(); await sleep(2000);
             }
         }
@@ -999,7 +1007,7 @@
         }
     }
 
-    function reportImportProgress(shopifyId, progressStatus, tipo) {
+    function reportImportProgress(shopifyId, progressStatus, tipo, skuBase) {
         try {
             GM_xmlhttpRequest({
                 method: 'POST',
@@ -1010,6 +1018,7 @@
                     shopifyId: shopifyId,
                     status: progressStatus,
                     tipo: tipo || 'producao',
+                    skuBase: skuBase || '',
                 }),
                 timeout: 5000,
             });

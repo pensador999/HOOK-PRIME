@@ -5,7 +5,14 @@
  * Acompanha todos os códigos sendo trabalhados do nascimento no HOOK PRIME
  * até a conclusão na Magis5. Funciona como ponte entre o Hub e os scripts Tampermonkey.
  * 
- * @version 1.0.0
+ * FLUXO:
+ * Step 6 exporta CSV → cria Session com códigos + títulos
+ * Script Shopify → envia IDs extraídos (lista simples, sem associação)
+ * Script Magis5 → busca IDs pendentes, importa, reporta progresso com SKU base
+ * Script Estoque → busca títulos masculinos de Produção, reporta progresso
+ * Dashboard SPA → mostra progresso em tempo real
+ * 
+ * @version 2.0.0
  */
 'use strict';
 const router = require('express').Router();
@@ -35,8 +42,13 @@ module.exports = function ({ fs, path }) {
     }
   }
 
+  /**
+   * Busca session ativa (in_progress). Retorna null se não houver.
+   * NÃO faz fallback para sessions completadas — evita que scripts
+   * recebam dados de uma session já finalizada.
+   */
   function findActiveSession(sessions) {
-    return sessions.find(s => s.status === 'in_progress') || sessions[0] || null;
+    return sessions.find(s => s.status === 'in_progress') || null;
   }
 
   function generateSessionId() {
@@ -60,23 +72,23 @@ module.exports = function ({ fs, path }) {
    */
   router.get('/api/pipeline/sessions', (req, res) => {
     const sessions = loadSessions();
-    // Retorna resumo sem os detalhes pesados
-    const summaries = sessions.map(s => ({
-      id: s.id,
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      status: s.status,
-      brand: s.brand,
-      store: s.store,
-      totalCodes: s.codes ? s.codes.length : 0,
-      summary: s.summary || {},
-    }));
-    res.json({ success: true, sessions: summaries });
+    res.json({
+      success: true,
+      sessions: sessions.map(s => ({
+        id: s.id,
+        createdAt: s.createdAt,
+        status: s.status,
+        brand: s.brand,
+        store: s.store,
+        totalCodes: s.codes.length,
+        summary: s.summary,
+      })),
+    });
   });
 
   /**
    * GET /api/pipeline/sessions/:id
-   * Detalhes completos de uma session
+   * Retorna uma session específica com todos os detalhes
    */
   router.get('/api/pipeline/sessions/:id', (req, res) => {
     const sessions = loadSessions();
@@ -130,19 +142,19 @@ module.exports = function ({ fs, path }) {
             ean: { status: 'pending' },
             sankhya: { status: 'pending' },
             bling: { status: 'pending' },
-            shopify: { status: 'pending', shopifyIds: [] },
+            shopify: { status: 'pending' },
             magis5Import: { status: 'pending' },
             magis5Estoque: { status: 'pending' },
           },
         })),
-        shopifyIds: {},
+        // Lista simples de IDs Shopify — sem associação cega a códigos
+        shopifyIds: [],
         summary: {
           totalCodes: codes.length,
           totalVariations: codes.reduce((acc, c) => acc + (c.variations ? c.variations.length : 0), 0),
           shopifyExtracted: 0,
           imported: 0,
           estoqueOk: 0,
-          pending: codes.length,
         },
       };
 
@@ -183,7 +195,7 @@ module.exports = function ({ fs, path }) {
 
   /**
    * GET /api/pipeline/active
-   * Retorna a session ativa (mais recente in_progress)
+   * Retorna a session ativa (in_progress)
    */
   router.get('/api/pipeline/active', (req, res) => {
     const sessions = loadSessions();
@@ -199,7 +211,8 @@ module.exports = function ({ fs, path }) {
   /**
    * POST /api/pipeline/shopify-ids
    * Script Shopify envia IDs extraídos dos anúncios.
-   * Tenta associar automaticamente a códigos da session via shopifyIds map.
+   * IDs são armazenados como lista simples — a associação código↔ID
+   * acontece depois, quando o Script Magis5 importa e lê o SKU real.
    */
   router.post('/api/pipeline/shopify-ids', (req, res) => {
     try {
@@ -210,7 +223,7 @@ module.exports = function ({ fs, path }) {
 
       const sessions = loadSessions();
       let session;
-      
+
       if (sessionId) {
         session = sessions.find(s => s.id === sessionId);
       } else {
@@ -218,47 +231,37 @@ module.exports = function ({ fs, path }) {
       }
 
       if (!session) {
-        return res.json({ success: true, matched: 0, unmatched: ids.length, message: 'Nenhuma session ativa. IDs registrados mas não associados.' });
+        return res.json({ success: true, stored: 0, message: 'Nenhuma session ativa.' });
       }
 
       const now = new Date().toISOString();
-      let matched = 0;
 
-      // Registra todos os IDs no mapa da session
+      // Armazena IDs como lista simples (sem associação cega)
+      let newCount = 0;
       ids.forEach(id => {
         const strId = String(id).trim();
-        if (!strId) return;
-
-        if (!session.shopifyIds[strId]) {
-          session.shopifyIds[strId] = '';  // Ainda não associado a um código
+        if (strId && !session.shopifyIds.includes(strId)) {
+          session.shopifyIds.push(strId);
+          newCount++;
         }
+      });
 
-        // Tentar associar: percorrer códigos que ainda não têm shopifyId
-        const pendingCodes = session.codes.filter(c => 
-          c.pipeline.shopify.status === 'pending' && 
-          c.pipeline.shopify.shopifyIds.length === 0
-        );
-
-        if (pendingCodes.length > 0) {
-          // Associa sequencialmente (na ordem dos códigos)
-          const code = pendingCodes[0];
-          code.pipeline.shopify.shopifyIds.push(strId);
-          code.pipeline.shopify.status = 'done';
-          code.pipeline.shopify.timestamp = now;
-          session.shopifyIds[strId] = code.base;
-          matched++;
+      // Marca etapa shopify como done para todos os códigos (extração aconteceu)
+      session.codes.forEach(c => {
+        if (c.pipeline.shopify.status === 'pending') {
+          c.pipeline.shopify.status = 'done';
+          c.pipeline.shopify.timestamp = now;
         }
       });
 
       // Atualizar resumo
-      session.summary.shopifyExtracted = Object.keys(session.shopifyIds).length;
-      session.summary.pending = session.codes.filter(c => c.pipeline.shopify.status === 'pending').length;
+      session.summary.shopifyExtracted = session.shopifyIds.length;
       session.updatedAt = now;
 
       saveSessions(sessions);
 
-      console.log(`📡 Pipeline Shopify: ${ids.length} IDs recebidos, ${matched} associados (session ${session.id})`);
-      res.json({ success: true, matched, unmatched: ids.length - matched, sessionId: session.id });
+      console.log(`📡 Pipeline Shopify: ${newCount} novos IDs (total: ${session.shopifyIds.length}) — session ${session.id}`);
+      res.json({ success: true, stored: newCount, total: session.shopifyIds.length, sessionId: session.id });
     } catch (err) {
       console.error('❌ Pipeline shopify-ids error:', err);
       res.status(500).json({ success: false, error: err.message });
@@ -272,29 +275,15 @@ module.exports = function ({ fs, path }) {
   /**
    * GET /api/pipeline/pending-ids
    * Script Magis5 busca IDs Shopify pendentes para importação.
+   * Retorna todos os IDs que foram extraídos do Shopify.
    */
   router.get('/api/pipeline/pending-ids', (req, res) => {
     const sessions = loadSessions();
     const session = findActiveSession(sessions);
 
     if (!session) {
-      return res.json({ success: true, ids: [], store: '', total: 0, remaining: 0 });
+      return res.json({ success: true, ids: [], store: '', total: 0 });
     }
-
-    // Coletar IDs que foram registrados mas cujos códigos ainda não foram importados na Magis5
-    const pendingIds = [];
-    session.codes.forEach(c => {
-      if (c.pipeline.magis5Import.status !== 'done' && c.pipeline.shopify.shopifyIds.length > 0) {
-        pendingIds.push(...c.pipeline.shopify.shopifyIds);
-      }
-    });
-
-    // Também incluir IDs do mapa que não foram associados
-    Object.entries(session.shopifyIds).forEach(([id, code]) => {
-      if (!code && !pendingIds.includes(id)) {
-        pendingIds.push(id);
-      }
-    });
 
     const channel = STORE_CHANNEL_MAP[session.store] || '';
 
@@ -303,9 +292,8 @@ module.exports = function ({ fs, path }) {
       sessionId: session.id,
       store: session.store,
       channel,
-      ids: pendingIds,
-      total: session.codes.length,
-      remaining: pendingIds.length,
+      ids: session.shopifyIds,
+      total: session.shopifyIds.length,
     });
   });
 
@@ -316,7 +304,7 @@ module.exports = function ({ fs, path }) {
   /**
    * GET /api/pipeline/pending-titles
    * Script Estoque Infinito busca títulos masculinos de produtos de Produção
-   * que já foram importados na Magis5 mas ainda não receberam estoque.
+   * que ainda não receberam estoque.
    */
   router.get('/api/pipeline/pending-titles', (req, res) => {
     const sessions = loadSessions();
@@ -326,38 +314,23 @@ module.exports = function ({ fs, path }) {
       return res.json({ success: true, titles: [], totalCodes: 0, production: 0, resale: 0 });
     }
 
-    // Filtrar: Produção + já importado na Magis5 + estoque ainda pendente
-    const pendingTitles = [];
     let production = 0;
     let resale = 0;
+    const pendingTitles = [];
 
     session.codes.forEach(c => {
       if (c.tipo === 'producao') {
         production++;
-        // Retorna títulos de Produção que foram importados mas estoque ainda pendente
-        if (c.pipeline.magis5Import.status === 'done' && c.pipeline.magis5Estoque.status !== 'done') {
-          if (c.titleMasc) pendingTitles.push(c.titleMasc);
-        }
-        // Se magis5Import ainda pendente mas queremos pre-carregar os títulos mesmo assim
-        // para o caso do usuário querer rodar estoque em tudo que foi importado
-        if (c.pipeline.magis5Import.status !== 'done' && c.titleMasc && !pendingTitles.includes(c.titleMasc)) {
-          // Não adiciona — só adiciona os já importados
+        // Retorna títulos de Produção com estoque ainda pendente
+        if (c.pipeline.magis5Estoque.status !== 'done' && c.titleMasc) {
+          pendingTitles.push(c.titleMasc);
         }
       } else {
         resale++;
       }
     });
 
-    // Se nenhum foi importado ainda, retornar TODOS de produção (pré-carregamento)
-    if (pendingTitles.length === 0) {
-      session.codes.forEach(c => {
-        if (c.tipo === 'producao' && c.titleMasc && c.pipeline.magis5Estoque.status !== 'done') {
-          pendingTitles.push(c.titleMasc);
-        }
-      });
-    }
-
-    // Deduplicar títulos (ex: mesmo código base pode ter grupo com mesmo título)
+    // Deduplicar títulos
     const uniqueTitles = [...new Set(pendingTitles)];
 
     res.json({
@@ -377,10 +350,18 @@ module.exports = function ({ fs, path }) {
   /**
    * POST /api/pipeline/import-progress
    * Script Magis5 reporta resultado de importação de um anúncio.
+   * 
+   * O script envia o `skuBase` (primeiro SKU da tela sem sufixo de tamanho),
+   * o `shopifyId` do anúncio, e o `tipo` detectado (producao/revenda).
+   * 
+   * Busca o código na session por:
+   * 1. skuBase → match direto com c.base
+   * 2. skuBase → match em c.variations (código + tamanho)
+   * 3. Se não encontrar, incrementa o contador global de importados
    */
   router.post('/api/pipeline/import-progress', (req, res) => {
     try {
-      const { sessionId, shopifyId, status, tipo, codeBase } = req.body;
+      const { sessionId, shopifyId, status, tipo, skuBase } = req.body;
       const sessions = loadSessions();
       let session;
 
@@ -395,32 +376,45 @@ module.exports = function ({ fs, path }) {
       }
 
       const now = new Date().toISOString();
-      const strId = String(shopifyId).trim();
+      let matchedCode = null;
 
-      // Encontrar o código associado a este shopifyId
-      let code = null;
-      if (codeBase) {
-        code = session.codes.find(c => c.base === codeBase);
-      }
-      if (!code && strId) {
-        code = session.codes.find(c => c.pipeline.shopify.shopifyIds.includes(strId));
-      }
-      if (!code && session.shopifyIds[strId]) {
-        code = session.codes.find(c => c.base === session.shopifyIds[strId]);
+      // Tentar encontrar o código pelo SKU base
+      if (skuBase) {
+        const skuUpper = skuBase.toUpperCase();
+
+        // Match direto pelo base
+        matchedCode = session.codes.find(c => c.base.toUpperCase() === skuUpper);
+
+        // Match por variação (SKU pode ser um código com sufixo de tamanho)
+        if (!matchedCode) {
+          matchedCode = session.codes.find(c =>
+            c.variations && c.variations.some(v => v.toUpperCase() === skuUpper)
+          );
+        }
+
+        // Match parcial — o SKU base pode ser prefixo de um código gerado
+        if (!matchedCode) {
+          matchedCode = session.codes.find(c => {
+            const codes = Object.values(c.codesGenerated || {});
+            return codes.some(code => code && code.toUpperCase() === skuUpper);
+          });
+        }
       }
 
-      if (code) {
-        code.pipeline.magis5Import.status = status === 'success' ? 'done' : 'error';
-        code.pipeline.magis5Import.timestamp = now;
-        if (tipo) code.tipo = tipo;  // Atualiza tipo detectado pelo script
+      if (matchedCode) {
+        matchedCode.pipeline.magis5Import.status = status === 'success' ? 'done' : 'error';
+        matchedCode.pipeline.magis5Import.timestamp = now;
+        matchedCode.pipeline.magis5Import.shopifyId = shopifyId || '';
+        // Atualiza tipo detectado pelo Script Magis5 (corrige o default 'producao')
+        if (tipo && tipo !== 'pular') matchedCode.tipo = tipo;
       }
 
-      // Atualizar resumo
+      // Atualizar resumo (conta globalmente)
       session.summary.imported = session.codes.filter(c => c.pipeline.magis5Import.status === 'done').length;
       session.updatedAt = now;
       saveSessions(sessions);
 
-      res.json({ success: true, code: code ? code.base : null });
+      res.json({ success: true, matched: matchedCode ? matchedCode.base : null });
     } catch (err) {
       console.error('❌ Pipeline import-progress error:', err);
       res.status(500).json({ success: false, error: err.message });
@@ -434,6 +428,7 @@ module.exports = function ({ fs, path }) {
   /**
    * POST /api/pipeline/estoque-progress
    * Script Estoque Infinito reporta que um produto recebeu estoque.
+   * Busca o código pelo título masculino (match exato normalizado).
    */
   router.post('/api/pipeline/estoque-progress', (req, res) => {
     try {
@@ -456,7 +451,7 @@ module.exports = function ({ fs, path }) {
       // Encontrar código pelo título masculino
       if (title) {
         const normalizedTitle = title.trim().toLowerCase();
-        const code = session.codes.find(c => 
+        const code = session.codes.find(c =>
           c.titleMasc && c.titleMasc.trim().toLowerCase() === normalizedTitle
         );
         if (code) {
