@@ -757,6 +757,7 @@
             if (_shouldStop) { log('⏹ Interrompido.'); break; }
             while (_paused) { updateVisualBar('⏸ PAUSADO', `${i}/${items.length}`, items[i].shopifyId); await sleep(500); if (_shouldStop) break; }
             const item = items[i];
+            let _skuBase = '';
             const label = `[${i + 1}/${items.length}]`;
             updateProgress(i, items.length);
             updateVisualBar(`Processando ${label}`, `${i + 1}/${items.length}`, item.shopifyId);
@@ -777,11 +778,10 @@
                 if (tipoFinal === 'pular') { log(`${label} ⏭ PULANDO (ALL/KIT)`, 'warn'); closeModals(); await sleep(1000); continue; }
 
                 // Extrair SKU base do primeiro input (ANTES da troca Sankhya)
-                let _skuBase = '';
                 if (skuInputs.length > 0) {
                     const firstSku = norm(skuInputs[0].value);
                     // Remover sufixos de tamanho (_P, _M, _G, _GG, _G1, _G2, _G3, _EG, _EGG, _4, _6, _8, _10, _12)
-                    _skuBase = firstSku.replace(/[_-](P|PP|M|G|GG|G1|G2|G3|EG|EGG|XG|XGG|4|6|8|10|12)$/i, '');
+                    _skuBase = firstSku.replace(/[_-]?(PP|P|M|GG|G1|G2|G3|G4|G|EGG|EG|XGG|XG|XGGG|2|4|6|8|10|12|14|16|UN|UNICO)$/i, '');
                 }
 
                 // ── ETAPA CRUCIAL: TROCA DOS SKUS ──
@@ -834,7 +834,7 @@
                 falhas++;
                 showAction(`Erro: ${err.message}`, '❌');
                 log(`${label} Falha: ${err.message}`, 'error');
-                reportImportProgress(item.shopifyId, 'error', '', typeof _skuBase !== 'undefined' ? _skuBase : '');
+                reportImportProgress(item.shopifyId, 'error', '', _skuBase);
                 closeModals(); await sleep(2000);
             }
         }
@@ -990,16 +990,14 @@
                 log(`📡 HOOK PRIME: ${data.ids.length} IDs carregados automaticamente (${data.store || 'unknown'})`, 'success');
             }
             // Auto-selecionar canal pela loja
-            if (data.channel) {
-                const channelSelect = document.getElementById('brk-import-channel');
-                if (channelSelect) {
-                    const opt = [...channelSelect.options].find(o => o.value === data.channel);
-                    if (opt) {
-                        channelSelect.value = data.channel;
-                        opt.selected = true;
-                        channelSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                        log(`🏪 Canal auto-selecionado: ${opt.textContent.trim()}`, 'success');
-                    }
+            const channelSelect = document.getElementById('brk-import-channel');
+            if (channelSelect && data.channel && (!channelSelect.value || channelSelect.value === channelSelect.options[0]?.value)) {
+                const opt = [...channelSelect.options].find(o => o.value === data.channel);
+                if (opt) {
+                    channelSelect.value = data.channel;
+                    opt.selected = true;
+                    channelSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    log(`🏪 Canal auto-selecionado: ${opt.textContent.trim()}`, 'success');
                 }
             }
         } catch (e) {

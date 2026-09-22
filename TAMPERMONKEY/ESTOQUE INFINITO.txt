@@ -10,6 +10,7 @@
 // @grant        GM_removeValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
+// @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -32,10 +33,12 @@
             onload: (res) => {
               try {
                 const data = JSON.parse(res.responseText);
+                _hookPrimeSessionId = data.sessionId || '';
                 if (data.success && data.titles && data.titles.length > 0) {
-                  _hookPrimeSessionId = data.sessionId || '';
                   resolve(data);
-                } else { resolve(null); }
+                } else {
+                  resolve(null);
+                }
               } catch (e) { resolve(null); }
             },
             onerror: () => resolve(null),
@@ -489,13 +492,14 @@
 
         var input = document.getElementById('brk-stock-titles');
         var titlesRaw = (input ? input.value : '').split('\n').map(norm).filter(Boolean);
+        var titles = [...new Set(titlesRaw)];
 
-        if (titlesRaw.length === 0) {
+        if (titles.length === 0) {
             log('⚠️ Cole pelo menos um título na lista!', 'warn');
             _running = false; return;
         }
 
-        var titles = testOnly ? [titlesRaw[0]] : titlesRaw;
+        titles = testOnly ? [titles[0]] : titles;
         stats = { totalTitles: titles.length, titlesDone: 0, totalVariants: 0, variantsDone: 0, errors: 0 };
 
         // ── PRÉ-ABRIR JANELA DO EDITOR (no contexto do clique = sem bloqueio) ──

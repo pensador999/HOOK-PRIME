@@ -12,7 +12,7 @@
  * Script Estoque → busca títulos masculinos de Produção, reporta progresso
  * Dashboard SPA → mostra progresso em tempo real
  * 
- * @version 2.0.0
+ * @version 2.1.0
  */
 'use strict';
 const router = require('express').Router();
@@ -21,25 +21,37 @@ module.exports = function ({ fs, path }) {
 
   const SESSIONS_FILE = path.join(__dirname, '..', 'config', 'pipeline-sessions.json');
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── Helpers (cache em memória + write lock) ────────────────────────────────
+
+  let _cache = null;
+  let _writing = false;
 
   function loadSessions() {
+    if (_cache) return _cache;
     try {
       if (fs.existsSync(SESSIONS_FILE)) {
-        return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+        _cache = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+        return _cache;
       }
     } catch (e) {
       console.warn('⚠️ Erro ao ler pipeline-sessions.json:', e.message);
     }
-    return [];
+    _cache = [];
+    return _cache;
   }
 
   function saveSessions(sessions) {
-    try {
-      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
-    } catch (e) {
-      console.warn('⚠️ Erro ao salvar pipeline-sessions.json:', e.message);
-    }
+    _cache = sessions;
+    if (_writing) return; // Debounce: já tem um save pendente
+    _writing = true;
+    setImmediate(() => {
+      try {
+        fs.writeFileSync(SESSIONS_FILE, JSON.stringify(_cache, null, 2), 'utf8');
+      } catch (e) {
+        console.warn('⚠️ Erro ao salvar pipeline-sessions.json:', e.message);
+      }
+      _writing = false;
+    });
   }
 
   /**
@@ -412,6 +424,16 @@ module.exports = function ({ fs, path }) {
       // Atualizar resumo (conta globalmente)
       session.summary.imported = session.codes.filter(c => c.pipeline.magis5Import.status === 'done').length;
       session.updatedAt = now;
+
+      // Verificar se tudo está completo (cobre caso onde todos são revenda)
+      const allDone = session.codes.every(c => {
+        if (c.tipo === 'producao') {
+          return c.pipeline.magis5Import.status === 'done' && c.pipeline.magis5Estoque.status === 'done';
+        }
+        return c.pipeline.magis5Import.status === 'done';
+      });
+      if (allDone && session.codes.length > 0) session.status = 'completed';
+
       saveSessions(sessions);
 
       res.json({ success: true, matched: matchedCode ? matchedCode.base : null });

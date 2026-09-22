@@ -6,6 +6,7 @@
 // @match        https://admin.shopify.com/store/*/products*
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
+// @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -70,14 +71,23 @@
         const seen = new Set();
 
         // Links de produto em qualquer estrutura
+        const raw = [];
         document.querySelectorAll('a[href*="/products/"]').forEach(link => {
             const match = (link.getAttribute('href') || '').match(/\/products\/(\d{8,})/);
-            if (!match || seen.has(match[1])) return;
-            seen.add(match[1]);
+            if (!match) return;
             const title = (link.textContent || '').trim();
-            if (title && title.length > 2) {
-                products.push({ id: match[1], title, status: '' });
+            raw.push({ id: match[1], title, status: '' });
+        });
+        // Deduplicar: priorizar entradas COM título sobre as sem
+        const byId = new Map();
+        raw.forEach(p => {
+            const existing = byId.get(p.id);
+            if (!existing || (p.title.length > (existing.title || '').length)) {
+                byId.set(p.id, p);
             }
+        });
+        byId.forEach(p => {
+            if (p.title && p.title.length > 2) products.push(p);
         });
 
         return products;
@@ -130,6 +140,8 @@
         if (products.length === 0) {
             log(`Nenhum produto ${label}. Marque os checkboxes na tabela primeiro!`, 'warn');
             setStatus('⚠️ Nenhum produto encontrado');
+            const idsEl = document.getElementById('brk-shopify-ids');
+            if (idsEl) idsEl.value = '';
             return;
         }
 
@@ -160,7 +172,7 @@
                         try {
                             const data = JSON.parse(res.responseText);
                             if (data.success) {
-                                console.log(`[BRK Shopify] ✅ ${ids.length} IDs enviados ao HOOK PRIME (${data.matched} associados)`);
+                                console.log(`[BRK Shopify] ✅ ${ids.length} IDs enviados ao HOOK PRIME (${data.stored} associados)`);
                             }
                             resolve(data);
                         } catch (e) { resolve(null); }
