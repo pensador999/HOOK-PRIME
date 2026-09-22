@@ -47,6 +47,7 @@ const fs = require('fs');
 const NETWORK_SERVER = '192.168.100.100';
 const NETWORK_ROOT = '\\\\192.168.100.100\\Linha Brk 2024';
 const NETWORK_ROOT_LEGACY = '\\\\192.168.100.100\\Linha BRK\\LINHA BRK';
+const NETWORK_ROOT_MARKETING = '\\\\192.168.100.100\\Marketing';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  🔒 TODAS AS PASTAS PROTEGIDAS NA REDE (mapeamento completo)
@@ -130,7 +131,13 @@ const PROTECTED_FOLDERS_LEGACY = [
   { name: 'SAC_CODIGO',    subs: 0, type: 'produto', desc: 'SAC (legado)', root: NETWORK_ROOT_LEGACY },
 ];
 
-// Total: 48 pastas protegidas (nova) + 9 pastas protegidas (legado)
+// ── REDE MARKETING (\\192.168.100.100\Marketing) ──
+// Subpastas serão mapeadas quando a rede estiver acessível
+const PROTECTED_FOLDERS_MARKETING = [
+  { name: '.', subs: 0, type: 'marketing', desc: 'Marketing (raiz)', root: NETWORK_ROOT_MARKETING },
+];
+
+// Total: 48 pastas protegidas (nova) + 9 pastas protegidas (legado) + 1 marketing
 // Total de subpastas: ~5.000+
 // Estimativa de arquivos: 50.000+
 
@@ -243,6 +250,19 @@ function getProtectedFolder(targetPath) {
     const folderPath = path.join(folderRoot, folder.name);
     const folderNorm = normalizePath(folderPath);
     if (normalized.startsWith(folderNorm)) return folder;
+  }
+
+  // Buscar na rede Marketing
+  const mktNorm = normalizePath(NETWORK_ROOT_MARKETING);
+  if (normalized.startsWith(mktNorm)) {
+    // Buscar pasta específica se mapeada
+    for (const folder of PROTECTED_FOLDERS_MARKETING) {
+      if (folder.name === '.') return folder; // Raiz do Marketing
+      const folderPath = path.join(NETWORK_ROOT_MARKETING, folder.name);
+      const folderNorm = normalizePath(folderPath);
+      if (normalized.startsWith(folderNorm)) return folder;
+    }
+    return PROTECTED_FOLDERS_MARKETING[0]; // Fallback para raiz
   }
 
   return null;
@@ -496,11 +516,12 @@ function logSecurityEvent(action, operation, target, folder) {
  * Retorna resumo da rede protegida.
  */
 function getNetworkStats() {
-  const totalFolders = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length;
+  const totalFolders = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length + PROTECTED_FOLDERS_MARKETING.length;
   const totalSubs = PROTECTED_FOLDERS.reduce((sum, f) => sum + f.subs, 0)
-                  + PROTECTED_FOLDERS_LEGACY.reduce((sum, f) => sum + f.subs, 0);
+                  + PROTECTED_FOLDERS_LEGACY.reduce((sum, f) => sum + f.subs, 0)
+                  + PROTECTED_FOLDERS_MARKETING.reduce((sum, f) => sum + f.subs, 0);
   const byType = {};
-  [...PROTECTED_FOLDERS, ...PROTECTED_FOLDERS_LEGACY].forEach(f => {
+  [...PROTECTED_FOLDERS, ...PROTECTED_FOLDERS_LEGACY, ...PROTECTED_FOLDERS_MARKETING].forEach(f => {
     byType[f.type] = (byType[f.type] || 0) + 1;
   });
 
@@ -508,6 +529,7 @@ function getNetworkStats() {
     server: NETWORK_SERVER,
     root: NETWORK_ROOT,
     rootLegacy: NETWORK_ROOT_LEGACY,
+    rootMarketing: NETWORK_ROOT_MARKETING,
     totalFolders,
     totalSubfolders: totalSubs,
     estimatedFiles: '50.000+',
@@ -535,20 +557,23 @@ function verifyIntegrity() {
     BLOCKED_OPERATIONS.length >= 20,
     PROTECTED_FOLDERS.length >= 48,
     PROTECTED_FOLDERS_LEGACY.length >= 9,
+    PROTECTED_FOLDERS_MARKETING.length >= 1,
     NETWORK_SERVER === '192.168.100.100',
     NETWORK_ROOT_LEGACY.includes(NETWORK_SERVER),
+    NETWORK_ROOT_MARKETING.includes(NETWORK_SERVER),
   ];
 
   const passed = checks.every(c => c === true);
-  const totalProtected = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length;
+  const totalProtected = PROTECTED_FOLDERS.length + PROTECTED_FOLDERS_LEGACY.length + PROTECTED_FOLDERS_MARKETING.length;
 
   if (passed) {
     console.log('🔒 Network Safety Guard: ✅ Integridade verificada');
-    console.log(`   📂 ${totalProtected} pastas protegidas (${PROTECTED_FOLDERS.length} nova + ${PROTECTED_FOLDERS_LEGACY.length} legado)`);
+    console.log(`   📂 ${totalProtected} pastas protegidas (${PROTECTED_FOLDERS.length} nova + ${PROTECTED_FOLDERS_LEGACY.length} legado + ${PROTECTED_FOLDERS_MARKETING.length} marketing)`);
     console.log(`   🚫 ${BLOCKED_OPERATIONS.length} operações bloqueadas`);
     console.log(`   ✅ ${ALLOWED_OPERATIONS.length} operações permitidas`);
     console.log(`   🌐 Rede nova: ${NETWORK_ROOT}`);
     console.log(`   🌐 Rede legado: ${NETWORK_ROOT_LEGACY}`);
+    console.log(`   🌐 Rede marketing: ${NETWORK_ROOT_MARKETING}`);
   } else {
     console.error('🔒❌ FALHA DE INTEGRIDADE no Network Safety Guard!');
     throw new Error('Network Safety Guard adulterado — servidor recusou inicializar.');
@@ -567,8 +592,10 @@ module.exports = {
   NETWORK_SERVER,
   NETWORK_ROOT,
   NETWORK_ROOT_LEGACY,
+  NETWORK_ROOT_MARKETING,
   PROTECTED_FOLDERS,
   PROTECTED_FOLDERS_LEGACY,
+  PROTECTED_FOLDERS_MARKETING,
   IMAGE_EXTENSIONS,
   PRODUCTION_EXTENSIONS,
   ALLOWED_OPERATIONS,
