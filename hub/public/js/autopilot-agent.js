@@ -59,7 +59,8 @@
   const CODE_RANGE_REGEX = /([A-Za-z]+\d+)[ \t]*(?:a|até|→|-)[ \t]*([A-Za-z]*)(\d+)/gi;
 
   // Individual codes: "C02800, C02801" or "C02800 C02801"
-  const CODE_INDIVIDUAL_REGEX = /\b([A-Z]{1,5}\d{3,6})\b/gi;
+  // {1,8} para cobrir todos os prefixos BRK: FUSION(6), CASUAL(6), RAGLAN(6), CANECA(6), CBTMC(5), etc.
+  const CODE_INDIVIDUAL_REGEX = /\b([A-Z]{1,8}\d{3,6})\b/gi;
 
   // ═══════════════════════════════════════
   // PARSER ENGINE
