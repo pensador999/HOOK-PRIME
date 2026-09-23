@@ -736,6 +736,51 @@
     const foundCount = allScanResults.filter(r => r.found).length;
     log(`📊 Scan completo: ${foundCount}/${allScanResults.length} encontrados, ${state.foundImages} imagens`, 'success');
 
+    // ── AUTO-DETECT GENDERS FROM IMAGES ──
+    // Se o scan encontrou imagens com gênero (MASC/FEM/INF),
+    // atualizar o plano para incluir esses gêneros na geração de códigos.
+    const detectedGendersFromImages = new Set();
+    for (const r of allScanResults) {
+      if (!r.found || !r.images) continue;
+      for (const img of r.images) {
+        const g = (img.gender || '').toUpperCase();
+        if (g === 'MASCULINO' || g === 'MASC') detectedGendersFromImages.add('masc');
+        else if (g === 'FEMININO' || g === 'FEM') detectedGendersFromImages.add('fem');
+        else if (g === 'INFANTIL' || g === 'INF' || g === 'KIDS') detectedGendersFromImages.add('inf');
+      }
+    }
+
+    if (detectedGendersFromImages.size > 0) {
+      // Se detectou FEM ou INF nas imagens, garantir que MASC também esteja
+      if (detectedGendersFromImages.has('fem') || detectedGendersFromImages.has('inf')) {
+        detectedGendersFromImages.add('masc');
+      }
+
+      const genderUpdate = {
+        masc: detectedGendersFromImages.has('masc'),
+        fem: detectedGendersFromImages.has('fem'),
+        inf: detectedGendersFromImages.has('inf'),
+      };
+
+      // Atualizar parsed e plan
+      if (parsed) parsed.genders = { ...genderUpdate };
+      if (plan && plan.groups) {
+        for (const g of plan.groups) {
+          // Só atualizar produtos COM variação (não acessórios únicos)
+          const UNIQUE_TYPES = ['BlackMask', 'Tubeneck', 'Boné', 'Lenço', 'Lenço Cetim', 'Copo Térmico', 'Capa Almofada', 'Caneca', 'Bandana'];
+          if (!UNIQUE_TYPES.includes(g.productType)) {
+            g.genders = { ...genderUpdate };
+          }
+        }
+      }
+
+      const genderLabels = [];
+      if (genderUpdate.masc) genderLabels.push('MASC');
+      if (genderUpdate.fem) genderLabels.push('FEM');
+      if (genderUpdate.inf) genderLabels.push('INF');
+      log(`👥 Gêneros detectados nas imagens: ${genderLabels.join(' + ')} — plano atualizado!`, 'success');
+    }
+
     // ── FASE 3: COPIAR IMAGENS ──
     setPhase(3);
     const foundResults = allScanResults.filter(r => r.found && r.images && r.images.length > 0);
