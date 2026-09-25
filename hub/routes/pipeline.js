@@ -12,7 +12,7 @@
  * Script Estoque → busca títulos masculinos de Produção, reporta progresso
  * Dashboard SPA → mostra progresso em tempo real
  * 
- * @version 2.1.0
+ * @version 3.0.0
  */
 'use strict';
 const router = require('express').Router();
@@ -67,12 +67,20 @@ module.exports = function ({ fs, path }) {
     return 'session_' + Date.now();
   }
 
-  // Mapeia store → canal Shopify na Magis5
-  const STORE_CHANNEL_MAP = {
-    fishing: 'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
-    agro: 'shopify-21b47dd8ee4b4a44b8b8d891bb3e2265',
-    motors: 'shopify-7495282216c04726834a39582e5369dd',
-  };
+  // Mapeia store → canal Shopify na Magis5 (externalizado em config/channels.json)
+  let STORE_CHANNEL_MAP = {};
+  try {
+    STORE_CHANNEL_MAP = JSON.parse(fs.readFileSync(
+      path.join(__dirname, '..', 'config', 'channels.json'), 'utf8'
+    ));
+  } catch (_) {
+    STORE_CHANNEL_MAP = {
+      fishing: 'shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f',
+      agro: 'shopify-21b47dd8ee4b4a44b8b8d891bb3e2265',
+      motors: 'shopify-7495282216c04726834a39582e5369dd',
+    };
+    console.warn('⚠️ channels.json não encontrado — usando fallback hardcoded');
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════════
   //  CRUD DE SESSIONS
@@ -258,13 +266,16 @@ module.exports = function ({ fs, path }) {
         }
       });
 
-      // Marca etapa shopify como done para todos os códigos (extração aconteceu)
-      session.codes.forEach(c => {
-        if (c.pipeline.shopify.status === 'pending') {
-          c.pipeline.shopify.status = 'done';
-          c.pipeline.shopify.timestamp = now;
-        }
-      });
+      // Marca etapa shopify como done APENAS quando temos IDs suficientes
+      // (evita marcar cegamente todos como done com extração parcial)
+      if (session.shopifyIds.length >= session.codes.length) {
+        session.codes.forEach(c => {
+          if (c.pipeline.shopify.status === 'pending') {
+            c.pipeline.shopify.status = 'done';
+            c.pipeline.shopify.timestamp = now;
+          }
+        });
+      }
 
       // Atualizar resumo
       session.summary.shopifyExtracted = session.shopifyIds.length;
@@ -299,13 +310,23 @@ module.exports = function ({ fs, path }) {
 
     const channel = STORE_CHANNEL_MAP[session.store] || '';
 
+    // Filtrar IDs que já foram importados com sucesso (evita reimportação)
+    const importedShopifyIds = new Set(
+      session.codes
+        .filter(c => c.pipeline.magis5Import.status === 'done')
+        .map(c => c.pipeline.magis5Import.shopifyId)
+        .filter(Boolean)
+    );
+    const pendingIds = session.shopifyIds.filter(id => !importedShopifyIds.has(id));
+
     res.json({
       success: true,
       sessionId: session.id,
       store: session.store,
       channel,
-      ids: session.shopifyIds,
-      total: session.shopifyIds.length,
+      ids: pendingIds,
+      total: pendingIds.length,
+      totalAll: session.shopifyIds.length,
     });
   });
 
@@ -470,11 +491,13 @@ module.exports = function ({ fs, path }) {
 
       const now = new Date().toISOString();
 
-      // Encontrar código pelo título masculino
+      // Encontrar código pelo título masculino (matching resiliente)
       if (title) {
-        const normalizedTitle = title.trim().toLowerCase();
+        // Normalização: remove pontuação, colapsa espaços, lowercase
+        const normalize = (t) => (t || '').replace(/[^\w\sÀ-ÿ]/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const normalizedTitle = normalize(title);
         const code = session.codes.find(c =>
-          c.titleMasc && c.titleMasc.trim().toLowerCase() === normalizedTitle
+          c.titleMasc && normalize(c.titleMasc) === normalizedTitle
         );
         if (code) {
           code.pipeline.magis5Estoque.status = status === 'success' ? 'done' : 'error';
@@ -486,14 +509,14 @@ module.exports = function ({ fs, path }) {
       session.summary.estoqueOk = session.codes.filter(c => c.pipeline.magis5Estoque.status === 'done').length;
       session.updatedAt = now;
 
-      // Verificar se tudo está completo
+      // Verificar se tudo está completo (guard: codes.length > 0)
       const allDone = session.codes.every(c => {
         if (c.tipo === 'producao') {
           return c.pipeline.magis5Import.status === 'done' && c.pipeline.magis5Estoque.status === 'done';
         }
         return c.pipeline.magis5Import.status === 'done';  // Revenda não precisa estoque
       });
-      if (allDone) session.status = 'completed';
+      if (allDone && session.codes.length > 0) session.status = 'completed';
 
       saveSessions(sessions);
       res.json({ success: true });

@@ -599,6 +599,63 @@
     if (state._resumeCallback) { state._resumeCallback(); state._resumeCallback = null; }
   }
 
+  // ═══ BUILD PIPELINE PAYLOAD (para criação de session no fluxo RTX) ═══
+  function _buildPipelinePayload(plan, parsed, scanResults) {
+    const brand = parsed?.brand || 'BRK FISHING';
+    const store = brand.toLowerCase().includes('agro') ? 'agro'
+      : brand.toLowerCase().includes('motor') ? 'motors' : 'fishing';
+
+    const codes = [];
+    const seenBases = new Set();
+    const Registry = window.AutopilotModules?.Registry;
+    const H = window.AutopilotModules?.Helpers;
+
+    for (const g of (plan?.groups || [])) {
+      if (!g.codes) continue;
+      for (const code of g.codes) {
+        const upper = code.toUpperCase();
+        if (seenBases.has(upper)) continue;
+        seenBases.add(upper);
+
+        // Buscar estampa do scan
+        const scanR = (scanResults || []).find(r => r.code?.toUpperCase() === upper);
+        const estampa = scanR?.estampa || '';
+
+        // Gêneros e códigos gerados
+        const genders = [];
+        const codesGenerated = {};
+        if (g.genders?.masc) { genders.push('masc'); codesGenerated.masc = code; }
+        if (g.genders?.fem) { genders.push('fem'); codesGenerated.fem = code + 'BL'; }
+        if (g.genders?.inf) { genders.push('inf'); codesGenerated.inf = code + 'I'; }
+        if (genders.length === 0) { genders.push('masc'); codesGenerated.masc = code; }
+
+        // Título masculino
+        const titleMasc = Registry?.buildProductTitle?.(g.productType, brand, estampa, 'masc')
+          || `${g.productType || 'Raglan'} ${brand} ${estampa}`.trim();
+
+        // Variações (código + tamanho)
+        const variations = [];
+        if (H?.sizesFor) {
+          for (const gen of genders) {
+            const suffix = gen === 'fem' ? 'BL' : gen === 'inf' ? 'I' : '';
+            try {
+              const sizes = H.sizesFor(gen, g.productType);
+              sizes.forEach(s => variations.push(code + suffix + s));
+            } catch (_) {}
+          }
+        }
+
+        codes.push({
+          base: code, productType: g.productType || 'Raglan',
+          estampa, titleMasc, genders, codesGenerated,
+          variations, tipo: 'producao'
+        });
+      }
+    }
+
+    return { brand, store, codes };
+  }
+
   // ═══ EXECUTAR PROCESSO COM LIVE TRACKING ═══
   async function execute(task, parsed, plan) {
     if (state.running) {
@@ -1017,6 +1074,29 @@
     // Launch autopilot wizard
     if (window.HUB.AutopilotAgent) {
       window.HUB.AutopilotAgent.launchAutopilot(parsed, plan, { navigate: false });
+    }
+
+    // ── CRIAR SESSION DE PIPELINE (Fix B1 — crítico) ──
+    // O fluxo RTX automático precisa criar a session para tracking
+    // Sem isso, shopify-ids → import-progress → estoque-progress ficam sem referência
+    try {
+      const pipelinePayload = _buildPipelinePayload(plan, parsed, allScanResults);
+      if (pipelinePayload.codes.length > 0) {
+        const pipeRes = await fetch('/api/pipeline/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pipelinePayload)
+        });
+        if (pipeRes.ok) {
+          const pipeData = await pipeRes.json();
+          sessionStorage.setItem('pipeline-session-id', pipeData.sessionId);
+          log(`📋 Pipeline session criada: ${pipeData.sessionId} (${pipeData.totalCodes} códigos)`, 'success');
+        } else {
+          log(`⚠️ Pipeline session não criada: HTTP ${pipeRes.status}`, 'warn');
+        }
+      }
+    } catch (e) {
+      log(`⚠️ Pipeline session não criada: ${e.message}`, 'warn');
     }
 
     // Update task status
