@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BRK Autopilot Unificado - Magis5 + Sankhya API Turbo
 // @namespace    http://tampermonkey.net/
-// @version      7.2
+// @version      7.3
 // @description  Script unificado: Import Autopilot Multi-Canal (Magis5) + Busca Turbo via API Direta (Sankhya) — Troca automática de SKUs blindada, consulta direta via API ou Cross-Tab, 6 workers paralelos e suporte total a jQuery/Metronic.
 // @match        https://app.magis5.com.br/*
 // @match        https://brk.sankhyacloud.com.br/*
@@ -962,6 +962,22 @@
         log('Painel v7.2 pronto! Troca automática de SKU ativa ⚡', 'info');
         // ── HOOK PRIME INTEGRATION: auto-load pending IDs ──
         checkPendingFromHookPrime();
+        // ── AUTO-MODE TOGGLE ──
+        const autoBtn = document.createElement('button');
+        autoBtn.id = 'brk-auto-mode-btn';
+        autoBtn.style.cssText = 'background:#334155;color:#94a3b8;border:1px solid #475569;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:11px;font-weight:700;width:100%;margin-top:4px;transition:all .3s';
+        autoBtn.textContent = '🤖 Auto-Mode: OFF';
+        autoBtn.onclick = () => {
+            _autoMode = !_autoMode;
+            autoBtn.textContent = _autoMode ? '🤖 Auto-Mode: ON 🟢' : '🤖 Auto-Mode: OFF';
+            autoBtn.style.background = _autoMode ? '#059669' : '#334155';
+            autoBtn.style.color = _autoMode ? '#fff' : '#94a3b8';
+            autoBtn.style.borderColor = _autoMode ? '#10b981' : '#475569';
+            if (_autoMode) { startAutoCheck(); log('🤖 AUTO-MODE ativado — polling a cada 30s', 'success'); }
+            else { log('🤖 AUTO-MODE desativado', 'info'); }
+        };
+        const btnGrid = box.querySelector('div[style*="grid-template-columns:1fr 1fr;"]');
+        if (btnGrid) { btnGrid.parentNode.insertBefore(autoBtn, btnGrid.nextSibling); }
     }
 
     // ── HOOK PRIME INTEGRATION ──
@@ -1021,6 +1037,48 @@
                 timeout: 5000,
             });
         } catch (e) { /* silent */ }
+    }
+
+    // ── AUTO-START: Polling para IDs pendentes (Máquina Autônoma) ──
+    let _autoMode = false; // Toggle via painel
+    let _autoCheckInterval = null;
+    let _isRunning = false; // Gerenciado pelo processImportQueue
+
+    function startAutoCheck() {
+        if (_autoCheckInterval) return;
+        _autoCheckInterval = setInterval(async () => {
+            if (!_autoMode || _isRunning) return;
+            // Só auto-iniciar se o painel está aberto
+            const panel = document.getElementById('brk-import-panel');
+            if (!panel) return;
+            const textarea = document.getElementById('brk-import-list');
+            if (!textarea || textarea.value.trim()) return; // Já tem IDs carregados
+            try {
+                const data = await new Promise((resolve) => {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: 'http://localhost:3000/api/pipeline/pending-ids',
+                        timeout: 5000,
+                        onload: (res) => { try { resolve(JSON.parse(res.responseText)); } catch (e) { resolve(null); } },
+                        onerror: () => resolve(null),
+                        ontimeout: () => resolve(null),
+                    });
+                });
+                if (data && data.success && data.ids && data.ids.length > 0) {
+                    _hookPrimeSessionId = data.sessionId || '';
+                    textarea.value = data.ids.join('\n');
+                    // Auto-selecionar canal
+                    const channelSelect = document.getElementById('brk-import-channel');
+                    if (channelSelect && data.channel) {
+                        const opt = [...channelSelect.options].find(o => o.value === data.channel);
+                        if (opt) { channelSelect.value = data.channel; opt.selected = true; channelSelect.dispatchEvent(new Event('change', { bubbles: true })); }
+                    }
+                    log(`🤖 AUTO-START: ${data.ids.length} IDs pendentes detectados — iniciando importação...`, 'success');
+                    await sleep(2000);
+                    processImportQueue(false); // Auto-iniciar importação completa
+                }
+            } catch (e) { /* HOOK PRIME offline — ignorar */ }
+        }, 30000); // A cada 30 segundos
     }
 
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => setTimeout(buildLauncher, 2000)); }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BRK Estoque Infinito Autopilot - Magis5
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Adiciona Estoque Infinito (1000) em todas as variantes de produtos na Magis5 automaticamente
 // @match        https://app.magis5.com.br/*
 // @grant        GM_setValue
@@ -776,6 +776,49 @@
                 }
             }
         });
+
+        // ── AUTO-MODE TOGGLE ──
+        var autoBtn = document.createElement('button');
+        autoBtn.id = 'brk-stock-auto-btn';
+        autoBtn.style.cssText = 'background:#334155;color:#94a3b8;border:1px solid #475569;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:11px;font-weight:700;width:100%;margin-top:4px;transition:all .3s';
+        autoBtn.textContent = '🤖 Auto-Mode: OFF';
+        autoBtn.onclick = function() {
+            _autoStockMode = !_autoStockMode;
+            autoBtn.textContent = _autoStockMode ? '🤖 Auto-Mode: ON 🟢' : '🤖 Auto-Mode: OFF';
+            autoBtn.style.background = _autoStockMode ? '#059669' : '#334155';
+            autoBtn.style.color = _autoStockMode ? '#fff' : '#94a3b8';
+            autoBtn.style.borderColor = _autoStockMode ? '#10b981' : '#475569';
+            if (_autoStockMode) { startAutoStockCheck(); log('🤖 AUTO-MODE ativado — polling a cada 30s', 'success'); }
+            else { log('🤖 AUTO-MODE desativado', 'info'); }
+        };
+        var btnGrid = box.querySelector('#brk-stock-stop');
+        if (btnGrid && btnGrid.parentNode) { btnGrid.parentNode.parentNode.insertBefore(autoBtn, btnGrid.parentNode.nextSibling); }
+    }
+
+    // ── AUTO-START: Polling para títulos pendentes (Máquina Autônoma) ──
+    var _autoStockMode = false;
+    var _autoStockInterval = null;
+    var _stockIsRunning = false;
+
+    function startAutoStockCheck() {
+        if (_autoStockInterval) return;
+        _autoStockInterval = setInterval(async function() {
+            if (!_autoStockMode || _stockIsRunning) return;
+            // Só auto-iniciar se o painel está aberto
+            var panel = document.getElementById('brk-stock-panel');
+            if (!panel) return;
+            var textarea = document.getElementById('brk-stock-titles');
+            if (!textarea || textarea.value.trim()) return; // Já tem títulos carregados
+            try {
+                var data = await loadTitlesFromHookPrime();
+                if (data && data.titles && data.titles.length > 0) {
+                    textarea.value = data.titles.join('\n');
+                    log('🤖 AUTO-START: ' + data.titles.length + ' títulos pendentes detectados — iniciando...', 'success');
+                    await sleep(2000);
+                    processQueue(false); // Auto-iniciar processamento completo
+                }
+            } catch (e) { /* HOOK PRIME offline — ignorar */ }
+        }, 30000);
     }
 
     // ╔══════════════════════════════════════════════════════════════════════╗
