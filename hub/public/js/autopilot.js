@@ -324,50 +324,15 @@
         if (networkPayload.cdnUrls && typeof networkPayload.cdnUrls === 'object') {
           if (!state.imageUrls) state.imageUrls = {};
 
-          for (const [key, urls] of Object.entries(networkPayload.cdnUrls)) {
-            const parts = key.split('_');
-            const baseCode = parts[0]; // BP101 ou APC0541
-            const keyUpper = key.toUpperCase();
-
-            // Detectar se é APC (tem 3+ partes: CODE_GENDER_COLOR)
-            const hasGender = keyUpper.includes('_MASC') || keyUpper.includes('_FEM') || keyUpper.includes('_INF');
-            const hasColor = keyUpper.includes('_PRETA') || keyUpper.includes('_BRANCA') || keyUpper.includes('_BEGE');
-            const isApcKey = hasGender && hasColor;
-
-            if (isApcKey) {
-              // ═══ APC: preservar chave completa com gênero + cor ═══
-              // Converter PRETA→Preto, BRANCA→Branco, BEGE→Bege para bater com step5
-              const genderKey = keyUpper.includes('_MASC') ? 'MASC' : keyUpper.includes('_FEM') ? 'FEM' : 'INF';
-              const colorMap = { 'PRETA': 'Preto', 'PRETO': 'Preto', 'BRANCA': 'Branco', 'BRANCO': 'Branco', 'BEGE': 'Bege' };
-              const colorPart = parts.find(p => colorMap[p.toUpperCase()]);
-              const normalizedColor = colorPart ? (colorMap[colorPart.toUpperCase()] || colorPart) : parts[parts.length - 1];
-              
-              const apcWizardKey = `${baseCode}_${genderKey}_${normalizedColor}`;
-              // Concatenar com | ao invés de sobrescrever (mesmo padrão dos produtos normais)
-              if (state.imageUrls[apcWizardKey] && state.imageUrls[apcWizardKey].trim()) {
-                if (!state.imageUrls[apcWizardKey].includes(urls)) {
-                  state.imageUrls[apcWizardKey] += ' | ' + urls;
-                }
-              } else {
-                state.imageUrls[apcWizardKey] = urls;
-              }
-              console.log(`  🔗 APC: ${key} → ${apcWizardKey}`);
-            } else {
-              // ═══ Normal: mapear para code[g] format ═══
-              let genderSuffix = ''; // masc = sem sufixo
-              if (keyUpper.includes('_FEM')) genderSuffix = 'BL';
-              else if (keyUpper.includes('_INF')) genderSuffix = 'I';
-
-              const wizardKey = baseCode + genderSuffix;
-
-              if (state.imageUrls[wizardKey] && state.imageUrls[wizardKey].trim()) {
-                if (!state.imageUrls[wizardKey].includes(urls)) {
-                  state.imageUrls[wizardKey] += ' | ' + urls;
-                }
-              } else {
-                state.imageUrls[wizardKey] = urls;
-              }
-            }
+          // Normalização por GÊNERO (core/cdn-urls.js):
+          //   MASC → BASE · FEM → BASEBL · INF → BASEI · APC → BASE_GENDER_Cor
+          // Chaves agregadas sem gênero (legado) são ignoradas quando existem
+          // chaves por gênero — evita fotos FEM na linha do código masculino.
+          const CdnUrls = window.AutopilotModules && window.AutopilotModules.CdnUrls;
+          if (CdnUrls) {
+            CdnUrls.normalizeForWizard(networkPayload.cdnUrls, state.imageUrls);
+          } else {
+            console.error('❌ AutopilotModules.CdnUrls não carregado — URLs do CDN não normalizadas');
           }
           console.log('✅ CDN URLs normalizadas:', Object.keys(state.imageUrls).length, 'códigos');
         }

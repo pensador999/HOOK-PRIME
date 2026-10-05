@@ -980,12 +980,14 @@
           const data = await resp.json();
 
           if (data.success && data.urls && data.urls.length > 0) {
-            cdnUrlMap[collectionId] = data.joined;
-            const colorKey = `${block.code}_${block.variant}`;
-            if (cdnUrlMap[colorKey]) {
-              cdnUrlMap[colorKey] += ' | ' + data.joined;
+            // Chaves por GÊNERO (CODIGO_MASC_GERAL / CODIGO_FEM_GERAL...). O agregado
+            // CODIGO_COR só é gravado para blocos sem gênero — misturar MASC+FEM
+            // fazia a linha do código masculino receber as fotos femininas.
+            const CdnUrls = window.AutopilotModules?.CdnUrls;
+            if (CdnUrls) {
+              CdnUrls.registerBlockUrls(cdnUrlMap, block, data.joined);
             } else {
-              cdnUrlMap[colorKey] = data.joined;
+              cdnUrlMap[collectionId] = data.joined; // fallback seguro (sem agregado)
             }
 
             state.cdnUploaded += data.urls.length;
@@ -1007,8 +1009,15 @@
         }
       }
 
-      const colorCount = Object.keys(cdnUrlMap).filter(k => !k.includes('MASC') && !k.includes('FEM')).length;
-      log(`☁️ Upload CDN concluído: ${uploadTotal} blocos → ${colorCount} cores com URLs`, 'success');
+      const CdnUrlsMod = window.AutopilotModules?.CdnUrls;
+      const perGender = { MASC: 0, FEM: 0, INF: 0, GERAL: 0 };
+      Object.keys(cdnUrlMap).forEach(k => {
+        const g = CdnUrlsMod ? CdnUrlsMod.genderOfKey(k) : null;
+        if (g) perGender[g]++;
+        else if (k.toUpperCase().endsWith('_GERAL_GERAL')) perGender.GERAL++;
+      });
+      log(`☁️ Upload CDN concluído: ${uploadTotal} blocos → MASC ${perGender.MASC} · FEM ${perGender.FEM} · INF ${perGender.INF}` +
+        (perGender.GERAL ? ` · sem gênero ${perGender.GERAL}` : ''), 'success');
     }
 
     // Salvar URLs no payload para o wizard

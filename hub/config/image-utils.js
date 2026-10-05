@@ -91,12 +91,64 @@ function shouldExcludeImage(fileName) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Detecta se um token (palavra) do nome do arquivo é uma variação de
+ * "PERSPECTIVA" — incluindo abreviações e erros de digitação reais encontrados
+ * na rede: PERSP, PERSPEC, PERSPECTIVA, PESP, PESRSP, PERPS, PRESP...
+ *
+ * Regra (tolerante a typos): começa com P, tem ao menos 2 "P", contém "S",
+ * tem 4+ letras e só usa letras de PERSPECTIVA. Isso NÃO casa com PRETA, PUNHO,
+ * PESCOCO, etc.
+ *
+ * @param {string} token - Palavra já em maiúsculas, sem acentos
+ * @returns {boolean}
+ */
+function isPerspectiveToken(token) {
+  const t = token.replace(/\d+$/, ''); // PERSPEC2 → PERSPEC
+  if (t.length < 4 || t[0] !== 'P') return false;
+  if (!/^[PERSCTIVA]+$/.test(t)) return false;
+  if (!t.includes('S')) return false;
+  return (t.match(/P/g) || []).length >= 2;
+}
+
+/**
+ * Classifica o ÂNGULO de uma imagem de mockup pelo nome do arquivo.
+ * Tolerante a prefixo de gênero (FEM/MASC/INF), underscores, acentos e typos
+ * ("COSTA" sem S, "PESRSP", "PERSP").
+ *
+ * @param {string} fileName - Nome do arquivo (com ou sem extensão)
+ * @returns {{view: 'FRENTE'|'COSTAS'|null, perspective: boolean, perspective2: boolean}}
+ */
+function classifyImageAngle(fileName) {
+  const name = String(fileName || '')
+    .toUpperCase()
+    .replace(/\.[^.]+$/, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_\-.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const tokens = name.split(' ');
+  const perspective  = tokens.some(isPerspectiveToken);
+  const perspective2 = perspective && /(?:^|[A-Z\s])2$/.test(name);
+
+  let view = null;
+  if (/FRENT|FRONT/.test(name)) view = 'FRENTE';
+  else if (/COSTA|BACK|VERSO|TRASEIRA/.test(name)) view = 'COSTAS';
+
+  return { view, perspective, perspective2 };
+}
+
+/**
  * Retorna a prioridade de ordenação de uma imagem com base no nome do arquivo.
  * Ordem: FRENTE(10) → COSTAS(20) → FRENTE PERSPECTIVA(30) → 
  *        COSTAS PERSPECTIVA(40) → COSTAS PERSPECTIVA 2(50) → 
  *        ZOOM(60) → DETALHE(65) → PESP(70) → OUTROS(100)
  * 
  * Se o nome for numérico puro (ex: "1.jpg", "02.jpg"), retorna o número.
+ * 
+ * PADRÃO OFICIAL (4 imagens): 1=FRENTE, 2=COSTAS, 3=FRENTE PERSP, 4=COSTAS PERSP.
+ * Reconhece PERSP/PESP/PESRSP etc. via classifyImageAngle (antes só PERSPEC/
+ * PERSPECTIVA eram reconhecidos e "FRENTE PERSP" virava FRENTE plana).
  * 
  * @param {string} fileName - Nome do arquivo (com ou sem extensão)
  * @returns {number} Prioridade (menor = mais prioritário)
@@ -107,13 +159,14 @@ function getImagePriority(fileName) {
   // Numérico puro mantém ordem natural
   if (/^\d+$/.test(name.trim())) return parseInt(name.trim());
 
-  const isFrente    = /FRENTE/.test(name);
-  const isCostas    = /COSTA/.test(name);
-  const isPerspec   = /PERSPEC|PERSPECTIVA/.test(name);
-  const isPerspec2  = /PERSPECTIVA\s*2|PERSPEC\s*2/.test(name);
+  const angle       = classifyImageAngle(fileName);
+  const isFrente    = angle.view === 'FRENTE';
+  const isCostas    = angle.view === 'COSTAS';
+  const isPerspec   = angle.perspective;
+  const isPerspec2  = angle.perspective2;
   const isZoom      = /ZOOM/.test(name);
   const isDetalhe   = /DETALHE|DETAIL/.test(name);
-  const isPesp      = /PESP/.test(name);
+  const isPesp      = isPerspec && !angle.view;
 
   // Nomes de imagens de camisas (ordem padrão)
   if (isFrente && !isPerspec)               return 10; // 1º FRENTE plano
@@ -165,14 +218,24 @@ function smartSortImageObjects(images) {
     nameClean = nameClean.replace(/HUMANIZAD[OA][_\s]?/g, '');  // remove HUMANIZADO
     nameClean = nameClean.replace(/MASC[_\s]|FEM[_\s]|INF[_\s]/g, ''); // remove gênero inline
 
+    const angle = classifyImageAngle(nameClean);
+    img._subOrder = 0;
+
     if (/FRENTE.*COSTAS?|COSTAS?.*FRENTE/.test(nameClean))               img.priority = 1;
+    else if (angle.view && angle.perspective) {
+      // FRENTE PERSP / COSTAS PERSP (qualquer grafia: PERSP, PESP, PESRSP...)
+      img.priority = 3;
+      img._subOrder = angle.view === 'FRENTE' ? 1 : 2;
+    }
     else if (/FRENTE|FRONT|CABE[CÇ]A/.test(nameClean))                   img.priority = 1;
     else if (/COSTAS?|BACK|VERSO|CINTURA|TRASEIRA/.test(nameClean))       img.priority = 2;
-    else if (/PERSPEC|PERSPECTIVA|PESP|MESA|LADO|LATERAL|ZOOM/.test(nameClean)) img.priority = 3;
+    else if (/PERSPEC|PERSPECTIVA|PESP|MESA|LADO|LATERAL|ZOOM/.test(nameClean) || angle.perspective) img.priority = 3;
     else if (/AMPLIADO|DETALHE|INTERNO|COSTURA|BRASIL|PUNHO/.test(nameClean)) img.priority = 4;
     else img.priority = 5;
   });
-  return images.sort((a, b) => (a.priority || 5) - (b.priority || 5));
+  return images.sort((a, b) =>
+    ((a.priority || 5) - (b.priority || 5)) || ((a._subOrder || 0) - (b._subOrder || 0))
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -232,6 +295,7 @@ module.exports = {
 
   // Smart Sort
   getImagePriority,
+  classifyImageAngle,
   smartSortImages,
   smartSortImageObjects,
 

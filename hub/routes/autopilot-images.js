@@ -390,8 +390,10 @@ router.post('/api/autopilot/generate-apc-spreadsheet', (req, res) => {
       ? taskTitle.replace(/[<>:"\/\\|?*]/g, '').replace(/\s+/g, ' ').trim() + '.csv'
       : 'APC_PLANILHA.csv';
     
-    const savePath = taskId
-      ? path.join(uploadsDir, 'autopilot', taskId, fileName)
+    // 🔒 HIGH-1: Sanitizar taskId — anti path-traversal
+    const safeTaskId = taskId ? taskId.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+    const savePath = safeTaskId
+      ? path.join(uploadsDir, 'autopilot', safeTaskId, fileName)
       : path.join(uploadsDir, 'autopilot', fileName);
     
     fs.mkdirSync(path.dirname(savePath), { recursive: true });
@@ -452,8 +454,8 @@ router.get('/api/autopilot/download-spreadsheet', (req, res) => {
       return res.status(400).json({ error: 'Parâmetro path é obrigatório' });
     }
     const resolved = path.resolve(filePath);
-    // Security: only allow files within uploads dir (using resolved path)
-    if (!resolved.startsWith(uploadsDir)) {
+    // 🔒 HIGH-2: Anti bypass — exige path.sep após uploadsDir
+    if (!resolved.startsWith(uploadsDir + path.sep) && resolved !== uploadsDir) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
     if (!fs.existsSync(resolved)) {
@@ -604,17 +606,25 @@ router.post('/api/autopilot/copy-network-images', (req, res) => {
           });
 
           // Rename to 1.jpg, 2.jpg, 3.jpg... (using extension from the original file to be safe if not jpg)
-          sortedInGroup.forEach((img, idx) => {
-            const newName = `${idx + 1}${path.extname(img.name)}`;
-            const newPath = path.join(path.dirname(img.localPath), newName);
-            // Only rename if different
-            if (path.basename(img.localPath) !== newName) {
-              fs.renameSync(img.localPath, newPath);
-              img.localPath = newPath;
-              img.name = newName;
-              img.url = `/api/autopilot/images/${taskId}/${code}${urlGenderPath}/${newName}`;
-            }
-          });
+          // PADRÃO OFICIAL: 1=FRENTE, 2=COSTAS, 3=FRENTE PERSP, 4=COSTAS PERSP
+          // Renomeio em 2 FASES (temp → final) para nunca sobrescrever um arquivo
+          // cujo nome atual já seja um dos números finais (ex.: "2.png").
+          const plan = sortedInGroup.map((img, idx) => ({
+            img,
+            finalName: `${idx + 1}${path.extname(img.name)}`,
+            tmpPath: path.join(path.dirname(img.localPath), `__reorder_${idx}${path.extname(img.name)}.tmp`),
+          }));
+          const toMove = plan.filter(p => path.basename(p.img.localPath) !== p.finalName);
+          for (const p of toMove) fs.renameSync(p.img.localPath, p.tmpPath);
+          for (const p of toMove) {
+            const newPath = path.join(path.dirname(p.tmpPath), p.finalName);
+            fs.renameSync(p.tmpPath, newPath);
+            p.img.localPath = newPath;
+            p.img.name = p.finalName;
+            p.img.url = `/api/autopilot/images/${taskId}/${code}${urlGenderPath}/${p.finalName}`;
+          }
+          console.log(`   🔢 ${code}/${gender}${variant !== 'GERAL' ? '/' + variant : ''}: ` +
+            plan.map(p => `${p.finalName.replace(/\.[^.]+$/, '')}=${p.img.originalName.replace(/\.[^.]+$/, '')}`).join(' | '));
         }
       }
 
