@@ -1396,18 +1396,8 @@ input:focus, select:focus, textarea:focus {
   background: rgba(170, 255, 0, 0.05);
   box-shadow: 0 0 20px rgba(170, 255, 0, 0.1);
 }
-.dropzone__icon {
-  font-size: 3rem;
-  margin-bottom: 12px;
-  opacity: 0.6;
-}
-.dropzone__text {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-}
-.dropzone__text strong {
-  color: var(--accent-secondary);
-}
+
+
 
 /* ═══════════════════════════════════════════
    IMAGE GRID
@@ -1725,7 +1715,7 @@ input:focus, select:focus, textarea:focus {
 .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .badge--accent { background: rgba(170, 255, 0, 0.12); color: var(--accent-primary); }
 .badge--success { background: var(--success-bg); color: var(--success); }
-.badge--warning { background: var(--warning-bg); color: var(--warning); }
+/* badge--warning: definido na seção Badge variants (abaixo) */
 .badge--error { background: var(--error-bg); color: var(--error); }
 .badge--info { background: var(--info-bg); color: var(--info); }
 .badge--bling { background: rgba(59,130,246,0.15); color: #2563eb; } .badge--sankhya { background: rgba(168,85,247,0.15); color: #9333ea; } .badge--pastas { background: rgba(170, 255, 0,0.15); color: #16a34a; } .badge--sql { background: rgba(245,158,11,0.15); color: #d97706; } .badge--imagens { background: rgba(6,182,212,0.15); color: #0891b2; } .badge--default { background: rgba(0,0,0,0.05);color: var(--text-secondary); }
@@ -1820,6 +1810,9 @@ input:focus, select:focus, textarea:focus {
 /* [data-theme="light"] removed — replaced by :root.theme-light at top */
 
 /* ═══════════════════════════════════════════
+   IMAGE CARD v2 — overlay, drag, hero
+   ═══════════════════════════════════════════ */
+.image-card {
   border: 1px solid var(--border-color, rgba(255,255,255,0.08));
   cursor: grab;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1964,6 +1957,9 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-secondary, #94A3B8);
   font-weight: 500;
 }
+.dropzone__text strong {
+  color: var(--accent-secondary);
+}
 
 .dropzone__hint {
   font-size: 12px;
@@ -2037,10 +2033,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-/* ── Text utility ── */
-.text-muted {
-  color: var(--text-muted, #475569);
-}
+
 
 /* ═══════════════════════════════════════════
    CLICKUP RADAR WIDGET

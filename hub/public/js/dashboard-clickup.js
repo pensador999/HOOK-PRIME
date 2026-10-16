@@ -130,14 +130,8 @@
       }
       .tools-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        grid-template-rows: auto auto auto;
-        grid-template-areas:
-          ".     .     top     .      .    "
-          "left1 left2 center  right1 right2"
-          ".     .     bottom  .      .    ";
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
-        max-width: 900px;
         margin: 0 auto;
       }
       .tool-card {
@@ -147,6 +141,7 @@
         aspect-ratio: 16/10;
         cursor: pointer;
         border: 1px solid rgba(170, 255, 0, 0.15);
+        background: #111827;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .tool-card:hover {
@@ -179,31 +174,21 @@
         margin-bottom: 0.4rem;
       }
       .tool-card__name {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-weight: 700;
         color: #fff;
         letter-spacing: 0.5px;
       }
       .tool-card__desc {
-        font-size: 0.65rem;
-        color: rgba(255,255,255,0.5);
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.6);
         margin-top: 2px;
       }
-      .tool-card--top    { grid-area: top; }
-      .tool-card--left1  { grid-area: left1; }
-      .tool-card--left2  { grid-area: left2; }
-      .tool-card--center { grid-area: center; }
-      .tool-card--right1 { grid-area: right1; }
-      .tool-card--right2 { grid-area: right2; }
-      .tool-card--bottom { grid-area: bottom; }
 
       @media (max-width: 768px) {
         .tools-grid {
           grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: auto;
-          grid-template-areas: none;
         }
-        .tool-card { grid-area: auto !important; }
         .dash-hero { min-height: 320px; }
         .dash-hero__content { flex-direction: column; align-items: flex-start; }
         .dash-hero__stats { flex-direction: row; gap: 1.5rem; text-align: left; }
@@ -331,78 +316,46 @@
         </div>
       </div>
 
-      <!-- ═══ TOOL CARDS — Formação + ═══ -->
+      <!-- ═══ TOOL CARDS — 4 Módulos Essenciais ═══ -->
       <div class="tools-section">
-        <div class="tools-section__title">Módulos & Ferramentas</div>
+        <div class="tools-section__title">Módulos Principais</div>
         <div class="tools-grid stagger">
 
-          <div class="tool-card tool-card--top" onclick="window.HUB.navigate('autopilot')">
+          <div class="tool-card" onclick="window.HUB.navigate('autopilot')">
             <img class="tool-card__bg" src="assets/cards/autopilot.jpg" alt="" loading="lazy">
             <div class="tool-card__overlay"></div>
             <div class="tool-card__content">
               <div class="tool-card__icon">🚀</div>
-              <div class="tool-card__name">Autopilot</div>
-              <div class="tool-card__desc">Automação completa</div>
+              <div class="tool-card__name">Lucas RTX</div>
+              <div class="tool-card__desc">Automação completa (Rede ➔ S3 ➔ IA)</div>
             </div>
           </div>
 
-          <div class="tool-card tool-card--left1" onclick="window.HUB.navigate('image-crosser')">
-            <img class="tool-card__bg" src="assets/cards/crosser.jpg" alt="" loading="lazy">
-            <div class="tool-card__overlay"></div>
-            <div class="tool-card__content">
-              <div class="tool-card__icon">🔀</div>
-              <div class="tool-card__name">Cruzador</div>
-              <div class="tool-card__desc">Match imagem ↔ produto</div>
-            </div>
-          </div>
-
-          <div class="tool-card tool-card--left2" onclick="window.HUB.navigate('spreadsheet')">
+          <div class="tool-card" onclick="window.HUB.navigate('spreadsheet')">
             <img class="tool-card__bg" src="assets/cards/spreadsheet.jpg" alt="" loading="lazy">
             <div class="tool-card__overlay"></div>
             <div class="tool-card__content">
               <div class="tool-card__icon">📋</div>
-              <div class="tool-card__name">Planilhas</div>
-              <div class="tool-card__desc">CSV para Bling & Sankhya</div>
+              <div class="tool-card__name">Gerador de Planilhas</div>
+              <div class="tool-card__desc">Molde Oficial Bling (59) & Sankhya (45)</div>
             </div>
           </div>
 
-          <div class="tool-card tool-card--center" onclick="window.HUB.navigate('images')">
-            <img class="tool-card__bg" src="assets/cards/upload-cdn.jpg" alt="" loading="lazy">
+          <div class="tool-card" onclick="window.HUB.navigate('magis5')">
             <div class="tool-card__overlay"></div>
             <div class="tool-card__content">
-              <div class="tool-card__icon">☁️</div>
-              <div class="tool-card__name">Upload CDN</div>
-              <div class="tool-card__desc">Gerenciador de Imagens</div>
+              <div class="tool-card__icon">📦</div>
+              <div class="tool-card__name">Magis5 Bridge</div>
+              <div class="tool-card__desc">Shopify ➔ Sankhya 40ms ➔ Magis5</div>
             </div>
           </div>
 
-          <div class="tool-card tool-card--right1" onclick="window.HUB.navigate('folders')">
-            <img class="tool-card__bg" src="assets/cards/folders.jpg" alt="" loading="lazy">
+          <div class="tool-card" onclick="window.HUB.navigate('ean-viewer')">
             <div class="tool-card__overlay"></div>
             <div class="tool-card__content">
-              <div class="tool-card__icon">📁</div>
-              <div class="tool-card__name">Pastas</div>
-              <div class="tool-card__desc">Criação em lote</div>
-            </div>
-          </div>
-
-          <div class="tool-card tool-card--right2" onclick="window.HUB.navigate('flow')">
-            <img class="tool-card__bg" src="assets/cards/scanner.jpg" alt="" loading="lazy">
-            <div class="tool-card__overlay"></div>
-            <div class="tool-card__content">
-              <div class="tool-card__icon">🔄</div>
-              <div class="tool-card__name">Fluxo</div>
-              <div class="tool-card__desc">Canvas visual</div>
-            </div>
-          </div>
-
-          <div class="tool-card tool-card--bottom" onclick="window.HUB.navigate('history')">
-            <img class="tool-card__bg" src="assets/cards/history.jpg" alt="" loading="lazy">
-            <div class="tool-card__overlay"></div>
-            <div class="tool-card__content">
-              <div class="tool-card__icon">📜</div>
-              <div class="tool-card__name">Histórico</div>
-              <div class="tool-card__desc">Log de operações</div>
+              <div class="tool-card__icon">📊</div>
+              <div class="tool-card__name">EAN Viewer</div>
+              <div class="tool-card__desc">Consulta de códigos GTIN/EAN</div>
             </div>
           </div>
 

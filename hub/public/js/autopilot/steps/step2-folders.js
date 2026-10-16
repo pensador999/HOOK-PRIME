@@ -150,7 +150,7 @@
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <input type="text" id="ap-disk-folder-path" placeholder="Ex: C:\\Users\\lucas\\Desktop\\COLECTION CAMUFLADO\\FUSION" value="${State.state.diskFolderPath || ''}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid ${hasPath ? State.TIFFANY + '40' : 'rgba(255,255,255,.1)'};background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
+          <input type="text" id="ap-disk-folder-path" placeholder="Ex: C:\\Users\\Lucas Lima\\Desktop\\COLECTION CAMUFLADO\\FUSION" value="${State.state.diskFolderPath || ''}" style="flex:1;padding:12px 16px;border-radius:10px;border:1px solid ${hasPath ? State.TIFFANY + '40' : 'rgba(255,255,255,.1)'};background:rgba(0,0,0,.3);color:#e5e7eb;font-size:14px;font-family:'Cascadia Code','Fira Code',monospace">
           <button class="btn btn--primary" id="ap-test-disk-path" style="font-size:13px;padding:10px 18px;white-space:nowrap;background:linear-gradient(135deg,${State.TIFFANY_D},${State.TIFFANY})">🔍 Verificar Pasta</button>
         </div>
         <div id="ap-disk-path-status" style="font-size:13px;margin-top:8px;color:#6b7280;min-height:20px">${hasPath ? '✅ Caminho salvo — clique em Verificar para validar' : ''}</div>

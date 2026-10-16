@@ -20,7 +20,7 @@ module.exports = function({ autopilotTasks, BRK_LINK_URL }) {
   router.get('/api/s3-proxy/health', async (req, res) => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const response = await fetch(BRK_LINK_URL, {
         method: 'HEAD',
         signal: controller.signal,

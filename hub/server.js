@@ -52,7 +52,7 @@ function resolvePrefixConfig(prefix) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 const BASE_DIR = __dirname;
 
 // ─── Middlewares globais ─────────────────────────────────────────────────────
@@ -190,9 +190,6 @@ app.use(require('./routes/autopilot-tasks.js')(sharedDeps));
 // Autopilot — Imagens (scan, copy, preview, spreadsheet)
 app.use(require('./routes/autopilot-images.js')(sharedDeps));
 
-// Pastas & Operações com Arquivos Locais
-app.use(require('./routes/folders.js')(sharedDeps));
-
 // Scanner de Rede UNC & Multi-Rede
 app.use(require('./routes/network.js')(sharedDeps));
 
@@ -205,11 +202,50 @@ app.use(require('./routes/gemini-vision.js')({ fs, path }));
 // Pipeline — Memória dos Códigos + Bridge Tampermonkey
 app.use(require('./routes/pipeline.js')({ fs, path }));
 
+// Magis5 Flow — Integração Zero-Click Shopify Flow + API Oficial Magis5 (X-MAGIS5-APIKEY)
+app.use(require('./routes/magis5-flow.js')({ fs, path }));
+
+// Reverse Engineering Lab — Ponte Direta Sankhya (sktk + mgeSession) & Catálogo de Blueprints
+app.use(require('./routes/reverse-engineering.js')());
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  STATIC & ERROR HANDLING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 app.use('/uploads', express.static(uploadsDir));
+
+// ─── Scripts do Tampermonkey: instalar/atualizar com 1 clique ────────────────
+// Abrir http://localhost:<PORT>/userscripts no navegador (com Tampermonkey) e clicar no script.
+// Só serve arquivos .user.js do hub e .txt/.user.js da pasta TAMPERMONKEY (lista fixa lida do disco, sem traversal).
+function listUserscripts() {
+  const out = [];
+  const tmDir = path.join(BASE_DIR, '..', 'TAMPERMONKEY');
+  for (const f of ['tampermonkey-clickup-hub.user.js', path.join('public', 'clickup-autopilot.user.js')]) {
+    if (fs.existsSync(path.join(BASE_DIR, f))) out.push({ slug: path.basename(f, '.user.js'), file: path.join(BASE_DIR, f) });
+  }
+  if (fs.existsSync(tmDir)) {
+    for (const f of fs.readdirSync(tmDir).filter(n => /\.(txt|user\.js)$/i.test(n))) {
+      out.push({ slug: f.replace(/\.(txt|user\.js)$/i, '').trim().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase(), file: path.join(tmDir, f) });
+    }
+  }
+  // Injetor de fotos do Sankhya (vive na pasta do módulo de imagens)
+  const injetor = path.join(process.env.FOTOS_SANKHYA_DIR || path.join(BASE_DIR, '..', '..', 'INJETOR DE FOTOS SANKHYA', 'modulo_imagens'), 'tampermonkey', 'sankhya_auto_fotos_variantes.user.js');
+  if (fs.existsSync(injetor)) out.push({ slug: 'sankhya-injetor-fotos', file: injetor });
+  return out;
+}
+app.get('/userscripts', (req, res) => {
+  const items = listUserscripts().map(s => {
+    const v = (fs.readFileSync(s.file, 'utf8').match(/@version\s+(\S+)/) || [])[1] || '?';
+    const n = (fs.readFileSync(s.file, 'utf8').match(/@name\s+(.+)/) || [])[1] || s.slug;
+    return `<li><a href="/userscripts/${s.slug}.user.js">${n.trim()}</a> <small>v${v}</small></li>`;
+  }).join('');
+  res.send(`<!doctype html><meta charset="utf-8"><title>Scripts Tampermonkey</title><body style="font-family:sans-serif;background:#111;color:#eee;padding:24px"><h2>Scripts do Tampermonkey — HOOK PRIME (porta ${PORT})</h2><p>Clique em cada script → o Tampermonkey abre → <b>Instalar</b> / <b>Atualizar</b>.</p><ul style="line-height:2">${items}</ul><style>a{color:#9f0}</style>`);
+});
+app.get('/userscripts/:slug.user.js', (req, res) => {
+  const s = listUserscripts().find(x => x.slug === req.params.slug);
+  if (!s) return res.status(404).send('Script não encontrado');
+  res.type('application/javascript; charset=utf-8').send(fs.readFileSync(s.file, 'utf8'));
+});
 
 app.use((err, req, res, next) => {
   console.error('❌ Erro não tratado:', err.message);
@@ -262,6 +298,12 @@ if (!process.env.VERCEL) {
     console.log(`  📂 ${prefixCount} prefixos mapeados`);
     console.log(`  📦 8 módulos de rotas carregados`);
     console.log(`════════════════════════════════════════════════════\n`);
+  });
+
+  // 🖼️ Servidor de fotos do Sankhya (substitui o servidor Python v18 — mesmo contrato, porta 8000, só 127.0.0.1)
+  require('./services/foto-server').startFotoServer({
+    baseDir: process.env.FOTOS_SANKHYA_DIR || path.join(BASE_DIR, '..', '..', 'INJETOR DE FOTOS SANKHYA', 'modulo_imagens'),
+    port: parseInt(process.env.FOTOS_PORT, 10) || 8000,
   });
 }
 

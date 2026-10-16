@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         Shopify ID Extractor — BRK
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.2.2
+// @updateURL    http://localhost:3001/userscripts/extartor-de-id-da-shopify.user.js
+// @downloadURL  http://localhost:3001/userscripts/extartor-de-id-da-shopify.user.js
 // @description  Extrai IDs dos produtos selecionados (checkbox) da Shopify para importar na Magis5
 // @match        https://admin.shopify.com/store/*/products*
 // @grant        GM_xmlhttpRequest
@@ -164,7 +166,7 @@
             await new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
                     method: 'POST',
-                    url: 'http://localhost:3000/api/pipeline/shopify-ids',
+                    url: 'http://localhost:3001/api/pipeline/shopify-ids',
                     headers: { 'Content-Type': 'application/json' },
                     data: JSON.stringify({ store: storeMap[storeKey] || 'fishing', ids }),
                     timeout: 5000,

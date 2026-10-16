@@ -1,0 +1,230 @@
+[
+  {
+    "id": "bp_sankhya_pesquisa_suggestion",
+    "platform": "sankhya",
+    "category": "Coleta / Busca de Produtos (40ms)",
+    "name": "PesquisaSP.getSuggestion (Produto)",
+    "method": "POST",
+    "urlPattern": "https://brk.sankhyacloud.com.br/mge/service.sbr?serviceName=PesquisaSP.getSuggestion&application=ProdutoServico&outputType=json&mgeSession={mgeSession}",
+    "serviceName": "PesquisaSP.getSuggestion",
+    "authType": "Header sktk + Query mgeSession",
+    "status": "VERIFIED",
+    "description": "Consulta ultrarrápida (30-90ms) na tabela Produto (TGFPRO) retornando CODPROD, REFERENCIA e DESCRPROD estruturados via fieldsMetadata.",
+    "sampleHeaders": {
+      "Content-Type": "application/json",
+      "sktk": "{sktk}"
+    },
+    "samplePayload": {
+      "serviceName": "PesquisaSP.getSuggestion",
+      "requestBody": {
+        "criteria": {
+          "entityName": "Produto",
+          "compacted": false,
+          "ignoreEntityCriteria": false,
+          "limit": "10",
+          "query": {
+            "$": "CLML0625-P"
+          },
+          "orderByDesc": false,
+          "options": {
+            "showInactives": true
+          },
+          "externalCriteria": {
+            "query": {
+              "$": "((this.USOPROD <> 'S' AND this.USOPROD <> '3' ))"
+            },
+            "params": {
+              "param": []
+            }
+          }
+        },
+        "clientEventList": {
+          "clientEvent": [
+            {
+              "$": "br.com.sankhya.mge.info.metro.cubico"
+            },
+            {
+              "$": "br.com.sankhya.actionbutton.clientconfirm"
+            }
+          ]
+        }
+      }
+    },
+    "sampleResponseNote": "responseBody.json[\"$\"] contém string JSON com { fieldsMetadata: [{fieldName:\"CODPROD\"}, {fieldName:\"REFERENCIA\"}, ...], data: [[codprod, ref, ...]] }",
+    "capturedAt": "2026-10-16T14:42:33.264Z",
+    "hitCount": 1
+  },
+  {
+    "id": "bp_sankhya_crud_load_records",
+    "platform": "sankhya",
+    "category": "Leitura Completa de Entidade (TGFPRO / TGFEST)",
+    "name": "CRUDServiceProvider.loadRecords (Produto)",
+    "method": "POST",
+    "urlPattern": "https://brk.sankhyacloud.com.br/mge/service.sbr?serviceName=CRUDServiceProvider.loadRecords&outputType=json&mgeSession={mgeSession}",
+    "serviceName": "CRUDServiceProvider.loadRecords",
+    "authType": "Header sktk + Query mgeSession",
+    "status": "MAPPED",
+    "description": "Carrega qualquer coluna da tabela TGFPRO (CODPROD, REFERENCIA, DESCRPROD, CODGRUPOPROD, NCM, PESOBRUTO, ALTURA, LARGURA, COMPRIMENTO, ATIVO) usando filtro SQL direto.",
+    "sampleHeaders": {
+      "Content-Type": "application/json",
+      "sktk": "{sktk}"
+    },
+    "samplePayload": {
+      "serviceName": "CRUDServiceProvider.loadRecords",
+      "requestBody": {
+        "dataSet": {
+          "rootEntity": "Produto",
+          "includePresentationFields": "N",
+          "offsetPage": "0",
+          "criteria": {
+            "expression": {
+              "$": "this.REFERENCIA = ?"
+            },
+            "parameter": [
+              {
+                "$": "CLML0625-P",
+                "type": "S"
+              }
+            ]
+          },
+          "entity": {
+            "fieldset": {
+              "list": "CODPROD,REFERENCIA,DESCRPROD,CODGRUPOPROD,NCM,PESOBRUTO,ALTURA,LARGURA,COMPRIMENTO,ATIVO"
+            }
+          }
+        }
+      }
+    },
+    "capturedAt": "2026-10-16T14:42:33.265Z",
+    "hitCount": 1
+  },
+  {
+    "id": "bp_sankhya_crud_save_record",
+    "platform": "sankhya",
+    "category": "Criação / Atualização Direta (Sem Planilha)",
+    "name": "CRUDServiceProvider.saveRecord (Produto)",
+    "method": "POST",
+    "urlPattern": "https://brk.sankhyacloud.com.br/mge/service.sbr?serviceName=CRUDServiceProvider.saveRecord&outputType=json&mgeSession={mgeSession}",
+    "serviceName": "CRUDServiceProvider.saveRecord",
+    "authType": "Header sktk + Query mgeSession",
+    "status": "MAPPED",
+    "description": "Cria ou atualiza um registro na entidade Produto (TGFPRO) diretamente via JSON-RPC, incluindo vínculo de IMAGEM ($file_session_key) sem cliques na grade.",
+    "sampleHeaders": {
+      "Content-Type": "application/json",
+      "sktk": "{sktk}"
+    },
+    "samplePayload": {
+      "serviceName": "CRUDServiceProvider.saveRecord",
+      "requestBody": {
+        "dataSet": {
+          "rootEntity": "Produto",
+          "includePresentationFields": "N",
+          "dataRow": {
+            "localFields": {
+              "REFERENCIA": {
+                "$": "CLML0625-P"
+              },
+              "DESCRPROD": {
+                "$": "CAMISA PESCA MASCULINA BRK CLML0625 P"
+              },
+              "CODGRUPOPROD": {
+                "$": "10101"
+              },
+              "CODVOL": {
+                "$": "UN"
+              },
+              "NCM": {
+                "$": "61052000"
+              },
+              "USOPROD": {
+                "$": "V"
+              }
+            },
+            "key": {
+              "CODPROD": {
+                "$": "74185"
+              }
+            }
+          },
+          "entity": {
+            "fieldset": {
+              "list": "CODPROD,REFERENCIA,DESCRPROD"
+            }
+          }
+        }
+      }
+    },
+    "capturedAt": "2026-10-16T14:42:33.265Z",
+    "hitCount": 1
+  },
+  {
+    "id": "bp_shopify_storefront_products_json",
+    "platform": "shopify",
+    "category": "Descoberta Pública Zero-Auth (3 Lojas BRK)",
+    "name": "GET /products.json (Fishing, Agro, Motors)",
+    "method": "GET",
+    "urlPattern": "https://www.brkfishing.com.br/products.json?limit=250&page=1",
+    "serviceName": "products.json",
+    "authType": "Público (Sem Token)",
+    "status": "VERIFIED",
+    "description": "Retorna todos os anúncios publicados na loja Shopify com o ID numérico de 13 dígitos (product.id), variantes (variant.id, variant.sku, variant.price) e URLs das fotos CDN.",
+    "sampleHeaders": {
+      "Accept": "application/json"
+    },
+    "samplePayload": null,
+    "capturedAt": "2026-10-16T14:42:33.265Z",
+    "hitCount": 1
+  },
+  {
+    "id": "bp_shopify_flow_webhook",
+    "platform": "shopify",
+    "category": "Automação Push (Shopify Flow -> HUB)",
+    "name": "POST /api/magis5/webhook/shopify",
+    "method": "POST",
+    "urlPattern": "http://localhost:3000/api/magis5/webhook/shopify",
+    "serviceName": "ShopifyFlow.SendHttpRequest",
+    "authType": "Opcional X-HookPrime-Secret",
+    "status": "VERIFIED",
+    "description": "Gatilho imediato disparado pelo Shopify Flow assim que um produto é criado ou atualizado nas 3 lojas, enviando legacyResourceId e lista de SKUs.",
+    "sampleHeaders": {
+      "Content-Type": "application/json"
+    },
+    "samplePayload": {
+      "shopifyProductId": "{{product.legacyResourceId}}",
+      "store": "fishing",
+      "title": "{{product.title}}",
+      "variants": [
+        {
+          "id": "{{v.legacyResourceId}}",
+          "sku": "{{v.sku}}"
+        }
+      ]
+    },
+    "capturedAt": "2026-10-16T14:42:33.265Z",
+    "hitCount": 1
+  },
+  {
+    "id": "bp_magis5_import_announcement",
+    "platform": "magis5",
+    "category": "Importação e Vínculo de Anúncio + Estoque Infinito",
+    "name": "POST /v1/channels/announcements/import + PUT /v1/stocks",
+    "method": "POST",
+    "urlPattern": "https://app.magis5.com.br/v1/channels/announcements/import",
+    "serviceName": "channels/announcements/import",
+    "authType": "Header X-MAGIS5-APIKEY",
+    "status": "VERIFIED",
+    "description": "Importa o anúncio pelo ID da Shopify no canal correspondente, aplica regra Produção (Vendido de forma diversa + Estoque Fixo 1000) ou Revenda (_FULL -> Depósito 1010000).",
+    "sampleHeaders": {
+      "Content-Type": "application/json",
+      "X-MAGIS5-APIKEY": "{X-MAGIS5-APIKEY}"
+    },
+    "samplePayload": {
+      "channel": "shopify-8e9dc508c9e24e76a6cc29dc92ce3b9f",
+      "externalId": "9123456789012",
+      "soldInDifferentWays": true,
+      "stockFixed": 1000
+    },
+    "capturedAt": "2026-10-16T14:42:33.265Z",
+    "hitCount": 1
+  }
+]

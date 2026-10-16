@@ -28,17 +28,11 @@
 
   // ───────── Mapa de páginas ─────────
   const pages = {
-    dashboard:     { title: 'Dashboard',              render: () => window.HUB.renderDashboard?.() },
-    autopilot:     { title: '🚀 Lucas RTX',           render: () => window.HUB.renderAutopilot?.() },
-    spreadsheet:   { title: 'Gerador de Planilhas',    render: () => window.HUB.renderSpreadsheet?.() },
-    folders:       { title: 'Gerenciador de Pastas',    render: () => window.HUB.renderFolders?.() },
-    flow:          { title: 'Fluxo de Trabalho',        render: () => window.HUB.renderFlow?.() },
-    images:           { title: 'Gerenciador de Imagens',    render: () => window.HUB.renderImageManager?.() },
-    'image-crosser':  { title: '🔀 Cruzador de Imagens',   render: () => window.HUB.renderImageCrosser?.() },
-    history:          { title: 'Histórico de Tarefas',      render: () => window.HUB.renderHistory?.() },
-    'ean-viewer':     { title: 'EAN Viewer',              render: () => window.HUB.renderEanViewer?.() },
-    magis5:           { title: '📦 Magis5 Bridge',         render: () => window.HUB.renderMagis5?.() },
-    pipeline:         { title: '📋 Pipeline',              render: () => window.HUB.renderPipeline?.() },
+    dashboard:   { title: 'Dashboard',            render: () => window.HUB.renderDashboard?.() },
+    autopilot:   { title: '🚀 Lucas RTX',         render: () => window.HUB.renderAutopilot?.() },
+    spreadsheet: { title: 'Gerador de Planilhas', render: () => window.HUB.renderSpreadsheet?.() },
+    magis5:      { title: '📦 Magis5 Bridge',     render: () => window.HUB.renderMagis5?.() },
+    'ean-viewer':{ title: 'EAN Viewer',           render: () => window.HUB.renderEanViewer?.() },
   };
 
   // ───────── Navegação SPA ─────────

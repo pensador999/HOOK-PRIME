@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         HOOK PRIME - ClickUp Autopilot
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.0.2
+// @updateURL    http://localhost:3001/userscripts/clickup-autopilot.user.js
+// @downloadURL  http://localhost:3001/userscripts/clickup-autopilot.user.js
 // @description  Integra as tarefas do ClickUp com o Hub local do HOOK PRIME
 // @author       HOOK PRIME
 // @match        https://app.clickup.com/*
@@ -12,7 +14,7 @@
 (function() {
     'use strict';
 
-    const HUB_URL = 'http://localhost:3000/api/autopilot/tasks';
+    const HUB_URL = 'http://localhost:3001/api/autopilot/tasks';
 
     function createHookButton() {
         const btn = document.createElement('button');
@@ -119,7 +121,7 @@
                 onerror: function(err) {
                     console.error('Erro na requisição', err);
                     btn.innerText = '❌ Hub Offline';
-                    alert('Verifique se o seu servidor do HOOK PRIME está rodando no localhost:3000');
+                    alert('Verifique se o seu servidor do HOOK PRIME está rodando no localhost:3001');
                 }
             });
         };
@@ -178,7 +180,7 @@
     function pingHub() {
         GM_xmlhttpRequest({
             method: "GET",
-            url: 'http://localhost:3000/api/autopilot/ping',
+            url: 'http://localhost:3001/api/autopilot/ping',
             onload: function(res) { updateStatus(true); },
             onerror: function(err) { updateStatus(false); }
         });

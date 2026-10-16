@@ -203,7 +203,25 @@ function normalizePath(p) {
 }
 
 /**
- * Verifica se um caminho pertence a QUALQUER rede (UNC path).
+ * 🔒 Unidades de rede mapeadas (ex.: Y: → \\192.168.100.100\Marketing, Z: → \\...\Linha BRK).
+ * Um caminho "Z:\..." aponta para a rede tanto quanto "\\192.168.100.100\..." — sem esta
+ * detecção ele escaparia do guard. Lido via `net use` e mantido em cache por 60s.
+ */
+let _mappedDrivesCache = { at: 0, letters: [] };
+function getMappedNetworkDrives() {
+  if (process.platform !== 'win32') return [];
+  if (Date.now() - _mappedDrivesCache.at < 60000) return _mappedDrivesCache.letters;
+  let letters = _mappedDrivesCache.letters;
+  try {
+    const out = require('child_process').execSync('net use', { encoding: 'latin1', timeout: 5000, windowsHide: true });
+    letters = [...out.matchAll(/(?:^|\s)([A-Za-z]):\s+\\\\/gm)].map(m => m[1].toLowerCase());
+  } catch (e) { /* mantém o último valor conhecido */ }
+  _mappedDrivesCache = { at: Date.now(), letters };
+  return letters;
+}
+
+/**
+ * Verifica se um caminho pertence a QUALQUER rede (UNC path ou unidade mapeada).
  * Protege contra qualquer servidor, não só o 192.168.100.100.
  */
 function isNetworkPath(targetPath) {
@@ -213,8 +231,9 @@ function isNetworkPath(targetPath) {
   // Qualquer caminho UNC (\\qualquer\coisa)
   if (normalized.startsWith('\\\\')) return true;
 
-  // Drives mapeados conhecidos (adicionar se houver)
-  // if (normalized.startsWith('v:\\')) return true;
+  // Unidades mapeadas para a rede (Y:, Z:, ...)
+  const drive = normalized.match(/^([a-z]):\\/);
+  if (drive && getMappedNetworkDrives().includes(drive[1])) return true;
 
   return false;
 }
@@ -368,7 +387,8 @@ function guardCopyDestination(source, destination) {
 function guardShellCommand(command) {
   if (!command) return;
   const cmd = command.toLowerCase();
-  const hasNetworkPath = cmd.includes('\\\\') || cmd.includes(NETWORK_SERVER);
+  const hasNetworkPath = cmd.includes('\\\\') || cmd.includes(NETWORK_SERVER)
+    || getMappedNetworkDrives().some(l => new RegExp(`(^|[\\s"'=(])${l}:`).test(cmd));
 
   if (!hasNetworkPath) return; // Comando local, pode executar
 

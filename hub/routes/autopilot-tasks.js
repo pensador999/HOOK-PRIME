@@ -4,6 +4,7 @@
  */
 'use strict';
 const router = require('express').Router();
+const clickupSync = require('../config/clickup-sync');
 
 module.exports = function({ autopilotTasks, autopilotClients, saveTasksToDisk, networkPrefixes, resolvePrefixConfig }) {
 
@@ -146,6 +147,7 @@ router.patch('/api/autopilot/tasks/:id/status', (req, res) => {
     const task = autopilotTasks.find(t => t.id === id);
     if (!task) return res.status(404).json({ error: 'Task não encontrada.' });
     task.status = status;
+    clickupSync.onStatusChange(task, status); // 🔄 agenda o card no ClickUp (só avança)
     saveTasksToDisk();
     // Notifica todos os clientes SSE
     autopilotClients.forEach(client => {
@@ -156,6 +158,25 @@ router.patch('/api/autopilot/tasks/:id/status', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── 🔄 ClickUp vivo: o script do Tampermonkey pergunta o que mover ─────────
+// GET  /api/clickup-sync/pending      → próximos passos (um por task, só para frente)
+// POST /api/clickup-sync/:id/result   → { ok, to, observed?, error?, dryRun? }
+router.get('/api/clickup-sync/pending', (req, res) => {
+  res.json({ success: true, steps: clickupSync.pendingSteps(autopilotTasks), names: clickupSync.CLICKUP_NAMES });
+});
+
+router.post('/api/clickup-sync/:id/result', (req, res) => {
+  const task = autopilotTasks.find(t => t.id === req.params.id);
+  if (!task) return res.status(404).json({ error: 'Task não encontrada.' });
+  const { ok, to, observed, error, dryRun } = req.body || {};
+  if (!clickupSync.ORDER.includes(to)) return res.status(400).json({ error: 'Campo "to" inválido.' });
+  if (observed && !clickupSync.ORDER.includes(observed)) return res.status(400).json({ error: 'Campo "observed" inválido.' });
+  const r = clickupSync.applyResult(task, { ok: !!ok, to, observed, error: error ? String(error).slice(0, 300) : null, dryRun: !!dryRun });
+  saveTasksToDisk();
+  console.log(`🔄 ClickUp sync ${task.title}: ${dryRun ? 'TESTE ' : ''}${ok ? 'OK' : 'falhou'} → ${to}${error ? ' (' + error + ')' : ''}`);
+  res.json({ success: true, result: r, sync: task.clickupSync });
 });
 
 // ─── DELETE /api/autopilot/tasks/:id ────────────────────────────────────────

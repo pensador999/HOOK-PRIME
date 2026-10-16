@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         BRK Autopilot Unificado - Magis5 + Sankhya API Turbo
 // @namespace    http://tampermonkey.net/
-// @version      7.3
+// @version      7.3.2
+// @updateURL    http://localhost:3001/userscripts/unficado-magis5-e-sankhya.user.js
+// @downloadURL  http://localhost:3001/userscripts/unficado-magis5-e-sankhya.user.js
 // @description  Script unificado: Import Autopilot Multi-Canal (Magis5) + Busca Turbo via API Direta (Sankhya) — Troca automática de SKUs blindada, consulta direta via API ou Cross-Tab, 6 workers paralelos e suporte total a jQuery/Metronic.
 // @match        https://app.magis5.com.br/*
 // @match        https://brk.sankhyacloud.com.br/*
@@ -988,7 +990,7 @@
             const data = await new Promise((resolve) => {
                 GM_xmlhttpRequest({
                     method: 'GET',
-                    url: 'http://localhost:3000/api/pipeline/pending-ids',
+                    url: 'http://localhost:3001/api/pipeline/pending-ids',
                     timeout: 5000,
                     onload: (res) => {
                         try { resolve(JSON.parse(res.responseText)); }
@@ -1025,7 +1027,7 @@
         try {
             GM_xmlhttpRequest({
                 method: 'POST',
-                url: 'http://localhost:3000/api/pipeline/import-progress',
+                url: 'http://localhost:3001/api/pipeline/import-progress',
                 headers: { 'Content-Type': 'application/json' },
                 data: JSON.stringify({
                     sessionId: _hookPrimeSessionId,
@@ -1057,7 +1059,7 @@
                 const data = await new Promise((resolve) => {
                     GM_xmlhttpRequest({
                         method: 'GET',
-                        url: 'http://localhost:3000/api/pipeline/pending-ids',
+                        url: 'http://localhost:3001/api/pipeline/pending-ids',
                         timeout: 5000,
                         onload: (res) => { try { resolve(JSON.parse(res.responseText)); } catch (e) { resolve(null); } },
                         onerror: () => resolve(null),

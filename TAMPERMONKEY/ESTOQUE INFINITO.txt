@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         BRK Estoque Infinito Autopilot - Magis5
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.1.2
+// @updateURL    http://localhost:3001/userscripts/estoque-infinito.user.js
+// @downloadURL  http://localhost:3001/userscripts/estoque-infinito.user.js
 // @description  Adiciona Estoque Infinito (1000) em todas as variantes de produtos na Magis5 automaticamente
 // @match        https://app.magis5.com.br/*
 // @grant        GM_setValue
@@ -28,7 +30,7 @@
         return await new Promise((resolve, reject) => {
           GM_xmlhttpRequest({
             method: 'GET',
-            url: 'http://localhost:3000/api/pipeline/pending-titles',
+            url: 'http://localhost:3001/api/pipeline/pending-titles',
             timeout: 5000,
             onload: (res) => {
               try {
@@ -52,7 +54,7 @@
       try {
         GM_xmlhttpRequest({
           method: 'POST',
-          url: 'http://localhost:3000/api/pipeline/estoque-progress',
+          url: 'http://localhost:3001/api/pipeline/estoque-progress',
           headers: { 'Content-Type': 'application/json' },
           data: JSON.stringify({
             sessionId: _hookPrimeSessionId,
